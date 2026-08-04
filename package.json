@@ -1,0 +1,28 @@
+{
+  "name": "pi-scientific-skills",
+  "version": "2.62.0",
+  "description": "158 ready-to-use scientific and research Agent Skills for the pi coding agent: bioinformatics, cheminformatics, medical imaging, ML/AI, physics, statistics, visualization, scientific writing and more. Ported from K-Dense's scientific-agent-skills.",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "agent-skills",
+    "scientific",
+    "research",
+    "bioinformatics",
+    "cheminformatics",
+    "data-science",
+    "skills"
+  ],
+  "pi": {
+    "skills": ["./skills"]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danieldoesbio/pi-scientific-skills.git"
+  },
+  "files": ["skills", "LICENSE.md", "README.md", "DOCUMENTATION.md"],
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "sync:upstream": "bash scripts/sync-upstream.sh"
+  }
+}
