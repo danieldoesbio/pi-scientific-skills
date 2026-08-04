@@ -46,6 +46,7 @@ scripts/validate.mjs    # pi-rule validation across all skills
 LICENSE.md              # upstream MIT verbatim
 README.md               # pi-user-facing
 DOCUMENTATION.md        # this file
+test-artifacts/         # gitignored: output from local skill verification runs
 ```
 
 ## Port process (how a new upstream version lands)
@@ -90,14 +91,49 @@ Pi does not require the name to match its parent directory.
 `scripts/validate.mjs` (no dependencies, Node ≥18):
 
 - Walks `skills/**/SKILL.md`.
-- Parses YAML frontmatter with a conservative line-based parser (frontmatter is
-  simple `key: value` / `key:`-scalar; nested `metadata:` is skipped).
+- Parses YAML frontmatter with a line-based parser covering the constructs this
+  collection actually uses: plain scalars, quoted scalars, and block scalars
+  (`>`/`|` with chomping and indent indicators). Nested mappings (`metadata:`)
+  are consumed and skipped — none are validated.
 - Reports violations of the table above; exits non-zero only when a skill is
   missing its `description` (pi would refuse to load it).
+
+Block scalars matter more than they look. Two skills (`bids`, `onekgpd`) write
+`description: >` with the text on following lines. A naive line-based parser
+records the `>` indicator itself as the value, so a skill whose block body was
+*empty* would present a 1-character description, pass the presence check, and
+ship — even though pi would refuse to load it. That is the exact hard failure
+this script exists to catch, so the parser resolves block bodies rather than
+treating the indicator as the value.
+
+## Repo hygiene (important when re-syncing)
+
+`skills/` must stay **byte-identical to upstream**. Two things routinely violate
+that, both by-products of testing rather than editing:
+
+- **`__pycache__/` inside `skills/`.** Running a skill's Python helper compiles
+  bytecode next to the source. Compiled bytecode is machine-specific build
+  output, never upstream content, and `skills/` is in `package.json`'s `files`
+  list — so anything left there is distributed. It is gitignored; do not
+  force-add it.
+- **Skill output written to the repo root.** Some skills (e.g.
+  `experimental-design`) write CSV/Markdown into the working directory. Those
+  belong in `test-artifacts/` (gitignored). Note that `files` keeps stray root
+  files out of the npm tarball but **not** out of a
+  `pi install git:github.com/...` install, which ships the whole tree.
+
+After any sync or test run, confirm cleanliness:
+
+```bash
+diff -rq /path/to/upstream/skills skills   # must report no differences
+npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
+```
 
 ## Publishing checklist
 
 - [ ] `npm run validate` clean (no missing descriptions)
+- [ ] `skills/` byte-identical to upstream (`diff -rq`) — no `__pycache__`, no stray output
+- [ ] `npm pack --dry-run` shows no `.pyc` and no test artifacts
 - [ ] `pi -e .` smoke test passes (skills appear)
 - [ ] `package.json` version mirrors upstream
 - [ ] git commit + tag + push (GitHub)

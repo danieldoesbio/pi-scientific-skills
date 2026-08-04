@@ -12,25 +12,63 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(root, "skills");
 
+function unquote(s) {
+  const m = s.match(/^(['"])([\s\S]*)\1$/);
+  return m ? m[2] : s;
+}
+
 function parseFrontmatter(text) {
-  // Conservative line-based parser for the simple frontmatter this collection
-  // uses (key: value / key: block-scalar). Nested mappings are skipped.
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  // Line-based parser for the top-level scalars this collection uses. It must
+  // resolve block scalars (`description: >` followed by indented lines), because
+  // a naive parser records the `>` indicator itself as the value — which makes a
+  // skill with an EMPTY block body look like it has a description and slip past
+  // the hard check below, even though pi would refuse to load it.
+  //
+  // Only top-level scalars are resolved. Nested mappings (`metadata:`) are
+  // recorded as present-but-empty and skipped; none are validated.
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/m);
   if (!m) return null;
+
   const fm = {};
-  let key = null;
-  let depth = 0;
-  for (const line of m[1].split(/\r?\n/)) {
-    const indent = line.match(/^\s*/)[0].length;
-    if (indent === 0 && /^[A-Za-z0-9_-]+:/.test(line)) {
-      const [, k, rest] = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-      key = k;
-      fm[k] = rest.trim();
-      depth = rest.trim() === "" ? 0 : -1; // -1: scalar on same line
-    } else if (key && depth >= 0 && indent > 0) {
-      depth = indent; // nested block under key
+  const lines = m[1].split(/\r?\n/);
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    i++;
+
+    const kv = line.match(/^([A-Za-z0-9_-]+):[ \t]*(.*)$/);
+    if (!kv) continue; // continuation of a construct we skipped, or blank
+    const [, key, rawRest] = kv;
+    const rest = rawRest.trim();
+
+    // Block scalar: `>`, `|`, plus optional chomping/indent indicators (>-, |2+).
+    const block = rest.match(/^([|>])([+-]?\d*|\d*[+-]?)$/);
+    if (block) {
+      const folded = block[1] === ">";
+      const body = [];
+      while (i < lines.length) {
+        const next = lines[i];
+        if (next.trim() !== "" && !/^[ \t]/.test(next)) break; // dedent ends block
+        body.push(next.trim());
+        i++;
+      }
+      while (body.length && body[body.length - 1] === "") body.pop(); // chomp
+      fm[key] = folded ? body.join(" ").replace(/\s+/g, " ").trim() : body.join("\n").trim();
+      continue;
     }
+
+    if (rest === "") {
+      // Either an empty scalar or the start of a nested mapping/sequence.
+      // Consume any indented block so its inner keys aren't read as top-level.
+      while (i < lines.length && (lines[i].trim() === "" || /^[ \t]/.test(lines[i]))) i++;
+      fm[key] = "";
+      continue;
+    }
+
+    fm[key] = unquote(rest);
   }
+
   return fm;
 }
 
@@ -64,8 +102,10 @@ for (const skill of collectSkills(skillsDir)) {
     continue;
   }
 
+  // Per pi's rules only a missing description is fatal; every name violation —
+  // including absence — is a warning, and pi still loads the skill.
   if (!fm.name) {
-    problems.hard.push(`${skill.name}: missing 'name'`);
+    problems.warn.push(`${skill.name}: missing 'name'`);
   } else if (fm.name.length > 64 || !nameRe.test(fm.name)) {
     problems.warn.push(
       `${skill.name}: name '${fm.name}' violates pi rules (≤64 chars, [a-z0-9-], no leading/trailing/consecutive hyphens)`,

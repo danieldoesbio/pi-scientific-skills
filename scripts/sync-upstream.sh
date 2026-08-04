@@ -18,7 +18,9 @@ fi
 
 echo "Fetching upstream $UPSTREAM @ $REF ..."
 cd "$TMP"
-git clone --depth 1 --branch "$REF" --filter=blob:limit=1m "$UPSTREAM" upstream >/dev/null 2>&1
+# No --filter: the checkout needs every blob anyway, so a partial clone just
+# refetches them on demand for the same bytes plus an extra round trip.
+git clone --depth 1 --branch "$REF" "$UPSTREAM" upstream >/dev/null 2>&1
 cd upstream
 
 # Snapshot the previous skill set for the diff report.

@@ -1,3 +1,16 @@
 node_modules/
 *.log
 .DS_Store
+
+# Python bytecode. Skill scripts are executed during testing, which leaves
+# __pycache__ inside skills/ — those must never be committed: they break the
+# byte-identical-to-upstream guarantee and embed absolute local paths.
+__pycache__/
+*.py[cod]
+
+# Output written by skills during local verification runs (e.g. the
+# experimental-design randomization scripts). Kept on disk, never distributed.
+test-artifacts/
+
+# npm pack output
+*.tgz
