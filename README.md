@@ -45,6 +45,7 @@ npm run validate        # pi-rule frontmatter check across all skills
 
 See [DOCUMENTATION.md](DOCUMENTATION.md) for the port process, sync procedure, and validation rules.
 
-## License
+## License & Credits
 
-MIT. The bundled skills are © 2025 K-Dense Inc. (see [LICENSE.md](LICENSE.md)); this package is an independent distribution/repackaging of that open-source work. All praise to the upstream maintainers.
+- The bundled skills are © 2025 **K-Dense Inc.**, MIT — see [LICENSE.md](LICENSE.md) (upstream text verbatim). This package is an independent distribution of [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills); all credit for the collection goes to the upstream maintainers. If you use this in a project or publication, consider citing upstream: `K-Dense Inc. Scientific Agent Skills. https://github.com/K-Dense-AI/scientific-agent-skills`.
+- The `docx`, `pdf`, `pptx`, and `xlsx` skills are created and maintained by **Anthropic**, vendored from [anthropics/skills](https://github.com/anthropics/skills) under their own terms — see each skill's `LICENSE.txt`.

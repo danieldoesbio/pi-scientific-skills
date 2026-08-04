@@ -1,7 +1,7 @@
 {
   "name": "pi-scientific-skills",
   "version": "2.62.0",
-  "description": "158 ready-to-use scientific and research Agent Skills for the pi coding agent: bioinformatics, cheminformatics, medical imaging, ML/AI, physics, statistics, visualization, scientific writing and more. Ported from K-Dense's scientific-agent-skills.",
+  "description": "158 scientific and research Agent Skills for the pi coding agent (bioinformatics, cheminformatics, ML/AI, physics, statistics, scientific writing, and more). All skills (c) 2025 K-Dense Inc., MIT — ported from K-Dense-AI/scientific-agent-skills. docx/pdf/pptx/xlsx skills are Anthropic's, vendored under their LICENSE.txt terms.",
   "license": "MIT",
   "keywords": [
     "pi-package",
