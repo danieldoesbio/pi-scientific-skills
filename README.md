@@ -53,7 +53,9 @@ Writing/Literature/Presentation, Single-Cell Omics, Drug Discovery, Clinical &
 Translational, Physics/Astronomy/Materials/Earth, Bioimaging & Neuroscience, and
 Lab Operations. Each is standalone: the data-acquisition skills a field needs
 live in that field's profile, so you never enable a second profile just to fetch
-your own data. The picker shows the live token cost as you toggle:
+your own data. The picker is a checkbox list — arrows move, **space** toggles,
+**a** selects all, **n** clears, **enter** applies, **esc** cancels — and it
+shows the live token cost as you toggle:
 
 ```
 Active: 12/158 skills, ~1.3k tokens, saves ~15.8k

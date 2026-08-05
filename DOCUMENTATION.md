@@ -93,6 +93,34 @@ which starts from **all** paths when there are no plain includes
 `applyPlanToEntry` therefore writes `[]` in that one case and preserves overrides
 everywhere else. Do not "fix" this without re-reading both functions.
 
+### Why the picker is a custom component
+
+`ctx.ui.select` builds a fresh `SelectList` on every call with `selectedIndex`
+0, and `ExtensionUIDialogOptions` carries only `signal` and `timeout` — there is
+no initial-index option. So a picker built from repeated `select()` calls resets
+the cursor to the top after every toggle, which makes ticking two adjacent
+profiles needlessly slow.
+
+The picker therefore renders through `ctx.ui.custom`, a focused component that
+owns its own cursor and checkbox state (`createProfileList`). Space toggles,
+arrows move, enter applies, esc cancels, `a`/`n` are select-all/none. Plain
+characters are safe to bind: `SelectList.handleInput` only handles
+up/down/confirm/cancel and ignores everything else.
+
+Two fallback conditions matter, and both are covered:
+
+- `ui.custom` may be **absent** on older pi builds.
+- RPC mode **defines it but returns `undefined` without rendering**
+  (`dist/modes/rpc/rpc-mode.js:151`).
+
+So `choose()` falls back to the original `select()` loop
+(`chooseViaSelect`) in both cases. This is why the picker's result type is
+always a non-`undefined` object — `{action, selected}` — so an `undefined`
+return unambiguously means "unsupported" rather than "user cancelled".
+
+Note that a custom component must implement `invalidate()`; it is required by
+pi-tui's `Component`, not optional, even when nothing is cached.
+
 ### Other constraints encoded in the code
 
 - Config dir comes from pi's own `getAgentDir()`, so `PI_CODING_AGENT_DIR` is honoured.
