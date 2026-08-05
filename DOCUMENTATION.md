@@ -12,7 +12,8 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 
 1. Packaging (`package.json` with a `pi` manifest and the `pi-package` keyword so
    the package appears in the [pi package gallery](https://pi.dev/packages)).
-2. A pinned snapshot of upstream skills (`skills/`), kept byte-identical.
+2. A pinned snapshot of upstream skills (`skills/`), kept byte-identical apart
+   from four deliberately excluded skills (see Provenance).
 3. Tooling to re-sync from upstream and to validate against pi's rules.
 
 ## Provenance
@@ -24,6 +25,34 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 - **License:** MIT, © 2025 K-Dense Inc. (`LICENSE.md` is the upstream text verbatim).
 - **Relationship:** this repo is an independent distribution of the open-source
   skill collection. It is not affiliated with K-Dense Inc.
+
+### Deliberate exception to the byte-identical rule — do not "restore" these
+
+Upstream vendors four skills from [anthropics/skills](https://github.com/anthropics/skills):
+`docx`, `pdf`, `pptx`, `xlsx`. They are **not MIT**. Each ships a `LICENSE.txt`
+reading `© 2025 Anthropic, PBC. All rights reserved.` whose ADDITIONAL
+RESTRICTIONS forbid, verbatim:
+
+> - Extract these materials from the Services or retain copies of these materials outside the Services
+> - Reproduce or copy these materials […]
+> - Distribute, sublicense, or transfer these materials to any third party
+
+Publishing this package to npm and hosting it in a public git repo does all
+three. They are therefore **excluded from this distribution**, which is why the
+package ships 154 skills and not upstream's 158. `scripts/sync-upstream.sh`
+strips them after every sync (`EXCLUDED_SKILLS`), so a re-vendor cannot quietly
+reintroduce them. Everything else in `skills/` remains byte-identical to upstream.
+
+Two traps for whoever touches this next:
+
+- **`pptx-posters` is K-Dense's own skill and IS shipped.** The exclusion list is
+  matched on exact directory names for that reason; never make it a prefix match.
+- Removing a skill means updating `TOTAL_SKILL_COUNT` in `extensions/profiles.ts`
+  *and* its profile memberships, or `npm run validate` fails the drift check.
+
+If you ever obtain written permission from Anthropic, that is the only thing that
+changes this decision — accurate licence labelling alone does not confer the
+right to redistribute.
 
 ### Why not the "Claude Scientific Skills" repo
 
@@ -40,7 +69,7 @@ custom skill.
 
 ```
 package.json            # pi manifest: "pi": { "skills": [...], "extensions": [...] }, keyword "pi-package"
-skills/                 # 158 skill directories, each with SKILL.md (+ references/scripts/assets)
+skills/                 # 154 skill directories, each with SKILL.md (+ references/scripts/assets)
 extensions/index.ts     # the /sci command — profile picker + settings.json writer
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
@@ -56,14 +85,14 @@ test-artifacts/         # gitignored: output from local skill verification runs
 ### Why it exists
 
 Pi injects every skill's name and description into the system prompt at startup;
-only skill *bodies* are deferred. Measured across this collection: 63,093
-description characters ≈ **17,000 tokens**, ≈108 tokens per skill. That is 52% of
+only skill *bodies* are deferred. Measured across this collection: 62,528
+description characters ≈ **17,000 tokens**, ≈110 tokens per skill. That is 52% of
 a 32k context and more than an 8k context can hold. Pi is frequently run with
 small local models, so the index cost — not the skill content — is the binding
 constraint.
 
 Two distinct problems follow, and the profile design addresses both: the context
-budget, and selection accuracy (a small model discriminates poorly among 158
+budget, and selection accuracy (a small model discriminates poorly among 154
 similar descriptions, many of which are near-neighbours).
 
 ### Why it writes settings.json rather than filtering at runtime

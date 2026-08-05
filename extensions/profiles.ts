@@ -24,14 +24,14 @@ export interface UnassignedSkill {
 }
 
 /** Every skill shipped by the package. Used for the "vs. all skills" delta. */
-export const TOTAL_SKILL_COUNT = 158;
+export const TOTAL_SKILL_COUNT = 154;
 
 /**
  * Measured cost of one skill's name + description in the system prompt:
- * 63,093 chars across 158 skills ~= 17k tokens ~= 108 tokens per skill.
+ * 62,528 chars across 154 skills ~= 17k tokens ~= 110 tokens per skill.
  * Descriptions stay in context permanently, so this is a per-session floor.
  */
-export const TOKENS_PER_SKILL = 108;
+export const TOKENS_PER_SKILL = 110;
 
 /** Context cost of loading the package unfiltered. */
 export const BASELINE_TOKEN_COST = TOTAL_SKILL_COUNT * TOKENS_PER_SKILL;
@@ -53,8 +53,6 @@ export const PROFILES: readonly SkillProfile[] = [
       "scientific-writing",
       "citation-management",
       "paper-lookup",
-      "pdf",
-      "xlsx",
       "scientific-critical-thinking",
     ],
   },
@@ -141,11 +139,8 @@ export const PROFILES: readonly SkillProfile[] = [
       "research-grants",
       "venue-templates",
       "scientific-slides",
-      "pptx",
       "pptx-posters",
       "latex-posters",
-      "docx",
-      "pdf",
       "markitdown",
       "liteparse",
       "markdown-mermaid-writing",
