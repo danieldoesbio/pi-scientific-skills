@@ -40,7 +40,7 @@ export const BASELINE_TOKEN_COST = TOTAL_SKILL_COUNT * TOKENS_PER_SKILL;
 export const PROFILES: readonly SkillProfile[] = [
   {
     id: "core",
-    label: "Core (always on)",
+    label: "Core (recommended)",
     description:
       "Stats, EDA, figures, dataframes, literature and writing — the dozen skills nearly every scientific user reaches for regardless of field.",
     skills: [

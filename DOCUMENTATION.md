@@ -185,15 +185,16 @@ Pi does not require the name to match its parent directory.
 
 ## Validation script details
 
-`scripts/validate.mjs` (no dependencies, Node ≥18):
+`scripts/validate.mjs` (no dependencies, Node ≥ 22.18):
 
 - Walks `skills/**/SKILL.md`.
 - Parses YAML frontmatter with a line-based parser covering the constructs this
   collection actually uses: plain scalars, quoted scalars, and block scalars
   (`>`/`|` with chomping and indent indicators). Nested mappings (`metadata:`)
   are consumed and skipped — none are validated.
-- Reports violations of the table above; exits non-zero only when a skill is
-  missing its `description` (pi would refuse to load it).
+- Reports violations of the table above; exits non-zero when a skill is missing
+  its `description` (pi would refuse to load it) or when `extensions/profiles.ts`
+  disagrees with `skills/`.
 
 Block scalars matter more than they look. Two skills (`bids`, `onekgpd`) write
 `description: >` with the text on following lines. A naive line-based parser
@@ -229,6 +230,9 @@ npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
 ## Publishing checklist
 
 - [ ] `npm run validate` clean (no missing descriptions)
+- [ ] License exceptions re-checked after any sync — `find skills -iname 'LICENSE*'` and
+      `grep -h '^license:' skills/*/SKILL.md | sort -u`; record new non-MIT or
+      NonCommercial skills under Provenance and in README credits
 - [ ] `skills/` byte-identical to upstream (`diff -rq`) — no `__pycache__`, no stray output
 - [ ] `npm pack --dry-run` shows no `.pyc` and no test artifacts
 - [ ] `pi -e .` smoke test passes (skills appear)

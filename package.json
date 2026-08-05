@@ -1,8 +1,13 @@
 {
   "name": "pi-scientific-skills",
   "version": "2.62.0",
-  "description": "158 scientific and research Agent Skills for the pi coding agent (bioinformatics, cheminformatics, ML/AI, physics, statistics, scientific writing, and more). All skills (c) 2025 K-Dense Inc., MIT — ported from K-Dense-AI/scientific-agent-skills. docx/pdf/pptx/xlsx skills are Anthropic's, vendored under their LICENSE.txt terms.",
+  "description": "158 scientific and research Agent Skills for the pi coding agent (bioinformatics, cheminformatics, ML/AI, physics, statistics, scientific writing, and more). All skills (c) 2025 K-Dense Inc., MIT \u2014 ported from K-Dense-AI/scientific-agent-skills. docx/pdf/pptx/xlsx skills are Anthropic's, vendored under their LICENSE.txt terms.",
   "license": "MIT",
+  "author": "danieldoesbio (https://github.com/danieldoesbio)",
+  "homepage": "https://github.com/danieldoesbio/pi-scientific-skills#readme",
+  "bugs": {
+    "url": "https://github.com/danieldoesbio/pi-scientific-skills/issues"
+  },
   "keywords": [
     "pi-package",
     "agent-skills",
@@ -14,14 +19,27 @@
     "skills"
   ],
   "pi": {
-    "extensions": ["./extensions"],
-    "skills": ["./skills"]
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ]
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/danieldoesbio/pi-scientific-skills.git"
   },
-  "files": ["extensions", "skills", "LICENSE.md", "README.md", "DOCUMENTATION.md"],
+  "files": [
+    "extensions",
+    "skills",
+    "LICENSE.md",
+    "README.md",
+    "DOCUMENTATION.md"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
