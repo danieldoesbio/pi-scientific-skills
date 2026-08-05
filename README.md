@@ -28,6 +28,51 @@ After install, all 158 skills are available. When a task matches, pi loads the s
 
 List installed packages with `pi list`, and enable/disable individual skills with `pi config`.
 
+## `/sci` — pick what you load
+
+All 158 skill descriptions sit in the system prompt at startup, because pi's
+progressive disclosure keeps descriptions always-in-context and loads only the
+skill *bodies* on demand. Measured, that index costs **~17k tokens** — over
+half a 32k context window, and more than an 8k window can hold at all. On a
+small local model that is the difference between usable and unusable.
+
+`pi config` can already toggle skills one at a time. `/sci` puts a curated
+profile layer on top so you don't have to do that 158 times:
+
+```bash
+/sci            # interactive menu
+/sci status     # what's active now, and what it costs
+/sci profiles   # jump straight to the picker
+/sci all        # re-enable everything
+/sci none       # disable all skills from this package
+/sci reset      # forget saved profiles, re-enable everything
+```
+
+Ten profiles — Core, Genomics & Bioinformatics, Scientific ML & Data Science,
+Writing/Literature/Presentation, Single-Cell Omics, Drug Discovery, Clinical &
+Translational, Physics/Astronomy/Materials/Earth, Bioimaging & Neuroscience, and
+Lab Operations. Each is standalone: the data-acquisition skills a field needs
+live in that field's profile, so you never enable a second profile just to fetch
+your own data. The picker shows the live token cost as you toggle:
+
+```
+Active: 12/158 skills, ~1.3k tokens, saves ~15.8k
+```
+
+`/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
+
+```json
+{ "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy", "pysam"] } ] }
+```
+
+That means it composes with `pi config` rather than replacing it — fine-tune
+there afterward and `/sci status` will tell you it did. No `SKILL.md` is ever
+modified, so `npm run sync:upstream` cannot clobber your selection, and
+uninstalling the extension leaves your settings working. Overrides you wrote by
+hand (`!pattern`, `+path`, `-path`) are preserved, and `/sci` refuses to write —
+naming the file — rather than guess, if your settings are malformed or a
+project-local `.pi/settings.json` would override the global one.
+
 ## What's inside
 
 158 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).

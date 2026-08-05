@@ -39,15 +39,84 @@ custom skill.
 ## Structure
 
 ```
-package.json            # pi manifest: "pi": { "skills": ["./skills"] }, keyword "pi-package"
+package.json            # pi manifest: "pi": { "skills": [...], "extensions": [...] }, keyword "pi-package"
 skills/                 # 158 skill directories, each with SKILL.md (+ references/scripts/assets)
+extensions/index.ts     # the /sci command — profile picker + settings.json writer
+extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
-scripts/validate.mjs    # pi-rule validation across all skills
+scripts/validate.mjs    # pi-rule validation across all skills + profiles.ts drift check
 LICENSE.md              # upstream MIT verbatim
 README.md               # pi-user-facing
 DOCUMENTATION.md        # this file
 test-artifacts/         # gitignored: output from local skill verification runs
 ```
+
+## The `/sci` extension
+
+### Why it exists
+
+Pi injects every skill's name and description into the system prompt at startup;
+only skill *bodies* are deferred. Measured across this collection: 63,093
+description characters ≈ **17,000 tokens**, ≈108 tokens per skill. That is 52% of
+a 32k context and more than an 8k context can hold. Pi is frequently run with
+small local models, so the index cost — not the skill content — is the binding
+constraint.
+
+Two distinct problems follow, and the profile design addresses both: the context
+budget, and selection accuracy (a small model discriminates poorly among 158
+similar descriptions, many of which are near-neighbours).
+
+### Why it writes settings.json rather than filtering at runtime
+
+Three mechanisms could filter skills. Only one is compatible with this port:
+
+| Mechanism | Verdict |
+|---|---|
+| `disable-model-invocation: true` in frontmatter | **Rejected.** Edits `SKILL.md`, breaking byte-identity with upstream, and `sync-upstream.sh` replaces `skills/` wholesale — every sync would silently wipe the user's selection. |
+| Intercept `resources_discover` and return filtered `skillPaths` | **Rejected.** Opaque and invisible to `pi config`; selection dies with the extension. |
+| Write pi's own per-package filter into `settings.json` | **Chosen.** Native, inspectable, hand-editable, composes with `pi config`, survives sync, and outlives the extension. |
+
+The filter is the documented object form (`settings.md`):
+
+```json
+{ "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy"] } ] }
+```
+
+### The empty-array footgun
+
+`applyPackageFilter` (pi `dist/core/package-manager.js:1804`) treats a **literally
+empty** `skills` array as "disable all". A *non-empty* array containing only
+override patterns (`!x`, `+x`, `-x`) instead falls through to `applyPatterns`,
+which starts from **all** paths when there are no plain includes
+(`package-manager.js:561`). So preserving a user's `!pattern` overrides through a
+"disable all" would invert it into "enable all" while reporting ~0 tokens.
+`applyPlanToEntry` therefore writes `[]` in that one case and preserves overrides
+everywhere else. Do not "fix" this without re-reading both functions.
+
+### Other constraints encoded in the code
+
+- Config dir comes from pi's own `getAgentDir()`, so `PI_CODING_AGENT_DIR` is honoured.
+- Writes are atomic (temp + rename) but resolve symlinks first, so a dotfiles-managed
+  `settings.json` is updated in place rather than replaced with a regular file.
+- A `settings.json.lock` directory is taken around read-modify-write, matching
+  proper-lockfile's protocol, with stale-lock stealing after 10s.
+- Malformed or unreadable settings cause a **refusal with an explanation**, never a write.
+- A project `.pi/settings.json` that lists this package wins over the global one, so
+  `/sci` refuses and names that file instead of writing a change that would do nothing.
+- `scripts/validate.mjs` imports `profiles.ts` and hard-fails if it drifts from
+  `skills/` — an upstream sync that adds or renames a skill must not silently strand
+  it in no profile. Requires Node ≥ 22.18 for TypeScript type stripping.
+
+### Testing it
+
+Pi loads extensions with **jiti** (`dist/core/extensions/loader.js:332`), which
+resolves extensionless relative imports — `from "./profiles"` is correct and will
+fail under raw Node ESM. Drive the extension in tests by loading it through jiti
+with a stubbed `ExtensionAPI`, and point `PI_CODING_AGENT_DIR` at a throwaway
+directory. To verify pi honours the written filter, construct a
+`DefaultPackageManager` and count `resolve().skills.filter(s => s.enabled)` —
+`resolve()` returns *all* resources with an `enabled` flag, so a plain `.length`
+will not change.
 
 ## Port process (how a new upstream version lands)
 
