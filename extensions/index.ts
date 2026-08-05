@@ -712,16 +712,37 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
 // Profile picker — ctx.ui has no multiselect, so toggle via repeated select()
 // ---------------------------------------------------------------------------
 
-const APPLY = "A) Apply";
-const SELECT_ALL = "S) Select all";
-const CLEAR = "C) Clear selection";
-const CANCEL = "X) Cancel";
+// No "A)"/"X)" prefixes: ctx.ui.select renders a plain SelectList driven by
+// arrows + enter (pi-tui select-list.js), with no hotkey or type-to-filter
+// binding. Numbering the rows advertised keys that do nothing.
+const APPLY = "Apply and reload";
+const SELECT_ALL = "Select all profiles";
+const CLEAR = "Clear selection";
+const CANCEL = "Cancel";
 
 const toggleRows = (selected: ReadonlySet<string>): string[] =>
-  TOGGLES.map((toggle, index) => {
+  TOGGLES.map((toggle) => {
     const mark = selected.has(toggle.id) ? "x" : " ";
-    return `${index + 1}) [${mark}] ${toggle.label} — ${toggle.skills.length} skills`;
+    return `[${mark}] ${toggle.label} — ${toggle.skills.length} skills`;
   });
+
+/**
+ * Apply and Cancel lead, the rare bulk actions trail.
+ *
+ * SelectList caps its viewport at 12 rows, and this menu has more entries than
+ * that, so anything at the bottom starts below the fold. Apply is the one row
+ * every session must reach. It also lands under the cursor after each toggle,
+ * because select() rebuilds the list each call with selectedIndex 0 — so the
+ * common "tick a profile, apply" path is two keystrokes. The list wraps, so the
+ * trailing bulk actions are still one Up press from the top.
+ */
+const pickerRows = (rows: readonly string[]): string[] => [
+  APPLY,
+  CANCEL,
+  ...rows,
+  SELECT_ALL,
+  CLEAR,
+];
 
 const withToggled = (selected: ReadonlySet<string>, id: string): ReadonlySet<string> => {
   const next = new Set(selected);
@@ -790,7 +811,7 @@ const runPicker = async (ctx: CommandContext): Promise<void> => {
     const skills = skillsForSelection(selected);
     const prompt = `Scientific skills — ${describeCost(skills.length)}`;
     const rows = toggleRows(selected);
-    const choice = await ctx.ui.select(prompt, [...rows, APPLY, SELECT_ALL, CLEAR, CANCEL]);
+    const choice = await ctx.ui.select(prompt, pickerRows(rows));
 
     if (choice === undefined || choice === CANCEL) {
       report(ctx, "No changes made.", "info");
@@ -818,13 +839,14 @@ const runPicker = async (ctx: CommandContext): Promise<void> => {
   }
 };
 
+// Unnumbered for the same reason as the picker rows: nothing here is a hotkey.
 const MAIN_MENU = [
-  "1) Choose profiles…",
-  "2) Show status",
-  `3) Enable all ${TOTAL_SKILL_COUNT} skills`,
-  "4) Disable all skills",
-  "5) Reset (forget profiles, enable all)",
-  "6) Cancel",
+  "Choose profiles…",
+  "Show status",
+  `Enable all ${TOTAL_SKILL_COUNT} skills`,
+  "Disable all skills",
+  "Reset (forget profiles, enable all)",
+  "Cancel",
 ] as const;
 
 const enableAll = (ctx: CommandContext): Promise<void> =>
