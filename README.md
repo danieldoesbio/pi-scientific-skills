@@ -30,11 +30,11 @@ List installed packages with `pi list`, and enable/disable individual skills wit
 
 ## `/sci` — pick what you load
 
-All 154 skill descriptions sit in the system prompt at startup, because pi's
-progressive disclosure keeps descriptions always-in-context and loads only the
-skill *bodies* on demand. Measured, that index costs **~17k tokens** — over
-half a 32k context window, and more than an 8k window can hold at all. On a
-small local model that is the difference between usable and unusable.
+All 154 skill descriptions sit in the system prompt at startup: pi's progressive
+disclosure keeps descriptions always in context and loads only the skill *bodies*
+on demand. Measured, that index costs **~17k tokens**. That's over half a 32k
+context window, and more than an 8k window can hold at all. On a small local
+model it's the difference between usable and unusable.
 
 `pi config` can already toggle skills one at a time. `/sci` puts a curated
 profile layer on top so you don't have to do that 154 times:
@@ -48,15 +48,17 @@ profile layer on top so you don't have to do that 154 times:
 /sci reset      # forget saved profiles, re-enable everything
 ```
 
-Ten profiles — Core, Genomics & Bioinformatics, Scientific ML & Data Science,
+Ten profiles: Core, Genomics & Bioinformatics, Scientific ML & Data Science,
 Writing/Literature/Presentation, Single-Cell Omics, Drug Discovery, Clinical &
 Translational, Physics/Astronomy/Materials/Earth, Bioimaging & Neuroscience, and
 Lab Operations. An eleventh toggle, `pi-agent`, covers the pi harness itself.
 Each field profile is standalone: the data-acquisition skills a field needs
 live in that field's profile, so you never enable a second profile just to fetch
-your own data. The picker is a checkbox list — arrows move, **space** toggles,
-**a** selects all, **n** clears, **enter** applies, **esc** cancels — and it
-shows the live token cost as you toggle:
+your own data.
+
+The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all,
+**n** clears, **enter** applies, **esc** cancels. It shows the live token cost as
+you toggle:
 
 ```
 Scientific skills — 12/154 skills, ~1.3k tokens, saves ~15.6k
@@ -68,15 +70,16 @@ Scientific skills — 12/154 skills, ~1.3k tokens, saves ~15.6k
 { "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy", "pysam"] } ] }
 ```
 
-That means it composes with `pi config` rather than replacing it — fine-tune
-there afterward and `/sci status` will tell you it did. No `SKILL.md` is ever
-modified, so `npm run sync:upstream` cannot clobber your selection, and
-uninstalling the extension leaves your settings working. Overrides you wrote by
-hand (`!pattern`, `+path`, `-path`) are preserved — except when you disable
-everything (`/sci none`, or applying an empty selection), which has to write an
-empty list and cannot carry them. `/sci` refuses to write —
-naming the file — rather than guess, if your settings are malformed or a
-project-local `.pi/settings.json` would override the global one.
+So it composes with `pi config` instead of replacing it. Fine-tune there
+afterward and `/sci status` will tell you it did. No `SKILL.md` is ever modified,
+so `npm run sync:upstream` can't clobber your selection, and uninstalling the
+extension leaves your settings working.
+
+Overrides you wrote by hand (`!pattern`, `+path`, `-path`) are preserved. The one
+exception is disabling everything (`/sci none`, or applying an empty selection),
+which has to write an empty list and can't carry them. If your settings are
+malformed, or a project-local `.pi/settings.json` would override the global one,
+`/sci` names the file and refuses to write rather than guess.
 
 ## What's inside
 
@@ -86,10 +89,10 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
 
 ## Tested in pi
 
-Packaged *and* run in pi — with the sample sizes stated, so you can judge for yourself:
+What's actually been tested, with the numbers:
 
 - **Discovery & validation — all 154:** every skill loads into the pi system prompt with correct name/description/location; frontmatter passes pi's validation rules (0 warnings, 0 hard issues).
-- **Functional runs — 4 of 154.** Four representative skills were actually executed in pi: `statistical-analysis` (ran its assumption-check script, correct decision path), `pathogen-variant-surveillance` (live GenSpectrum API query, real data), `experimental-design` (ran `randomization.py`, correct stratified allocation), `scientific-visualization` (rendered a 300-DPI figure via the skill's own export helper). Run under `z-ai/glm-5.2`. The other 150 are verified to *load*, not to *work* — treat them as upstream ships them.
+- **Functional runs — 4 of 154.** Four skills were run for real in pi: `statistical-analysis` (ran its assumption-check script, correct decision path), `pathogen-variant-surveillance` (live GenSpectrum API query, real data), `experimental-design` (ran `randomization.py`, correct stratified allocation), `scientific-visualization` (rendered a 300-DPI figure via the skill's own export helper). All under `z-ai/glm-5.2`. The other 150 load cleanly but haven't been exercised here, so take them as upstream ships them.
 - **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes 2,512 tests on the byte-identical content.
 
 Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.62.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
@@ -120,46 +123,41 @@ npm run validate        # pi-rule frontmatter check across all skills
 
 See [DOCUMENTATION.md](DOCUMENTATION.md) for the port process, sync procedure, and validation rules.
 
-## Contributing — the pi community is genuinely invited
+## Contributing
 
 If you use pi and something here could work better in it, please open an issue or
-a PR. Two things are especially wanted:
+a PR. Two things I'd especially like:
 
 - **pi-specific adaptations.** These skills were written for the Agent Skills
-  standard generally, not for pi in particular. If a skill trips over something
-  in the pi harness, or its frontmatter/tool expectations could be tuned to fit
-  pi better, that's exactly the kind of report this repo exists to collect.
+  standard in general, not for pi. If a skill trips over something in the pi
+  harness, or its frontmatter and tool expectations could be tuned to fit pi
+  better, I want to hear about it.
 - **`/sci` profiles.** The ten field profiles are a first guess at how scientists
-  group their work, made by one researcher and a language model — not a survey.
-  If your field is served badly by them — wrong bundle, missing skill, a profile
-  you'd have to enable two of — say so.
+  group their work, put together by one researcher and a language model. If your
+  field is served badly by them — wrong bundle, missing skill, a profile you'd
+  have to enable two of — say so.
 
-**Where to send improvements to skill *content*:** upstream, at
+**Improvements to a skill's actual content should go upstream**, to
 [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills).
-That isn't a brush-off — it's structural. `skills/` here is a byte-identical
-snapshot, and `npm run sync:upstream` replaces it wholesale, so a content fix
-patched into this repo would be silently erased on the next sync. Sent upstream,
-it helps every harness *and* flows back here automatically. If a pi adaptation
-genuinely cannot go upstream, raise it here and it will be carried as a clearly
-marked local addition rather than a quiet edit to upstream's files.
+`skills/` here is a byte-identical snapshot, and
+`npm run sync:upstream` replaces it wholesale, so a fix patched in here would
+disappear on my next sync. Upstream it sticks, helps every other harness too,
+and flows back here on its own. If a pi-specific change can't go upstream, open
+it here and I'll carry it as a clearly marked local addition.
 
 ### On future additions of my own
 
-I may add my own skills to this package over time — things that come out of my
-own research and seem worth sharing. If that happens:
+I may add skills of my own here over time — things that come out of my research
+and seem worth sharing. If I do:
 
-- They will **never** be mixed into `skills/`. That directory is upstream's, and
-  its byte-identical guarantee is the whole basis for trusting the attribution
-  above. Anything of mine lives in a separate directory registered as its own
-  root (pi's `skills` manifest field takes multiple), so the boundary is visible
-  from the file tree alone.
-- Each will say so in its own frontmatter and be listed here as not being
-  upstream's work.
-- The skill count in this README will always distinguish the two, so "154 skills
-  from upstream" never quietly becomes "154 skills" of mixed provenance.
+- They won't go in `skills/`. That directory stays upstream's. Mine will live in
+  a separate directory registered as its own root (pi's `skills` field accepts
+  several), so you can tell them apart from the file tree.
+- Each one will name its author in its frontmatter, and I'll list them here.
+- The counts in this README will stay separate, so "154 skills from upstream"
+  doesn't quietly drift into "154 skills" of mixed origin.
 
-Nothing of the sort exists today: **all 154 skills currently shipped are
-upstream's, and none are mine.**
+None exist yet. **All 154 skills shipped today are upstream's.**
 
 ## License & Credits
 
@@ -170,25 +168,21 @@ upstream's, and none are mine.**
 
 ### How this port was made
 
-Stated plainly, because you should know what did the work here:
+I started by downloading the K-Dense repository and the pi extensions page as
+source material. The porting itself was done by
+**`deepseek/deepseek-v4-flash-0731`** running under a **`moonshotai/kimi-k3`**
+advisor. Initial testing in pi used **`z-ai/glm-5.2`**. A final pass in
+**Claude Code** with **Opus 5** handled the licence review, documentation, and
+release prep.
 
-The port started by downloading the K-Dense repository and the pi extensions
-page as source material. The porting itself was done by
-**`deepseek/deepseek-v4-flash-0731`**, running under a
-**`moonshotai/kimi-k3`** advisor. Initial testing inside pi was done with
-**`z-ai/glm-5.2`**. A final cleanup pass — licensing review, documentation, and
-release preparation — was done in **Claude Code** using **Opus 5**.
-
-A human (danieldoesbio) directed the work, made the judgement calls, and is
-responsible for what shipped. But the packaging and the `/sci` extension are
-substantially model-written, and it would be misleading to present them
-otherwise. None of this touched `skills/`, which remains upstream's bytes
-unaltered.
+I directed the work and made the calls, and I'm responsible for what shipped.
+The packaging and the `/sci` extension are largely model-written, so I'd rather
+say that outright. None of it touched `skills/`.
 
 ### Built with the pi ecosystem
 
-This was put together while leaning on other people's pi packages, all of which
-shaped it one way or another — worth a shout-out:
+Put together while leaning on other people's pi packages, all of which shaped
+this one:
 [`pi-subagents`](https://www.npmjs.com/package/pi-subagents),
 [`pi-lens`](https://www.npmjs.com/package/pi-lens),
 [`pi-web-access`](https://www.npmjs.com/package/pi-web-access),
