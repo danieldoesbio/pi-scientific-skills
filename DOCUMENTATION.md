@@ -64,6 +64,33 @@ If you ever obtain written permission from Anthropic, that is the only thing tha
 changes this decision — accurate licence labelling alone does not confer the
 right to redistribute.
 
+### Adding skills of our own — the mechanism, decided in advance
+
+The README reserves the option to ship maintainer-authored skills alongside
+upstream's. None exist yet. When the first one lands, it must follow this, and
+the reason is mechanical, not stylistic: `sync-upstream.sh` does
+`rm -rf skills/` followed by `cp -R`, so **anything placed in `skills/` is
+destroyed by the next sync, silently and without a diff to notice.**
+
+- Local skills live in a **separate top-level directory** (`skills-local/`),
+  never inside `skills/`. Confirmed supported: pi's manifest reader resolves
+  `pi.skills` through `sourceEntries.flatMap(...)` in
+  `core/package-manager.js` (`collectFilesFromManifestEntries`), so multiple
+  roots work. Register it as a second entry:
+  `"skills": ["./skills", "./skills-local"]`.
+- Add it to `files` in `package.json` or it will not ship.
+- `validate.mjs` scans `skills/` only (`const skillsDir = join(root, "skills")`)
+  and hard-fails when `TOTAL_SKILL_COUNT` disagrees with what it finds there.
+  Extend it to scan both roots and count them **separately** — the upstream
+  count is a provenance claim in the README, not just a number, and must not
+  silently absorb local additions.
+- `/sci` gets a distinct toggle for local skills. Do not fold them into `core`.
+- Each local skill states its own authorship in frontmatter.
+
+The point of all of this is that the README's attribution — "nothing in
+`skills/` is this maintainer's work" — stays literally true and checkable from
+the file tree, rather than depending on anyone's memory.
+
 ### Why not the "Claude Scientific Skills" repo
 
 An older snapshot of the same project (`claude-scientific-skills`) also exists.
