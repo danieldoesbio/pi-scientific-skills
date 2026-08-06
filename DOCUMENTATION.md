@@ -19,7 +19,17 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 ## Provenance
 
 - **Upstream:** https://github.com/K-Dense-AI/scientific-agent-skills
-- **Upstream version:** 2.62.0 (from `pyproject.toml`)
+- **Upstream version:** 2.62.0 (from `pyproject.toml`), recorded in
+  `package.json` as `upstreamVersion`
+- **Our version is independent of upstream's.** This package uses its own semver
+  line starting at 1.0.0. It deliberately does *not* mirror the upstream number:
+  the two artifacts differ (154 skills vs upstream's 158, plus the `/sci`
+  extension), and upstream ships patch releases — 16 of their 99 tags have a
+  non-zero patch, e.g. `v2.37.2`. Mirroring would mean an extension-only fix has
+  to burn a number like `2.62.1` that upstream may later claim for itself, and
+  npm versions can never be reused. `upstreamVersion` carries the snapshot
+  identity instead, so bump `version` for *our* changes and `upstreamVersion`
+  for *theirs*.
 - **Source snapshot:** `scientific-agent-skills-main.zip` downloaded to
   `~/Downloads`, extracted, `skills/` copied byte-identical into this repo.
 - **License:** MIT, © 2025 K-Dense Inc. (`LICENSE.md` is the upstream text verbatim).
@@ -186,8 +196,11 @@ will not change.
 3. Spot-check with pi: `pi -e .` then `-p` prompt asking the model to list
    available skills; verify a few names (e.g. `scanpy`,
    `pathogen-variant-surveillance`).
-4. Bump `version` in `package.json` to mirror the upstream version.
-5. Commit, tag `v<version>`, push, `npm publish`.
+4. Set `upstreamVersion` in `package.json` to the tag that was synced, and bump
+   our own `version` — minor for a new upstream snapshot, patch for an
+   extension-only fix. Never copy upstream's number into `version` (see
+   Provenance for why). Update the two `v2.62.0` mentions in README.
+5. Commit, tag `v<version>` (ours, e.g. `v1.1.0`), push, `npm publish`.
 
 ## Validation rules (pi)
 
@@ -265,7 +278,8 @@ npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
 - [ ] `skills/` byte-identical to upstream (`diff -rq`) — no `__pycache__`, no stray output
 - [ ] `npm pack --dry-run` shows no `.pyc` and no test artifacts
 - [ ] `pi -e .` smoke test passes (skills appear)
-- [ ] `package.json` version mirrors upstream
+- [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
+      the synced tag; README's `v<upstream>` mentions agree with it
 - [ ] git commit + tag + push (GitHub)
 - [ ] `npm publish` (requires npm login) → gallery auto-lists via `pi-package`
       keyword; confirm with

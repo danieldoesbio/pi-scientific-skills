@@ -58,7 +58,7 @@ comm -23 "$TMP/old.txt" "$TMP/new.txt" | sed 's/^/    removed: /'
 comm -13 "$TMP/old.txt" "$TMP/new.txt" | sed 's/^/    added:   /'
 
 if [[ "$REF" != "main" ]]; then
-  echo "Upstream version: $REF (mirror in package.json)"
+  echo "Upstream version: $REF (record in package.json \"upstreamVersion\")"
 else
   echo "Synced from main (untagged). Consider pinning a release tag."
 fi

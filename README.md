@@ -98,8 +98,13 @@ Caveats: `allowed-tools` is inert in pi (no pre-approval gate; no functional har
 
 ## Updating
 
-The skills here are a snapshot of upstream at v2.62.0. As a user, get a newer
-snapshot by reinstalling:
+The skills here are a snapshot of upstream at **v2.62.0**. This package's own
+version is separate — it starts at 1.0.0 and tracks changes to *this*
+distribution, since the contents differ from upstream (154 skills, plus `/sci`)
+and upstream ships patch releases that would collide. The upstream tag a given
+release wraps is always recorded in `package.json` as `upstreamVersion`.
+
+As a user, get a newer snapshot by reinstalling:
 
 ```bash
 pi install npm:pi-scientific-skills

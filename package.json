@@ -1,6 +1,7 @@
 {
   "name": "pi-scientific-skills",
-  "version": "2.62.0",
+  "version": "1.0.0",
+  "upstreamVersion": "v2.62.0",
   "description": "154 scientific and research Agent Skills for the pi coding agent (bioinformatics, cheminformatics, ML/AI, physics, statistics, scientific writing, and more). Skills (c) 2025 K-Dense Inc. and contributors, MIT \u2014 ported from K-Dense-AI/scientific-agent-skills; per-skill authors are credited in each SKILL.md.",
   "license": "MIT",
   "author": "danieldoesbio (https://github.com/danieldoesbio)",
