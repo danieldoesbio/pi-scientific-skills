@@ -57,8 +57,10 @@ unrecorded), `experimental-design`, `scientific-visualization` (`z-ai/glm-5.2`).
 
 `npm run metrics:downloads` → `metrics/downloads.json`. Merge by date; npm
 revisions go into `revisions[]`. npm counts **tarball fetches, not people**.
-First snapshot 2026-08-12: 278 over 12 days, 242 on publish day (1.0.0 and
-1.0.1 both landed 2026-08-06).
+First snapshot 2026-08-12: 278 over 61 recorded days, 242 of them on 2026-08-06
+(1.0.0 and 1.0.1 both landed that day) — publish-day spikes are automated
+traffic, not adoption. 1.0.2 published 2026-08-12; watch whether its own spike
+decays the same way before reading anything into it.
 
 Neither ledger nor metrics ships in the npm tarball (`files[]` is `extensions`,
 `skills`, three markdown files). They do reach `pi install git:github.com/...`.
