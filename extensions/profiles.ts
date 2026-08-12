@@ -24,14 +24,14 @@ export interface UnassignedSkill {
 }
 
 /** Every skill shipped by the package. Used for the "vs. all skills" delta. */
-export const TOTAL_SKILL_COUNT = 154;
+export const TOTAL_SKILL_COUNT = 157;
 
 /**
  * Measured cost of one skill's name + description in the system prompt:
- * 62,528 chars across 154 skills ~= 17k tokens ~= 110 tokens per skill.
+ * 65,455 chars across 157 skills ~= 18k tokens ~= 113 tokens per skill.
  * Descriptions stay in context permanently, so this is a per-session floor.
  */
-export const TOKENS_PER_SKILL = 110;
+export const TOKENS_PER_SKILL = 113;
 
 /** Context cost of loading the package unfiltered. */
 export const BASELINE_TOKEN_COST = TOTAL_SKILL_COUNT * TOKENS_PER_SKILL;
@@ -163,6 +163,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "scvi-tools",
       "scvelo",
       "cellxgene-census",
+      "deepspot-m",
       "arboreto",
       "umap-learn",
       "pydeseq2",
@@ -202,6 +203,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "pkpd-modeling",
       "depmap",
       "primekg",
+      "ncats-arax",
       "matchms",
       "pyopenms",
       "shap",
@@ -232,6 +234,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "scikit-learn",
       "shap",
       "primekg",
+      "ncats-arax",
       "database-lookup",
       "pathogen-variant-surveillance",
     ],
@@ -280,6 +283,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "imaging-data-commons",
       "histolab",
       "pathml",
+      "deepspot-m",
       "omero-integration",
       "zarr-python",
       "dask",
@@ -313,6 +317,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "nextflow",
       "iso-standards-readiness",
       "analytical-method-validation",
+      "relsa-severity-assessment",
       "flowio",
       "pyopenms",
       "matchms",

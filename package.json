@@ -1,8 +1,8 @@
 {
   "name": "pi-scientific-skills",
-  "version": "1.0.1",
-  "upstreamVersion": "v2.62.0",
-  "description": "154 scientific Agent Skills for the pi coding agent: biology, genomics, chemistry, drug discovery, clinical research, machine learning, physics, statistics. Skills (c) 2025 K-Dense Inc. and contributors (MIT), from K-Dense-AI/scientific-agent-skills.",
+  "version": "1.0.2",
+  "upstreamVersion": "v2.63.0",
+  "description": "157 scientific Agent Skills for the pi coding agent: biology, genomics, chemistry, drug discovery, clinical research, machine learning, physics, statistics. Skills (c) 2025 K-Dense Inc. and contributors (MIT), from K-Dense-AI/scientific-agent-skills.",
   "license": "MIT",
   "author": "danieldoesbio (https://github.com/danieldoesbio)",
   "homepage": "https://github.com/danieldoesbio/pi-scientific-skills#readme",

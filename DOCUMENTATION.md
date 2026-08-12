@@ -19,19 +19,21 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 ## Provenance
 
 - **Upstream:** https://github.com/K-Dense-AI/scientific-agent-skills
-- **Upstream version:** 2.62.0 (from `pyproject.toml`), recorded in
+- **Upstream version:** 2.63.0 (from `pyproject.toml`), recorded in
   `package.json` as `upstreamVersion`
 - **Our version is independent of upstream's.** This package uses its own semver
   line starting at 1.0.0. It deliberately does *not* mirror the upstream number:
-  the two artifacts differ (154 skills vs upstream's 158, plus the `/sci`
+  the two artifacts differ (157 skills vs upstream's 161, plus the `/sci`
   extension), and upstream ships patch releases — 16 of their 99 tags have a
   non-zero patch, e.g. `v2.37.2`. Mirroring would mean an extension-only fix has
-  to burn a number like `2.62.1` that upstream may later claim for itself, and
+  to burn a number like `2.63.1` that upstream may later claim for itself, and
   npm versions can never be reused. `upstreamVersion` carries the snapshot
   identity instead, so bump `version` for *our* changes and `upstreamVersion`
   for *theirs*.
-- **Source snapshot:** `scientific-agent-skills-main.zip` downloaded to
-  `~/Downloads`, extracted, `skills/` copied byte-identical into this repo.
+- **Source snapshot:** `scripts/sync-upstream.sh <tag>` shallow-clones the
+  upstream tag and copies `skills/` byte-identical into this repo. (The 1.0.0
+  snapshot predated the script and came from a `-main.zip` download; every
+  release since is tag-pinned.)
 - **License:** MIT, © 2025 K-Dense Inc. (`LICENSE.md` is the upstream text verbatim).
 - **Relationship:** this repo is an independent distribution of the open-source
   skill collection. It is not affiliated with K-Dense Inc.
@@ -49,7 +51,7 @@ RESTRICTIONS forbid, verbatim:
 
 Publishing this package to npm and hosting it in a public git repo does all
 three. They are therefore **excluded from this distribution**, which is why the
-package ships 154 skills and not upstream's 158. `scripts/sync-upstream.sh`
+package ships 157 skills and not upstream's 161. `scripts/sync-upstream.sh`
 strips them after every sync (`EXCLUDED_SKILLS`), so a re-vendor cannot quietly
 reintroduce them. Everything else in `skills/` remains byte-identical to upstream.
 
@@ -63,6 +65,41 @@ Two traps for whoever touches this next:
 If you ever obtain written permission from Anthropic, that is the only thing that
 changes this decision — accurate licence labelling alone does not confer the
 right to redistribute.
+
+### Upstream's `plugin.json` is deliberately not carried (decided at v2.63.0)
+
+Upstream v2.63.0 added a root `plugin.json` declaring the repo an
+[Agent Plugins](https://agent-plugins.org/) 1.0.0 package, so plugin-capable
+clients (Cursor, Codex, Copilot) can load the collection. This package does not
+carry it, and the sync script does not need changing to keep it out — it copies
+`skills/` only, never repo-root files.
+
+Reasons, so this isn't reopened on every sync:
+
+- **Copying it verbatim would misattribute.** The manifest hardcodes
+  `name: scientific-agent-skills`, `version: 2.63.0`, and upstream's repository
+  URL. None of those describe this package.
+- **Rewriting it would overclaim.** A manifest under our name asserts Agent
+  Plugins conformance for hosts this package has never been run against. Four
+  skills have been functionally exercised, all in pi, all under one model.
+  Advertising three more clients on that basis is unsupported.
+- **It contradicts the independent-versioning decision above.** Upstream's
+  `AGENTS.md` requires `plugin.json` `version` to track `pyproject.toml`. This
+  package versions independently and has no `pyproject.toml`.
+- **The package isn't conformant anyway.** It ships `extensions/` for `/sci`,
+  which is not part of the portable Agent Plugins layout.
+
+The size argument is not one of the reasons: the manifest is ~700 bytes against
+a 7 MB tarball. This is a scope decision, not a weight decision.
+
+**Scope note this establishes.** This package is a pi-focused distribution, not a
+strict mirror — it already excludes four skills, adds `/sci`, and versions
+independently. Divergence belongs in the *packaging layer*: what is excluded,
+what ships alongside, the docs, the extension. It must never move inside the
+contents of a vendored file, because `sync-upstream.sh` does a wholesale
+`rm -rf skills/ && cp -R` and would silently revert such an edit on the next
+sync with nothing to flag it. Exclusions stay declarative (a name list the
+script re-applies), which is why they survive.
 
 ### Adding skills of our own — the mechanism, decided in advance
 
@@ -106,7 +143,7 @@ custom skill.
 
 ```
 package.json            # pi manifest: "pi": { "skills": [...], "extensions": [...] }, keyword "pi-package"
-skills/                 # 154 skill directories, each with SKILL.md (+ references/scripts/assets)
+skills/                 # 157 skill directories, each with SKILL.md (+ references/scripts/assets)
 extensions/index.ts     # the /sci command — profile picker + settings.json writer
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
@@ -122,14 +159,14 @@ test-artifacts/         # gitignored: output from local skill verification runs
 ### Why it exists
 
 Pi injects every skill's name and description into the system prompt at startup;
-only skill *bodies* are deferred. Measured across this collection: 62,528
-description characters ≈ **17,000 tokens**, ≈110 tokens per skill. That is 52% of
+only skill *bodies* are deferred. Measured across this collection: 65,455
+description characters ≈ **17,700 tokens**, ≈113 tokens per skill. That is 54% of
 a 32k context and more than an 8k context can hold. Pi is frequently run with
 small local models, so the index cost — not the skill content — is the binding
 constraint.
 
 Two distinct problems follow, and the profile design addresses both: the context
-budget, and selection accuracy (a small model discriminates poorly among 154
+budget, and selection accuracy (a small model discriminates poorly among 157
 similar descriptions, many of which are near-neighbours).
 
 ### Why it writes settings.json rather than filtering at runtime
@@ -226,7 +263,7 @@ will not change.
 4. Set `upstreamVersion` in `package.json` to the tag that was synced, and bump
    our own `version` — minor for a new upstream snapshot, patch for an
    extension-only fix. Never copy upstream's number into `version` (see
-   Provenance for why). Update the two `v2.62.0` mentions in README.
+   Provenance for why). Update the two `v2.63.0` mentions in README.
 5. Commit, tag `v<version>` (ours, e.g. `v1.1.0`), push, `npm publish`.
 
 ## Validation rules (pi)

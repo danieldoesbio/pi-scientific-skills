@@ -1,6 +1,6 @@
 # pi-scientific-skills
 
-A pi package bundling **154 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
+A pi package bundling **157 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
 
 Use pi as an AI scientist: single-cell RNA-seq, drug discovery, protein design, medical imaging, clinical research, ML/AI, statistics, physics, geospatial analysis, scientific writing, grant proposals, and more — with curated, version-pinned documentation and, where useful, helper scripts.
 
@@ -18,7 +18,7 @@ Try without installing:
 pi -e npm:pi-scientific-skills
 ```
 
-After install, all 154 skills are available. When a task matches, pi loads the skill on demand; you can also force one:
+After install, all 157 skills are available. When a task matches, pi loads the skill on demand; you can also force one:
 
 ```bash
 /skill:scanpy             # single-cell RNA-seq analysis
@@ -30,14 +30,14 @@ List installed packages with `pi list`, and enable/disable individual skills wit
 
 ## `/sci` — pick what you load
 
-All 154 skill descriptions sit in the system prompt at startup: pi's progressive
+All 157 skill descriptions sit in the system prompt at startup: pi's progressive
 disclosure keeps descriptions always in context and loads only the skill *bodies*
-on demand. Measured, that index costs **~17k tokens**. That's over half a 32k
+on demand. Measured, that index costs **~18k tokens**. That's over half a 32k
 context window, and more than an 8k window can hold at all. On a small local
 model it's the difference between usable and unusable.
 
 `pi config` can already toggle skills one at a time. `/sci` puts a curated
-profile layer on top so you don't have to do that 154 times:
+profile layer on top so you don't have to do that 157 times:
 
 ```bash
 /sci            # interactive menu
@@ -61,7 +61,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/154 skills, ~1.3k tokens, saves ~15.6k
+Scientific skills — 12/157 skills, ~1.4k tokens, saves ~16.4k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
@@ -83,7 +83,7 @@ malformed, or a project-local `.pi/settings.json` would override the global one,
 
 ## What's inside
 
-154 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
+157 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
 
 Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where useful, `references/` (on-demand docs), `scripts/` (helper code), and `assets/` (templates). Pi implements the Agent Skills standard, so discovery and on-demand loading work exactly as with Claude Code / Cursor / Codex.
 
@@ -91,19 +91,19 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
 
 What's actually been tested, with the numbers:
 
-- **Discovery & validation — all 154:** every skill loads into the pi system prompt with correct name/description/location; frontmatter passes pi's validation rules (0 warnings, 0 hard issues).
-- **Functional runs — 4 of 154.** Four skills were run for real in pi: `statistical-analysis` (ran its assumption-check script, correct decision path), `pathogen-variant-surveillance` (live GenSpectrum API query, real data), `experimental-design` (ran `randomization.py`, correct stratified allocation), `scientific-visualization` (rendered a 300-DPI figure via the skill's own export helper). All under `z-ai/glm-5.2`. The other 150 load cleanly but haven't been exercised here, so take them as upstream ships them.
-- **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes 2,512 tests on the byte-identical content.
+- **Discovery & validation — all 157:** every skill loads into the pi system prompt with correct name/description/location; frontmatter passes pi's validation rules (0 warnings, 0 hard issues).
+- **Functional runs — 4 of 157.** Four skills were run for real in pi: `statistical-analysis` (ran its assumption-check script, correct decision path), `pathogen-variant-surveillance` (live GenSpectrum API query, real data), `experimental-design` (ran `randomization.py`, correct stratified allocation), `scientific-visualization` (rendered a 300-DPI figure via the skill's own export helper). All under `z-ai/glm-5.2`. The other 153 load cleanly but haven't been exercised here, so take them as upstream ships them.
+- **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes on the byte-identical content. The 2,512-test figure quoted in earlier releases was counted at v2.62.0; v2.63.0 adds suites for the new skills, and I have not re-counted, so treat upstream's CI badge as the current source.
 
-Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.62.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
+Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.63.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
 
 Caveats: `allowed-tools` is inert in pi (no pre-approval gate; no functional harm). Skills requiring heavy Python stacks (scanpy, rdkit, torch, …) need those installed in your environment — same as any harness.
 
 ## Updating
 
-The skills here are a snapshot of upstream at **v2.62.0**. This package's own
+The skills here are a snapshot of upstream at **v2.63.0**. This package's own
 version is separate — it starts at 1.0.0 and tracks changes to *this*
-distribution, since the contents differ from upstream (154 skills, plus `/sci`)
+distribution, since the contents differ from upstream (157 skills, plus `/sci`)
 and upstream ships patch releases that would collide. The upstream tag a given
 release wraps is always recorded in `package.json` as `upstreamVersion`.
 
@@ -154,15 +154,15 @@ and seem worth sharing. If I do:
   a separate directory registered as its own root (pi's `skills` field accepts
   several), so you can tell them apart from the file tree.
 - Each one will name its author in its frontmatter, and I'll list them here.
-- The counts in this README will stay separate, so "154 skills from upstream"
-  doesn't quietly drift into "154 skills" of mixed origin.
+- The counts in this README will stay separate, so "157 skills from upstream"
+  doesn't quietly drift into "157 skills" of mixed origin.
 
-None exist yet. **All 154 skills shipped today are upstream's.**
+None exist yet. **All 157 skills shipped today are upstream's.**
 
 ## License & Credits
 
 - The collection is © 2025 **K-Dense Inc.**, MIT — see [LICENSE.md](LICENSE.md) (upstream text verbatim). This package is an independent distribution of [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills); **all credit for the skills goes to the upstream maintainers and their community contributors.** Nothing in `skills/` is this maintainer's work — it is a byte-identical snapshot. If you use this in a project or publication, please cite upstream using the formats in their [Citation section](https://github.com/K-Dense-AI/scientific-agent-skills#-citation) — the collection, plus each individual skill that contributed to your work.
-- Many skills were contributed to upstream by **third-party authors**, credited in each skill's `metadata.skill-author` frontmatter field (pointing at the field rather than listing names here, so credit cannot drift out of date on a sync). A few declare their own terms for the skill text: `what-if-oracle` is CC BY-NC-SA 4.0 (**non-commercial**, © AHK Strategies), `bids` and `depmap` are CC BY 4.0, and `pacsomatic` ships its own `LICENSE` (MIT, © 2026 Beifang Niu). Check that field before commercial or redistributive use. Note that on skills wrapping a library, the `license:` field records *that library's* license (e.g. `cobrapy: GPL-2.0`), not the license of the skill text.
+- Many skills were contributed to upstream by **third-party authors**, credited in each skill's `metadata.skill-author` frontmatter field (pointing at the field rather than listing names here, so credit cannot drift out of date on a sync). A few declare their own terms for the skill text: `what-if-oracle` is CC BY-NC-SA 4.0 (**non-commercial**, © AHK Strategies), `bids` and `depmap` are CC BY 4.0, and `pacsomatic` ships its own `LICENSE` (MIT, © 2026 Beifang Niu). Check that field before commercial or redistributive use. Note that on skills wrapping a library, the `license:` field records *that library's* license (e.g. `cobrapy: GPL-2.0`), not the license of the skill text. One of those wrapped tools is itself non-commercial: `deepspot-m` documents the DeepSpot-M package (PolyForm Noncommercial 1.0.0) and its gated Hugging Face weights (CC BY-NC-SA 4.0). The skill text is MIT like the rest; the tool it drives is not, so check before commercial use.
 - **Not included:** upstream also vendors Anthropic's `docx`, `pdf`, `pptx` and `xlsx` skills. Their licence reserves all rights and forbids redistribution to third parties, so this package deliberately omits them — that is the only difference from upstream's `skills/`. Get them from Anthropic directly. (`pptx-posters` is K-Dense's own skill and *is* included.)
 - Pi packaging, the `/sci` extension, and maintenance by **[danieldoesbio](https://github.com/danieldoesbio)** — © 2026, MIT, same terms as above. This covers `extensions/` and `scripts/` only; `LICENSE.md` is reproduced unmodified from upstream and governs the bundled skills.
 
