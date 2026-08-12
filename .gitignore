@@ -14,3 +14,10 @@ test-artifacts/
 
 # npm pack output
 *.tgz
+
+# Raw pi transcripts from scripts/test-batch.mjs. Several MB each (pi emits a
+# cumulative message_update per token) and they embed absolute paths and the
+# operating user's name via tool output. The committed record is the scrubbed
+# <skill>.summary.json beside them.
+testing/transcripts/**/*.jsonl
+testing/transcripts/**/*.stderr.txt

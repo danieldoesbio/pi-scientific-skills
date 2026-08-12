@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "_comment": [
+    "Functional-test ledger. One entry per skill actually RUN in pi, not per skill validated.",
+    "Discovery/frontmatter coverage is all 157 and lives in scripts/validate.mjs; this file",
+    "tracks the expensive half, which accumulates a few skills per release.",
+    "",
+    "verdict:  PASS    - pi offered the skill, the model loaded SKILL.md, and followed it.",
+    "          FAIL    - skill's instructions were broken, wrong, or unfollowable",
+    "          BLOCKED - missing dependency, credential or network; says nothing about quality",
+    "          TIMEOUT - run hit the wall clock; a fact about the run, not about the skill",
+    "The bar is whether pi sees and loads the skill. Do not collect API keys,",
+    "request Hub access, or download tool weights as part of testing. If SKILL.md's",
+    "next step needs a login or a large download, following it up to that point is PASS.",
+    "An artifact is extra evidence when the skill produces one; it is not required.",
+    "BLOCKED and TIMEOUT are not failures of the skill. Do not fold either into a pass rate.",
+    "",
+    "Grade from the transcript in testing/transcripts/<version>/, never from the model's own",
+    "VERDICT line - that line is the claim under test.",
+    "",
+    "Add a batch with: node scripts/test-batch.mjs --version <ver> [--include a,b]"
+  ],
+  "runs": [
+    {
+      "skill": "statistical-analysis",
+      "verdict": "PASS",
+      "packageVersion": "1.0.0",
+      "upstreamVersion": "v2.62.0",
+      "model": "unrecorded",
+      "date": "2026-08-04",
+      "note": "Read SKILL.md, generated a 60-sample synthetic dataset (30/group) and ran the skill's own scripts/assumption_checks.py with the scripts dir on sys.path as SKILL.md directs; correct decision path. Model not recorded at the time; the session that logged it predates the glm-5.2 round."
+    },
+    {
+      "skill": "pathogen-variant-surveillance",
+      "verdict": "PASS",
+      "packageVersion": "1.0.0",
+      "upstreamVersion": "v2.62.0",
+      "model": "unrecorded",
+      "date": "2026-08-04",
+      "note": "End-to-end against the live GenSpectrum LAPIS API. Ran lineage_prevalence.py --top per the SKILL.md workflow, then resolve_lineage.py to confirm designations were current, and correctly rejected the three most recent weeks as low-coverage. Model not recorded at the time."
+    },
+    {
+      "skill": "experimental-design",
+      "verdict": "PASS",
+      "packageVersion": "1.0.0",
+      "upstreamVersion": "v2.62.0",
+      "model": "z-ai/glm-5.2",
+      "date": "2026-08-04",
+      "note": "Followed the skill's 8-step workflow, ran randomization.py, produced a 16KB design doc plus a 48-row allocation CSV with exact 12/12 balance per sex stratum, and correctly deferred power analysis to the statistical-power skill."
+    },
+    {
+      "skill": "scientific-visualization",
+      "verdict": "PASS",
+      "packageVersion": "1.0.0",
+      "upstreamVersion": "v2.62.0",
+      "model": "z-ai/glm-5.2",
+      "date": "2026-08-04",
+      "note": "Applied the skill's bundled publication.mplstyle (Okabe-Ito cycle), called figure_export.export_figure() with the skill's real API for a valid 300-DPI PNG (2124x825) plus manifest, and engaged the skill's image_metadata.py QA screen."
+    },
+    {
+      "skill": "ncats-arax",
+      "verdict": "PASS",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "13 tool calls. Read SKILL.md plus both references and the bundled arax_client.py, then ran it against the live ARAX production API (arax.transltr.io, ARAX 1.5.4 / TRAPI 1.5.0). One-hop imatinib CHEBI:31690 -> ABL1 NCBIGene:25 returned 1 result; all four contract artifacts written and manifest.json shows execution_status success with a sha256 of the request. The client surfaced its own PUBLIC_QUERY and NO_PUBLICATIONS_RETURNED warnings rather than hiding them."
+    },
+    {
+      "skill": "relsa-severity-assessment",
+      "verdict": "PASS",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "11 tool calls. Ran the skill's relsa_score.py on its own bundled example_cohort.csv (54 rows out, 4 variables per animal-day) and then kde_thresholds.py, giving a KDE threshold of 0.703 on 33 scores and real files on disk (zones.png 62KB, reference.json, zones.json). The skill's own output correctly cautions that these zones are not EU Directive 2010/63/EU severity categories."
+    },
+    {
+      "skill": "deepspot-m",
+      "verdict": "TIMEOUT",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "Hit the 420s wall clock after a filesystem scan (`find /`). Harness/probe issue, not a skill result. Probe now forbids those scans. Superseded by a later run the same day."
+    },
+    {
+      "skill": "arbor",
+      "verdict": "TIMEOUT",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "Harness fault, not a skill result. Killed by SIGTERM at 298s when the run exceeded the 64 MiB stdout buffer: pi's --mode json emits a cumulative message_update per token, so 55 tool calls came to 67 MB. The skill itself was working as designed (it has the model scaffold a project: git init, sentence_scorer.py, dev/test splits). stdout now writes straight to a file descriptor with no cap. Superseded by the PASS re-run the same day."
+    },
+    {
+      "skill": "etetoolkit",
+      "verdict": "PASS",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "10 tool calls, 65s. Pinned ete4==4.4.0 through a uv runtime as the skill directs, then drove the bundled tree_operations.py through Newick I/O, stats/ascii inspection, prune (3 leaves retained -> pruned.nw), midpoint reroot (rooted.nw) and an unrooted Robinson-Foulds comparison returning structured JSON (rf 2, max_rf 2, 4 common leaves). The compare step errored once and the retry succeeded."
+    },
+    {
+      "skill": "venue-templates",
+      "verdict": "PASS",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "23 tool calls. Ran query_template.py (--list-all showed 9 bundled templates; --venue NeurIPS --requirements returned the sty/checklist caveat) and customize_template.py, producing my_nature_scaffold.tex plus a compliance_note.txt drawn from references/conferences_formatting.md; title and authors confirmed present in the generated .tex by grep.",
+      "roughEdge": "customize_template.py's author substitution is a partial regex match: it left '}, Third Author\\textsuperscript{2,*}' trailing after the inserted names. SKILL.md does warn that output needs manual review, so this is a rough edge rather than a failure. Worth reporting upstream.",
+      "modelBehaviourNote": "Wasted 5 tool calls on a mistyped scratch path before recovering via find. A model quirk, not a skill defect; recorded so the transcript's early errors are not misread as the skill being broken."
+    },
+    {
+      "skill": "deepspot-m",
+      "verdict": "PASS",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "Pi offered the skill; the model loaded SKILL.md and followed the documented install path (pip show found deepspotm 1.0.0)."
+    },
+    {
+      "skill": "arbor",
+      "verdict": "PASS",
+      "packageVersion": "1.0.2",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-12",
+      "note": "39 tool calls, 123s. Drove the bundled tree.py through Observe / set-status / set-evidence / propagate / merge / prune / validate (OK — 5 nodes, root=n0, best=n3). Merge gate correctly rejected n4 (dev=0.8, test=0.6 vs best=0.8). n3 test eval printed 0.8000; ARBOR_REPORT.md written (3KB). Combined with the earlier TIMEOUT run, which had already scaffolded the project (git init, sentence_scorer.py, data splits).",
+      "harnessNote": "This re-run resumed leftover sandbox state from the killed first attempt (scratch is keyed only on version). The harness now wipes the per-skill sandbox before each run. Grade stands: the skill's own scripts and merge gate were exercised for real."
+    }
+  ]
+}

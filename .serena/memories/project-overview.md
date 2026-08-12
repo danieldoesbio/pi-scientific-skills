@@ -17,6 +17,9 @@ package, plus a `/sci` extension for curating which skills load.
 | `extensions/profiles.ts` | ours | `TOTAL_SKILL_COUNT`, `TOKENS_PER_SKILL`, 10 field profiles + `pi-agent` |
 | `scripts/sync-upstream.sh` | ours | re-vendors a tag; not shipped in the npm tarball |
 | `scripts/validate.mjs` | ours | reimplements pi's frontmatter rules; `npm run validate` |
+| `scripts/test-batch.mjs` | ours | 4–8 functional runs per release; see `mem:functional-testing` |
+| `scripts/track-downloads.mjs` | ours | appends npm daily counts to `metrics/downloads.json` |
+| `testing/ledger.json` | ours | conclusive functional-run record; README's N of 157 derives from it |
 
 ## Why `/sci` exists
 

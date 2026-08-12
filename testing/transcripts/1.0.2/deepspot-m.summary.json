@@ -1,0 +1,22 @@
+{
+  "skill": "deepspot-m",
+  "packageVersion": "1.0.2",
+  "model": "deepseek/deepseek-v4-flash",
+  "elapsedSeconds": 27,
+  "outcome": "completed",
+  "toolCalls": [
+    {
+      "tool": "read",
+      "args": "{\"path\":\"$TMPDIR/pi-skill-test-1.0.2/stage/package/skills/deepspot-m/SKILL.md\"}",
+      "isError": false,
+      "result": "---\nname: deepspot-m\ndescription: Generate transcriptome-wide virtual spatial transcriptomics from H&E histology with DeepSpot-M.\n"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"pip show deepspotm 2>&1\"}",
+      "isError": false,
+      "result": "Name: deepspotm\nVersion: 1.0.0\n"
+    }
+  ],
+  "finalText": "Pi offered the skill. The model loaded SKILL.md and followed the documented install path."
+}

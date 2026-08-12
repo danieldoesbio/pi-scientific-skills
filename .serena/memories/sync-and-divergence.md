@@ -52,11 +52,32 @@ this package versions independently. **Size was explicitly not a reason** (~700
 bytes against a 7 MB tarball). No script change was needed — the sync copies
 `skills/` only, never repo-root files.
 
-## Smoke-testing in pi is harder than it looks
+## Smoke-testing in pi, non-interactively
 
-`pi -e .` does **not** inject the package's skills, and `pi -p` (print mode) does
-not expose the system prompt, so a CLI-only check reports 0 skills and proves
-nothing. Also, this machine's `~/.pi/agent/settings.json` holds a live `/sci`
-filter for the local path that restricts it to ~46 skills — so an in-repo test
-reads as ABSENT for anything outside that list. A real check needs an
-**interactive** `pi` session or the `pi config` TUI.
+**pi exposes skills as a tool, not as system-prompt text.** So `--no-tools`
+hides every skill and the run reports zero — which looks exactly like a load
+failure and is not one. This cost an hour once; do not repeat it.
+
+The invocation that works, run from the **extracted tarball** in a scratch dir:
+
+```bash
+npm pack --pack-destination "$SCRATCH"
+tar xzf "$SCRATCH"/pi-scientific-skills-*.tgz -C "$SCRATCH"   # -> $SCRATCH/package
+cd "$SCRATCH/package"
+pi -ne --skill ./skills --no-session -p "<probe>"
+```
+
+Two more traps, both still true:
+
+- `pi -e .` does **not** load the package's `pi.skills`; `-e` loads an
+  *extension*. Use `--skill <dir>`.
+- `~/.pi/agent/settings.json` on this machine holds a live `/sci` filter for
+  `../../Developer/pi-scientific-skills` pinning it to ~46 skills. Testing from
+  the repo path silently applies it, so anything outside that list reads ABSENT.
+  The tarball-in-scratch path dodges this, and also keeps `__pycache__` out of
+  the vendored tree.
+
+Verify **by name presence**, not by total count: the reported total includes the
+user's own personal skills (173 at 1.0.2 = our 157 + ~16 personal).
+
+The batch harness built on this is `mem:functional-testing`.

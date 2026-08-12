@@ -80,9 +80,9 @@ Reasons, so this isn't reopened on every sync:
   `name: scientific-agent-skills`, `version: 2.63.0`, and upstream's repository
   URL. None of those describe this package.
 - **Rewriting it would overclaim.** A manifest under our name asserts Agent
-  Plugins conformance for hosts this package has never been run against. Four
-  skills have been functionally exercised, all in pi, all under one model.
-  Advertising three more clients on that basis is unsupported.
+  Plugins conformance for hosts this package has never been run against. Ten
+  skills have been functionally exercised, all in pi, none in Cursor/Codex/
+  Copilot. Advertising those clients on that basis is unsupported.
 - **It contradicts the independent-versioning decision above.** Upstream's
   `AGENTS.md` requires `plugin.json` `version` to track `pyproject.toml`. This
   package versions independently and has no `pyproject.toml`.
@@ -148,11 +148,21 @@ extensions/index.ts     # the /sci command — profile picker + settings.json wr
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
 scripts/validate.mjs    # pi-rule validation across all skills + profiles.ts drift check
+scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
+scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
+testing/ledger.json     # which skills have actually been RUN, with verdicts
+testing/transcripts/    # raw pi output per graded run, kept as evidence
+metrics/downloads.json  # npm daily series + publish dates, with revisions recorded
 LICENSE.md              # upstream MIT verbatim
 README.md               # pi-user-facing
 DOCUMENTATION.md        # this file
 test-artifacts/         # gitignored: output from local skill verification runs
 ```
+
+`scripts/`, `testing/` and `metrics/` are maintainer-side and do not ship —
+`package.json` `files[]` whitelists `extensions`, `skills` and the three
+markdown files. They do reach anyone installing via
+`pi install git:github.com/...`, which ships the whole tree.
 
 ## The `/sci` extension
 
@@ -333,6 +343,84 @@ diff -rq /path/to/upstream/skills skills   # must report no differences
 npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
 ```
 
+## Functional testing
+
+Two kinds of testing here, with very different costs:
+
+- **Discovery** — does pi offer the skill, with the right name and description.
+  Cheap, covers all 157, runs on every sync (`npm run validate` plus the tarball
+  probe in the checklist below).
+- **Functional** — does pi load the skill and does a model follow SKILL.md.
+  Costs a model call and several minutes each, so it accumulates a few skills
+  per release rather than ever being complete. The bar is whether pi sees and
+  loads the skill. **Do not collect API keys, request Hub access, or download
+  tool weights as part of testing.** If SKILL.md's next step needs a login or a
+  large download, following it up to that point is a pass. An artifact is extra
+  evidence when the skill produces one; it is not required.
+
+`testing/ledger.json` is the record of the second kind. README's
+"Functional runs — N of 157" derives from it.
+
+```bash
+npm run test:batch -- --version 1.0.3 --include <skills-new-this-release>
+```
+
+The batch is the skills new in this release plus a random fill to `--size`
+(default 6; 4–8 is the working range), drawn only from skills never tested
+before, so coverage accumulates instead of resampling. Selection is seeded by
+the version string, so any batch is re-derivable months later.
+
+Deliberate choices:
+
+- **Runs against the packed tarball in a scratch dir**, never `./skills`. That
+  tests what actually ships, dodges any `/sci` filter in your settings that
+  would silently hide the skill, and makes it impossible for a skill script to
+  leave `__pycache__` in the vendored tree.
+- **One skill per run** (`-ne -ns --skill <one dir>`), so nothing else is in
+  play. Tools stay enabled: pi exposes skills *as a tool*, so `--no-tools`
+  hides the skill entirely and every run reports a false zero.
+- **The script does not decide pass/fail.** It writes a raw `.jsonl` (gitignored:
+  several MB, embeds `$HOME` paths and the operating username) and a scrubbed
+  `<skill>.summary.json` (tool calls, truncated results, final text). Grading
+  is a separate human or stronger-model pass. A model's claim that it succeeded
+  is the thing under test, not evidence about it. Rebuild summaries after a
+  distiller change with `--distill-only` rather than re-spending the model calls.
+- **Stdout is a file descriptor, not a pipe.** pi's `--mode json` emits a
+  cumulative `message_update` per token; buffering that under `maxBuffer` killed
+  the first `arbor` run at 67 MB (SIGTERM, which reads as a skill failure and
+  is not one).
+- **The per-skill sandbox is wiped before each run.** Scratch is keyed only on
+  version, so a re-run otherwise resumes leftover state.
+- **Pair tool results on `toolCallId`, never on tool name.** pi returns
+  concurrent results out of order; name-matching staples one command's output
+  onto a different command.
+
+Verdicts are `PASS`, `FAIL`, `BLOCKED`, or `TIMEOUT`. **`BLOCKED` and `TIMEOUT`
+are not failures of the skill.** BLOCKED means a missing dependency, credential
+or network; TIMEOUT is a fact about the run (wall clock or a harness fault).
+Neither folds into a pass rate, and TIMEOUT skills stay in the sampling pool.
+
+## Adoption metrics
+
+```bash
+npm run metrics:downloads
+```
+
+Appends npm's daily download counts to `metrics/downloads.json`. Re-running is
+safe: days merge by date, and a count that npm later revises is recorded in a
+`revisions` array rather than silently overwritten — the recent tail is
+provisional and the ledger should show that rather than hide it.
+
+The local copy exists because npm's range endpoint only serves ~18 months and
+offers no way to ask what it said last week. Two things to keep in mind when
+reading the series: npm counts **tarball fetches, not people**, so mirrors, CI
+caches and registry scrapers are in the same bucket; and a publish-day spike is
+almost certainly automated traffic. At 1.0.2 the series was 278 downloads over
+12 days, 242 of them on publish day.
+
+Neither this nor the ledger is a quality measure. They are here so that later
+claims about adoption and coverage have something behind them.
+
 ## Publishing checklist
 
 - [ ] `npm run validate` clean (no missing descriptions)
@@ -341,7 +429,15 @@ npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
       NonCommercial skills under Provenance and in README credits
 - [ ] `skills/` byte-identical to upstream (`diff -rq`) — no `__pycache__`, no stray output
 - [ ] `npm pack --dry-run` shows no `.pyc` and no test artifacts
-- [ ] `pi -e .` smoke test passes (skills appear)
+- [ ] Discovery smoke test passes — run it against the **packed tarball extracted
+      into a scratch dir**, not the repo (the repo path picks up whatever `/sci`
+      filter is in your `~/.pi/agent/settings.json`):
+      `cd $SCRATCH/package && pi -ne --skill ./skills --no-session -p "<name-presence probe>"`
+      Note `-e .` does *not* load `pi.skills`, and `--no-tools` hides every skill
+      (pi exposes them as a tool), so both read as a false zero. Check by name
+      presence — the reported total also counts your personal skills.
+- [ ] `node scripts/test-batch.mjs --version <ver>` run, transcripts graded, and
+      `testing/ledger.json` updated with the new batch (see "Functional testing")
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
       the synced tag; README's `v<upstream>` mentions agree with it
 - [ ] git commit + tag + push (GitHub)
