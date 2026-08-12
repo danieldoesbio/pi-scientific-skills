@@ -1,10 +1,10 @@
 /**
- * /sci — curate which of the 154 scientific skills pi loads.
+ * /sci — curate which of the 157 scientific skills pi loads.
  *
  * Every skill's name + description is injected into the system prompt at startup
- * and stays there for the whole session (~17k tokens for the full set). Small or
+ * and stays there for the whole session (~18k tokens for the full set). Small or
  * local models pay that twice: once in context budget, and again in selection
- * accuracy, because discriminating between 154 similar descriptions is hard.
+ * accuracy, because discriminating between 157 similar descriptions is hard.
  *
  * The fix is pi's own per-package resource filter in settings.json:
  *
@@ -670,8 +670,8 @@ const GLOB_CHARS = /[*?[\]{}]/;
 
 /**
  * Describe a `skills` filter honestly. The array holds *patterns*, not names, so
- * counting its length reports "1/154 skills, ~110 tokens" for a one-line
- * `pi config` exclusion that in fact leaves 157 skills and ~17k tokens loaded —
+ * counting its length reports "1/157 skills, ~113 tokens" for a one-line
+ * `pi config` exclusion that in fact leaves 157 skills and ~18k tokens loaded —
  * wrong by two orders of magnitude, in the reassuring direction.
  */
 const describeSkillsFilter = (skills: readonly unknown[]): string => {
