@@ -92,8 +92,11 @@ const register = (harness) => {
     on: (event, handler) => {
       if (event === "session_start") sessionStart = handler;
     },
-    sendUserMessage: async (content) => {
-      harness.sendUserMessage.push(content);
+    // Records options too, not just text. Asserting only that "/sci search" was
+    // queued is what let a silently-broken accept path pass: without
+    // expandPromptTemplates the same string goes to the model as plain text.
+    sendUserMessage: async (content, options) => {
+      harness.sendUserMessage.push({ content, options: options ?? {} });
     },
   };
   extension.default(pi);
@@ -187,7 +190,15 @@ console.log("\n-- first run (new user, TUI) --");
     "offer states both costs",
     /157/.test(harness.selects[0]?.title ?? "") && /Core/.test(harness.selects[0]?.title ?? ""),
   );
-  check("accepting queues the command", harness.sendUserMessage.includes("/sci search"));
+  const queued = harness.sendUserMessage[0];
+  check("accepting queues the command", queued?.content === "/sci search", JSON.stringify(queued));
+  // pi dispatches an extension command only when this flag is set; it defaults
+  // to false. Without it the user says yes and nothing is written.
+  check(
+    "queues it as a command, not as text for the model",
+    queued?.options?.expandPromptTemplates === true,
+    JSON.stringify(queued?.options),
+  );
   check("did not write settings.json itself", !existsSync(paths.settings));
 
   const config = JSON.parse(readFileSync(paths.config, "utf8"));
@@ -328,6 +339,40 @@ console.log("\n-- /sci find --");
   check("splits the verb from the query", /pysam|pathogen-variant-surveillance/.test(output), output.slice(0, 120));
   check("gives a human the same path a model gets", /SKILL\.md/.test(output));
   check("changes nothing", harness.reloadCount() === 0);
+}
+
+console.log("\n-- /sci status --");
+{
+  const paths = newAgentDir();
+  writeFileSync(
+    paths.settings,
+    JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills: ["scanpy"] }] }, null, 2),
+  );
+  const harness = makeHarness();
+  const hooks = register(harness);
+
+  await hooks.commandHandler("status", harness.ctx);
+  const output = harness.notes.join("\n");
+
+  check("says sci_find reaches everything", /sci_find: active/.test(output), output.slice(0, 200));
+  // The README promises status repeats this. An un-tested doc promise is a
+  // promise that quietly stops being true.
+  check("repeats the silent /skill: caveat", /\/skill:<name>/.test(output), output.slice(0, 400));
+  check("reports without writing", harness.reloadCount() === 0);
+}
+
+{
+  // The caveat is about filtered skills, so an unfiltered user must not be
+  // warned about a problem they do not have.
+  const paths = newAgentDir();
+  writeFileSync(paths.settings, JSON.stringify({ packages: ["pi-scientific-skills"] }, null, 2));
+  const harness = makeHarness();
+  const hooks = register(harness);
+
+  await hooks.commandHandler("status", harness.ctx);
+  const output = harness.notes.join("\n");
+
+  check("no filter → no caveat", !/\/skill:<name>/.test(output), output.slice(0, 200));
 }
 
 // --- refusal ---------------------------------------------------------------

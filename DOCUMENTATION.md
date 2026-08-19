@@ -279,7 +279,7 @@ This package writes into a file it does not own. Two rules follow, and
    **byte-identical** before and after an upgrade — asserted directly, because
    nothing weaker actually proves it.
 
-Three details that are easy to get wrong:
+Four details that are easy to get wrong:
 
 - **Gate the dialog on `ctx.mode === "tui"`, not `ctx.hasUI`.** `hasUI` is true in
   RPC too, so gating on it hands a scripted client a modal with nobody to answer.
@@ -290,6 +290,17 @@ Three details that are easy to get wrong:
   no-op with no UI bound, so a `pi -p` user would be informed into the void and
   then marked as told. `report()` falls back to stderr. For the same reason the
   `session_start` handler is **not** gated on `ctx.hasUI`.
+- **`pi.sendUserMessage` needs `expandPromptTemplates: true` to run a command.**
+  It defaults that flag to `false` (`agent-session.js:1130`) — the opposite of
+  `prompt()`, which defaults it to `true` (`:793`) — and extension-command
+  dispatch is gated on it (`:799`). Without it, accepting the offer sends the
+  literal string `/sci search` to the model as a user message: the user says
+  yes, no filter is written, and a turn is spent on nothing. This is the whole
+  reason the accept path is routed through the command at all — `session_start`
+  emits with the plain context (`runner.js:579`), which has no `reload()`; only
+  the *command* context gets one (`:567`). Caught by asserting the **options**
+  passed to `sendUserMessage`, not just the text; asserting only the text passes
+  either way, which is exactly how it slipped through the first time.
 - **Someone who hand-filtered the package gets a notice too**, not silence. They
   are not offered anything — they already answered that question — but `sci_find`
   reaches the skills their filter excludes, and shipping that without saying so

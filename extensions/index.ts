@@ -1418,9 +1418,22 @@ const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> =>
 
     if (choice !== OFFER_ACCEPT) return;
 
-    // session_start's context has no `reload()`, so hand the work to the
-    // command, which does — pi's documented pattern for exactly this.
-    await pi.sendUserMessage(`/${COMMAND_NAME} search`, { deliverAs: "followUp" });
+    // session_start's context has no `reload()` (runner.js:579 emits with the
+    // plain createContext(); only the *command* context gets one, :567), so hand
+    // the work to the command, which does.
+    //
+    // `expandPromptTemplates: true` is load-bearing, not decoration.
+    // sendUserMessage defaults it to FALSE (agent-session.js:1130) — unlike
+    // prompt(), which defaults it to true (:793) — and extension-command
+    // dispatch is gated on it (:799). Without the flag the literal text
+    // "/sci search" is sent to the model as a user message: the user answers
+    // yes, no filter is written, and a turn is burned telling the model
+    // nothing. With it, _tryExecuteExtensionCommand runs the command and
+    // returns before any LLM call.
+    await pi.sendUserMessage(`/${COMMAND_NAME} search`, {
+      deliverAs: "followUp",
+      expandPromptTemplates: true,
+    });
   } catch {
     // Startup must never fail because of a message.
   }
