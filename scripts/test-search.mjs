@@ -13,6 +13,7 @@
 // Usage: node scripts/test-search.mjs  (or: npm test)
 // Exit codes: 0 = OK, 1 = failures.
 import { loadExtensionModule } from "./lib/load-extension.mjs";
+import { documentedCount } from "./doc-count.mjs";
 
 const TOP_N = 8;
 
@@ -89,8 +90,11 @@ for (const entry of catalog) {
   }
 }
 
+let checks = 0;
+
 note("\n-- queries --");
 for (const [query, want] of QUERIES) {
+  checks++;
   const names = search.search(catalog, query, TOP_N).map((hit) => hit.entry.name);
   const rank = names.findIndex((name) => want.includes(name));
   if (rank === -1) {
@@ -103,6 +107,7 @@ for (const [query, want] of QUERIES) {
 
 note("\n-- must return nothing --");
 for (const query of NEGATIVES) {
+  checks++;
   const hits = search.search(catalog, query, TOP_N);
   if (hits.length > 0) {
     const shown = hits.map((hit) => `${hit.entry.name}:${hit.score}`).join(", ");
@@ -124,6 +129,8 @@ for (const alias of aliases.ALIASES) {
   }
 }
 note(`  checked ${aliasSkills} alias targets across ${aliases.ALIASES.length} rules`);
+
+failures.push(...documentedCount("ranking checks", checks));
 
 console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
 for (const failure of failures) console.log(`  [FAIL] ${failure}`);

@@ -74,3 +74,17 @@ decays the same way before reading anything into it.
 
 Neither ledger nor metrics ships in the npm tarball (`files[]` is `extensions`,
 `skills`, three markdown files). They do reach `pi install git:github.com/...`.
+
+## The README's check counts are load-bearing, and guarded
+
+README §Testing quotes exact numbers ("49 behavioural checks", "29 ranking
+checks", "7 checks that pi itself honours the filter"). Those went stale the
+moment search mode's tests landed — the README still said 44 after five checks
+were added. `scripts/doc-count.mjs` closes it: each suite counts its own checks
+and pushes a failure if the README disagrees, so the number breaks in the suite
+that moved rather than rotting quietly. Adding a check now means updating the
+README in the same commit; that is the intent.
+
+Not guarded: "four queries that must return *nothing*" is spelled out in words,
+so the regex misses it. It moves the 29 total whenever it changes, which fails
+the ratchet and forces a re-read of the sentence — good enough, deliberately.

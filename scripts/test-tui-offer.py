@@ -57,6 +57,16 @@ def run(mode: str, root: Path) -> list[str]:
             shutil.copy(real / name, agent / name)
             os.chmod(agent / name, 0o600)
 
+    try:
+        return _drive(mode, scratch, agent)
+    finally:
+        # Holds a copy of the real API key: it goes even if the run threw, and
+        # even if an earlier mode failed and aborted the rest.
+        shutil.rmtree(agent, ignore_errors=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def _drive(mode: str, scratch: Path, agent: Path) -> list[str]:
     env = {**os.environ, "PI_CODING_AGENT_DIR": str(agent), "TERM": "xterm-256color"}
     pid, fd = pty.fork()
     if pid == 0:
@@ -132,8 +142,6 @@ def run(mode: str, root: Path) -> list[str]:
     for problem in problems:
         print(f"          {problem}")
 
-    shutil.rmtree(agent, ignore_errors=True)
-    shutil.rmtree(scratch, ignore_errors=True)
     return problems
 
 
@@ -148,6 +156,7 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     print("-- pi's real TUI, driven through a pty --")
-    failures = [problem for mode in modes for problem in run(mode, Path.cwd())]
+    root = Path(__file__).resolve().parent.parent
+    failures = [problem for mode in modes for problem in run(mode, root)]
     print(f"\n{'PASS' if not failures else 'FAIL'} — {len(failures)} problem(s)")
     raise SystemExit(1 if failures else 0)

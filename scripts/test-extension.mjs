@@ -17,9 +17,12 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
+import { documentedCount } from "./doc-count.mjs";
 
 const failures = [];
+let checks = 0;
 const check = (label, condition, detail = "") => {
+  checks++;
   if (condition) {
     console.log(`  ok      ${label}`);
   } else {
@@ -395,6 +398,8 @@ console.log("\n-- malformed settings --");
 // --- cleanup ---------------------------------------------------------------
 
 for (const dir of created) rmSync(dir, { recursive: true, force: true });
+
+failures.push(...documentedCount("behavioural checks", checks));
 
 console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
 for (const failure of failures) console.log(`  [FAIL] ${failure}`);

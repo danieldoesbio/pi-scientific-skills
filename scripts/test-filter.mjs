@@ -22,6 +22,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
+import { documentedCount } from "./doc-count.mjs";
 
 // Not a skip: every suite in this package loads the extension through pi's own
 // jiti, so an installed pi is a hard prerequisite for `npm test` and pretending
@@ -40,7 +41,9 @@ const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
 const scratch = [];
 const failures = [];
 
+let checks = 0;
 const check = (label, actual, expected) => {
+  checks++;
   if (actual === expected) {
     console.log(`  ok      ${label} → ${actual} enabled`);
   } else {
@@ -118,6 +121,7 @@ check("overrides alone — inverts to 'everything minus'", await enabledCount(["
 // Patterns are globs, so counting the array is not counting the skills. This is
 // why `/sci status` refuses to report a number for a hand-written filter.
 const globbed = await enabledCount(["sc*"]);
+checks++;
 if (globbed > 1) {
   console.log(`  ok      one glob pattern is not one skill → ${globbed} enabled`);
 } else {
@@ -126,6 +130,8 @@ if (globbed > 1) {
 }
 
 for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+
+failures.push(...documentedCount("checks that **pi itself** honours the filter", checks));
 
 console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
 for (const failure of failures) console.log(`  [FAIL] ${failure}`);

@@ -151,6 +151,7 @@ extensions/aliases.ts   # curated query→skill aliases, each from an observed m
 extensions/frontmatter.ts    # the one YAML parser, shared with validate.mjs
 extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guards the drift
 scripts/lib/load-extension.mjs  # loads extensions/ the way pi does (jiti + host aliases)
+scripts/doc-count.mjs   # each suite checks the check-count the README claims for it
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
 scripts/validate.mjs    # pi-rule validation across all skills + extensions/ drift checks
 scripts/test-search.mjs # sci_find ranking against the real 157 descriptions
@@ -390,6 +391,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes Core, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
+| `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 
 Two things are worth knowing before changing these:
 
