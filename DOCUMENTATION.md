@@ -156,6 +156,7 @@ scripts/validate.mjs    # pi-rule validation across all skills + extensions/ dri
 scripts/test-search.mjs # sci_find ranking against the real 157 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
+scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
@@ -388,6 +389,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-search.mjs` | `sci_find`'s ranking, against the **real** 157 descriptions — including four queries that must return *nothing*. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
+| `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes Core, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 
 Two things are worth knowing before changing these:
 

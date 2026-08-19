@@ -70,6 +70,7 @@
     "test:search": "node scripts/test-search.mjs",
     "test:extension": "node scripts/test-extension.mjs",
     "test:filter": "node scripts/test-filter.mjs",
+    "test:tui": "python3 scripts/test-tui-offer.py",
     "test:batch": "node scripts/test-batch.mjs",
     "sync:upstream": "bash scripts/sync-upstream.sh",
     "metrics:downloads": "node scripts/track-downloads.mjs"

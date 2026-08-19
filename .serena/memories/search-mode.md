@@ -80,3 +80,24 @@ text through. Disclosed in `/sci status` and README. Real fix is `/sci use
 tokens, but **requires an installed pi** (all load through pi's jiti via
 `scripts/lib/load-extension.mjs`). `scripts/test-find-live.mjs` is the release
 gate and spends tokens — see `mem:functional-testing`.
+
+
+## pi fact: `sendUserMessage` will not run a command by default
+
+`pi.sendUserMessage(text, opts)` defaults `expandPromptTemplates` to **false**
+(`agent-session.js:1130`). `prompt()` defaults the same flag to **true**
+(`:793`), and extension-command dispatch is gated on it (`:799`).
+
+So `sendUserMessage("/sci search", { deliverAs: "followUp" })` sends the literal
+string to the model as a user message. Shipped that way, accepting the first-run
+offer wrote nothing and burned a turn. Always pass
+`expandPromptTemplates: true` when the text is a command.
+
+The accept path routes through the command at all because `session_start` emits
+with the plain context (`runner.js:579`), which has no `reload()`; only the
+*command* context gets one (`:567`).
+
+Caught by asserting the **options** passed to `sendUserMessage`, not just the
+text — the text assertion passes either way. `scripts/test-tui-offer.py` drives
+pi's real TUI over a pty and fails if the flag is removed; it is the only check
+that exercises the unstubbed path.
