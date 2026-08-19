@@ -158,6 +158,7 @@ scripts/test-search.mjs # sci_find ranking against the real 157 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
+scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
@@ -392,6 +393,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes Core, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
+| `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
 
 Two things are worth knowing before changing these:
 

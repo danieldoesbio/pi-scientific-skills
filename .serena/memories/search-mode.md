@@ -101,3 +101,26 @@ Caught by asserting the **options** passed to `sendUserMessage`, not just the
 text — the text assertion passes either way. `scripts/test-tui-offer.py` drives
 pi's real TUI over a pty and fails if the flag is removed; it is the only check
 that exercises the unstubbed path.
+
+## Trying it by hand: `scripts/try-it.sh`
+
+`npm run try [scenario] [--check|--keep]`. Packs the tarball, seeds a throwaway
+`PI_CODING_AGENT_DIR`, launches pi, then reports whether `settings.json` moved.
+`~/.pi/agent` is never written to; isolating the agent dir also isolates auth,
+so auth.json/models-store.json are copied at 0600 and removed by an EXIT trap
+along with the whole sandbox.
+
+Five scenarios, one per startup branch in `handleStartup`:
+`mine` (your real config, pointed at this build) · `new` (first-run offer) ·
+`upgrading` (1.0.2 + a saved profile → notice, filter untouched) ·
+`filtered` (hand-filtered, never ran /sci → "your filter is unchanged") ·
+`current` (already told about this version → silence).
+
+`upgrading`/`filtered` read the genomics-bioinformatics profile out of
+profiles.ts via the jiti loader rather than hardcoding a skill list — a seeded
+filter /sci could not have written would be testing a fiction.
+
+`--check` runs pi headless and asserts the branch's message, so the four notice
+paths are verifiable without a human reading a screen. It costs one tiny model
+call (pi will not start a turn without a model); `$CHECK_MODEL` overrides the
+deepseek-v4-flash default. All five verified PASS on 2026-08-18.

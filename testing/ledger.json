@@ -148,7 +148,8 @@
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-18",
       "probes": 3,
-      "note": "Packed tarball installed into a throwaway agent dir filtered to Core (10 of 157 skills in the prompt). All three probes - variant calling from a BAM, clustering a 10x matrix, docking a ligand - called sci_find unprompted, got an expected skill back, and went on to read its SKILL.md. Probes never name the skill; they are phrased the way a scientist would phrase the task. A first attempt reported three false negatives because the isolated agent dir also isolated the API key and no model ran at all; the script now separates 'never ran' from 'declined to call'."
+      "note": "Packed tarball installed into a throwaway agent dir filtered to Core (10 of 157 skills in the prompt). All three probes - variant calling from a BAM, clustering a 10x matrix, docking a ligand - called sci_find unprompted, got an expected skill back, and went on to read its SKILL.md. Probes never name the skill; they are phrased the way a scientist would phrase the task. A first attempt reported three false negatives because the isolated agent dir also isolated the API key and no model ran at all; the script now separates 'never ran' from 'declined to call'. Re-run 2026-08-18 against the final tarball \u2014 the one carrying the expandPromptTemplates fix \u2014 with the same result: 7 / 1 / 1 sci_find calls, every expected skill surfaced, SKILL.md read each time. The first recording predated that fix, so it proved the tool but not the shipped build.",
+      "reruns": 1
     }
   ]
 }
