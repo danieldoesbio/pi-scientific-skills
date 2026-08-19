@@ -21,6 +21,7 @@ import {
   getAgentDir,
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 import { constants as fsConstants } from "node:fs";
 import {
   copyFile,
@@ -35,16 +36,29 @@ import {
 import { join } from "node:path";
 import {
   BASELINE_TOKEN_COST,
+  PROFILES,
   TOGGLES,
   TOKENS_PER_SKILL,
   TOTAL_SKILL_COUNT,
 } from "./profiles";
+import {
+  DEFAULT_LIMIT,
+  loadCatalog,
+  resolveSkillsDir,
+  search,
+  type SearchHit,
+  type SkillEntry,
+} from "./search";
+import { PACKAGE_NAME, PACKAGE_VERSION } from "./package-info";
 
-const PACKAGE_NAME = "pi-scientific-skills";
 const COMMAND_NAME = "sci";
 const CONFIG_VERSION = 1;
+const TOOL_NAME = "sci_find";
 
-const SUBCOMMANDS = ["status", "profiles", "all", "none", "reset"] as const;
+/** The profile applied by `/sci search` — the everyday-work baseline. */
+const DEFAULT_PROFILE_ID = "core";
+
+const SUBCOMMANDS = ["status", "profiles", "search", "find", "all", "none", "reset"] as const;
 type Subcommand = (typeof SUBCOMMANDS)[number];
 
 // ---------------------------------------------------------------------------
@@ -74,6 +88,12 @@ interface TuiComponent {
 
 interface UiContext {
   readonly hasUI: boolean;
+  /**
+   * Pi's run mode: "tui" | "rpc" | "json" | "print". Distinct from `hasUI`,
+   * which is true in RPC as well — so anything that blocks on a human must gate
+   * on `mode === "tui"`, or a scripted client gets a dialog it cannot answer.
+   */
+  readonly mode?: string;
   readonly cwd: string;
   readonly ui: {
     notify(message: string, level: "info" | "warning" | "error"): void;
@@ -124,6 +144,12 @@ interface ExtensionConfig {
   version?: number;
   onboardingSeen?: boolean;
   profiles?: string[];
+  /**
+   * Last package version whose changes this user was told about. Absent means
+   * either a fresh install or an upgrade from a release predating the notice —
+   * `onboardingSeen` distinguishes the two.
+   */
+  lastSeenVersion?: string;
   updatedAt?: string;
 }
 
@@ -223,6 +249,116 @@ const skillsForSelection = (selected: ReadonlySet<string>): string[] => {
     for (const skill of toggle.skills) skills.add(skill);
   }
   return [...skills].sort();
+};
+
+// ---------------------------------------------------------------------------
+// Skill catalogue — the other half of progressive disclosure
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the package's own skills live, or `undefined` if that could not be
+ * established. Resolved once at load: if it fails there is nothing to retry,
+ * and every caller has to handle absence anyway.
+ */
+const SKILLS_DIR = resolveSkillsDir();
+
+let catalogCache: SkillEntry[] | undefined;
+
+/**
+ * The 157 name/description pairs, read from disk on first use (~18ms) and kept
+ * for the session. An installed package's `skills/` cannot change while pi is
+ * running, so there is nothing to invalidate. Sessions that never search pay
+ * nothing.
+ */
+const catalog = (): SkillEntry[] => {
+  if (!SKILLS_DIR) return [];
+  if (catalogCache === undefined) catalogCache = loadCatalog(SKILLS_DIR);
+  return catalogCache;
+};
+
+/**
+ * Render hits for the model.
+ *
+ * Full descriptions, not truncated ones: the entire design bet is that a model
+ * discriminates well between eight fully-labelled options. Trimming the
+ * descriptions to save a few hundred transient tokens would defeat the point.
+ */
+const formatHits = (hits: readonly SearchHit[]): string =>
+  hits
+    .map(({ entry }) =>
+      [
+        `## ${entry.name}`,
+        entry.description,
+        `Load with: read ${entry.path}`,
+        `References inside it are relative to ${entry.dir}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
+
+/** Shown when nothing scores — with the taxonomy, so the model can browse. */
+const noMatchText = (query: string): string =>
+  [
+    `No skill matched "${query}".`,
+    "",
+    `Browse instead by calling ${TOOL_NAME} with a profile name:`,
+    PROFILES.map((profile) => `  ${profile.id} — ${profile.label}`).join("\n"),
+  ].join("\n");
+
+/** Profile listing: the same taxonomy humans get in the `/sci` picker. */
+const formatProfile = (id: string): string | undefined => {
+  const profile = PROFILES.find((entry) => entry.id === id.trim().toLowerCase());
+  if (!profile) return undefined;
+  const known = new Map(catalog().map((entry) => [entry.name, entry]));
+  const listed = profile.skills
+    .map((name) => known.get(name))
+    .filter((entry): entry is SkillEntry => entry !== undefined);
+  return [`# ${profile.label}`, profile.description, "", formatHits(listed.map((entry) => ({ entry, score: 0 })))].join(
+    "\n",
+  );
+};
+
+/** No arguments: the toggle list, so an unsure model has somewhere to start. */
+const formatProfileIndex = (): string =>
+  [
+    `${TOTAL_SKILL_COUNT} scientific skills are installed. Profiles:`,
+    PROFILES.map((profile) => `  ${profile.id} — ${profile.label} (${profile.skills.length} skills)`).join("\n"),
+    "",
+    `Call ${TOOL_NAME} with a query to search, or with a profile id to list one.`,
+  ].join("\n");
+
+/** Arguments accepted by `sci_find`. All optional: no args lists the profiles. */
+interface ToolParams {
+  query?: string;
+  profile?: string;
+  limit?: number;
+}
+
+/**
+ * The single implementation behind both `sci_find` and `/sci find`, so the
+ * model and the human can never be shown different answers to the same
+ * question.
+ */
+const runToolSearch = (params: ToolParams): string => {
+  if (!SKILLS_DIR) {
+    return `${TOOL_NAME} is unavailable: this package's skills/ directory could not be located.`;
+  }
+
+  const profile = params.profile?.trim();
+  if (profile) {
+    return formatProfile(profile) ?? `No profile "${profile}".\n\n${formatProfileIndex()}`;
+  }
+
+  const query = params.query?.trim() ?? "";
+  if (query === "") return formatProfileIndex();
+
+  // A bare profile id passed as the query is a natural thing for a model to
+  // try, and answering it beats a pedantic "no match".
+  const asProfile = formatProfile(query);
+  if (asProfile) return asProfile;
+
+  const limit = Number.isFinite(params.limit) ? Number(params.limit) : DEFAULT_LIMIT;
+  const hits = search(catalog(), query, limit);
+  return hits.length === 0 ? noMatchText(query) : formatHits(hits);
 };
 
 // ---------------------------------------------------------------------------
@@ -735,6 +871,28 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
         : `Saved profiles: ${chosen.join(", ")}`;
 
   const lines = [describeCurrentEntry(location), profileLine];
+
+  // Search reaches every skill regardless of the filter, so saying only "12 of
+  // 157 active" would understate what the model can actually do.
+  lines.push(
+    SKILLS_DIR
+      ? `${TOOL_NAME}: active — the model can find and load any of the ${TOTAL_SKILL_COUNT} skills on demand.`
+      : `${TOOL_NAME}: unavailable — could not locate this package's skills/ directory.`,
+  );
+
+  // Worth stating plainly: pi does not error on an unknown /skill: command, it
+  // forwards the literal text to the model, which looks like the skill loaded.
+  const filtered =
+    location !== undefined &&
+    typeof location.entry !== "string" &&
+    Array.isArray(location.entry.skills);
+  if (filtered) {
+    lines.push(
+      `Note: /skill:<name> works only for active skills. For a filtered one pi passes the` +
+        ` text through unchanged rather than reporting an error — use ${TOOL_NAME} instead.`,
+    );
+  }
+
   const overriding = await projectOverride(ctx.cwd);
   if (overriding) lines.push(`Note: ${projectOverrideMessage(overriding)}`);
   lines.push(usage());
@@ -1054,6 +1212,34 @@ const resetAll = (ctx: CommandContext): Promise<void> =>
     "Reset: saved profiles forgotten, all skills active.",
   );
 
+/**
+ * Trim the always-loaded index to Core and lean on `sci_find` for the rest.
+ *
+ * This is the recommended shape: the everyday statistics/EDA/figures/writing
+ * skills stay in the system prompt where the model will simply use them, and
+ * the remaining 147 stay reachable through search instead of being invisible.
+ */
+const enableSearchMode = async (ctx: CommandContext): Promise<void> => {
+  const core = TOGGLES.find((toggle) => toggle.id === DEFAULT_PROFILE_ID);
+  if (!core) {
+    report(ctx, `Internal error: no "${DEFAULT_PROFILE_ID}" profile.`, "error");
+    return;
+  }
+  const skills = skillsForSelection(new Set([DEFAULT_PROFILE_ID]));
+  await commitPlan(
+    ctx,
+    { kind: "filter", skills },
+    { kind: "set", ids: [DEFAULT_PROFILE_ID] },
+    `Search mode: ${core.label} loaded (${describeCost(skills.length)}); ` +
+      `${TOOL_NAME} reaches all ${TOTAL_SKILL_COUNT}.`,
+  );
+};
+
+/** Human-facing search — also the fallback for models too weak to tool-call. */
+const runFind = (ctx: UiContext, query: string): void => {
+  report(ctx, runToolSearch({ query }), SKILLS_DIR ? "info" : "warning");
+};
+
 const showMainMenu = async (ctx: CommandContext): Promise<void> => {
   if (!ctx.hasUI) return showStatus(ctx);
   const choice = await ctx.ui.select("Scientific skills", [...MAIN_MENU]);
@@ -1077,18 +1263,29 @@ const isSubcommand = (value: string): value is Subcommand =>
   (SUBCOMMANDS as readonly string[]).includes(value);
 
 const dispatch = async (args: string, ctx: CommandContext): Promise<void> => {
-  const arg = args.trim().toLowerCase();
-  if (arg === "") return showMainMenu(ctx);
-  if (!isSubcommand(arg)) {
-    report(ctx, `Unknown subcommand "${arg}". ${usage()}`, "warning");
+  const trimmed = args.trim();
+  if (trimmed === "") return showMainMenu(ctx);
+
+  // `find` carries a free-text query, so split the verb off rather than
+  // lowercasing the whole line — queries are case- and content-sensitive.
+  const separator = trimmed.search(/\s/);
+  const verb = (separator === -1 ? trimmed : trimmed.slice(0, separator)).toLowerCase();
+  const rest = separator === -1 ? "" : trimmed.slice(separator + 1).trim();
+
+  if (!isSubcommand(verb)) {
+    report(ctx, `Unknown subcommand "${verb}". ${usage()}`, "warning");
     return;
   }
 
-  switch (arg) {
+  switch (verb) {
     case "status":
       return showStatus(ctx);
     case "profiles":
       return runPicker(ctx);
+    case "search":
+      return enableSearchMode(ctx);
+    case "find":
+      return runFind(ctx, rest);
     case "all":
       return enableAll(ctx);
     case "none":
@@ -1102,36 +1299,130 @@ const dispatch = async (args: string, ctx: CommandContext): Promise<void> => {
 // Onboarding
 // ---------------------------------------------------------------------------
 
-const ONBOARDING = [
-  `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are active, costing`,
-  `~${formatTokens(BASELINE_TOKEN_COST)} tokens of context every session.`,
-  `Run /${COMMAND_NAME} to pick just the profiles you need.`,
-].join(" ");
+/**
+ * Two audiences, two obligations.
+ *
+ * A *new* user should be offered the cheap default rather than silently given
+ * it: this package writes to someone else's settings.json, and it does that
+ * only in answer to a question they were actually asked.
+ *
+ * An *existing* user must be told, once, when a release changes anything — and
+ * must never be prompted or written to on the strength of an upgrade they did
+ * not ask for. Their working setup is theirs.
+ */
+
+/** How long the first-run question waits before giving up and doing nothing. */
+const OFFER_TIMEOUT_MS = 20_000;
+
+const OFFER_ACCEPT = `Yes — load Core + ${TOOL_NAME} (recommended)`;
+const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded`;
+
+const offerTitle = (): string => {
+  const core = TOGGLES.find((toggle) => toggle.id === DEFAULT_PROFILE_ID);
+  const coreCost = core ? describeCost(skillsForSelection(new Set([DEFAULT_PROFILE_ID])).length) : "";
+  return (
+    `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
+    `~${formatTokens(BASELINE_TOKEN_COST)} tokens of context every session. ` +
+    `Load just Core (${coreCost}) instead? ${TOOL_NAME} still reaches all ${TOTAL_SKILL_COUNT} on demand.`
+  );
+};
+
+const upgradeNotice = (from: string | undefined): string =>
+  [
+    `${PACKAGE_NAME} updated to ${PACKAGE_VERSION}${from ? ` (from ${from})` : ""}.`,
+    `Your current selection is unchanged.`,
+    `New: ${TOOL_NAME} lets the model search all ${TOTAL_SKILL_COUNT} skills on demand,`,
+    `so you can load fewer without losing access to any.`,
+    `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
+    `"/${COMMAND_NAME} status" to see where you stand.`,
+  ].join(" ");
 
 /**
- * First-run hint. Deliberately a fire-and-forget notify rather than a dialog:
- * session_start handlers run before the user's first prompt, so a blocking
- * confirm()/select() would hold the session hostage on every fresh install —
- * including scripted and RPC clients that never expected a prompt. The persisted
- * `onboardingSeen` flag makes it strictly once, and a failure to read or write
- * that flag is swallowed so onboarding can never break startup.
+ * For someone who hand-filtered the package before ever running `/sci`.
+ *
+ * They have already answered the question the first-run offer asks, so they are
+ * not offered anything. But they are still owed the news, and for them it is
+ * more than a feature note: `${TOOL_NAME}` reaches the skills their filter
+ * excludes. A filter was never a boundary — the model could always `read` any
+ * SKILL.md — but shipping a tool that makes that routine without saying so
+ * would be changing what they chose out from under them.
  */
-const maybeOnboard = async (ctx: UiContext): Promise<void> => {
+const filteredNotice = (): string =>
+  [
+    `${PACKAGE_NAME} ${PACKAGE_VERSION}: your "skills" filter is unchanged and`,
+    `/${COMMAND_NAME} has not touched it.`,
+    `New: ${TOOL_NAME} lets the model search all ${TOTAL_SKILL_COUNT} installed skills`,
+    `on demand — including the ones your filter leaves out of the system prompt.`,
+    `Run "/${COMMAND_NAME} status" to see where you stand.`,
+  ].join(" ");
+
+/**
+ * Decide which of the two messages this user is owed, if either.
+ *
+ * Everything here is best-effort: a failure to read or write our own config
+ * must never break someone's session over a notice.
+ */
+const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> => {
   try {
     const config = await readConfig();
-    if (config.onboardingSeen || config.profiles !== undefined) return;
+
+    // Anyone with prior state is an existing user, including someone who saw
+    // the old hint and did nothing — inaction was their answer, so tell them
+    // what changed rather than asking again.
+    const isExistingUser = config.onboardingSeen === true || config.profiles !== undefined;
+
+    if (isExistingUser) {
+      if (config.lastSeenVersion === PACKAGE_VERSION) return;
+      report(ctx, upgradeNotice(config.lastSeenVersion), "info");
+      await writeConfig({ ...config, lastSeenVersion: PACKAGE_VERSION });
+      return;
+    }
 
     const settings = await readSettings(settingsPath());
     const location =
       settings.kind === "ok" ? findPackageEntry(settings.document.packages) : undefined;
-    // Someone who already hand-filtered the package does not need the pitch.
+    // Someone who already hand-filtered the package has answered this question.
     const alreadyFiltered =
       location !== undefined && typeof location.entry !== "string" && location.entry.skills !== undefined;
 
-    if (!alreadyFiltered) ctx.ui.notify(ONBOARDING, "info");
-    await writeConfig({ ...config, onboardingSeen: true });
+    if (alreadyFiltered) {
+      report(ctx, filteredNotice(), "info");
+      await writeConfig({ ...config, onboardingSeen: true, lastSeenVersion: PACKAGE_VERSION });
+      return;
+    }
+
+    // Only the TUI can answer a dialog. `hasUI` is true in RPC too, so gating
+    // on it would hand a scripted client a prompt with nobody to respond.
+    //
+    // Verified in pi 0.84.2 rather than assumed: `bindExtensions` sets the mode
+    // (agent-session.js:1746) and applies it to the runner (:1805) *before*
+    // emitting session_start (:1761), so `ctx.mode` is populated here and not
+    // still at its "print" default. interactive-mode.js passes "tui",
+    // rpc-mode.js passes "rpc".
+    if (ctx.mode !== "tui") {
+      // `report`, not `ui.notify`: notify is a no-op with no UI bound, so a
+      // `pi -p` user would be "informed" into the void and then marked as told.
+      report(ctx, `${offerTitle()} Run "/${COMMAND_NAME} search" to switch.`, "info");
+      await writeConfig({ ...config, onboardingSeen: true, lastSeenVersion: PACKAGE_VERSION });
+      return;
+    }
+
+    const choice = await ctx.ui.select(offerTitle(), [OFFER_ACCEPT, OFFER_DECLINE], {
+      timeout: OFFER_TIMEOUT_MS,
+    });
+
+    // Record the answer before acting: whatever happens next, this question is
+    // asked exactly once. Timeout and escape both land here as `undefined` and
+    // are treated as "no" — silence never changes anyone's configuration.
+    await writeConfig({ ...config, onboardingSeen: true, lastSeenVersion: PACKAGE_VERSION });
+
+    if (choice !== OFFER_ACCEPT) return;
+
+    // session_start's context has no `reload()`, so hand the work to the
+    // command, which does — pi's documented pattern for exactly this.
+    await pi.sendUserMessage(`/${COMMAND_NAME} search`, { deliverAs: "followUp" });
   } catch {
-    // Startup must never fail because of a hint.
+    // Startup must never fail because of a message.
   }
 };
 
@@ -1158,9 +1449,50 @@ export default function (pi: ExtensionAPI): void {
     },
   });
 
+  // The model-facing half of progressive disclosure. Registered unconditionally
+  // when the catalogue is locatable: ~150 tokens of tool definition against a
+  // ~18k index is not a trade worth a configuration flag, and a user running
+  // the full set still benefits from being able to look a skill up by need
+  // rather than by name.
+  if (SKILLS_DIR) {
+    pi.registerTool({
+      name: TOOL_NAME,
+      label: "Find scientific skill",
+      description:
+        `Search ${TOTAL_SKILL_COUNT} installed scientific skills (biology, genomics, ` +
+        `chemistry, drug discovery, clinical research, imaging, physics, statistics, ML, ` +
+        `scientific writing) and get the path to load one. Most of these skills are NOT ` +
+        `listed in the system prompt, so this is the only way to discover them. Call it ` +
+        `with a natural-language description of the task ("variant calling from a bam ` +
+        `file", "fit a survival model"). Omit all arguments to list the profiles, or pass ` +
+        `a profile id to list its skills. Returns skill names, full descriptions, and the ` +
+        `SKILL.md path to read.`,
+      parameters: Type.Object({
+        query: Type.Optional(
+          Type.String({ description: "What you are trying to do, in natural language." }),
+        ),
+        profile: Type.Optional(
+          Type.String({ description: "Profile id to list instead of searching." }),
+        ),
+        limit: Type.Optional(
+          Type.Number({ description: `Maximum results (default ${DEFAULT_LIMIT}).` }),
+        ),
+      }),
+      async execute(_toolCallId: string, params: ToolParams) {
+        const text = runToolSearch(params);
+        return { content: [{ type: "text" as const, text }], details: {} };
+      },
+    });
+  }
+
   pi.on("session_start", async (event, ctx) => {
     // Only a genuine cold start; reload/new/resume/fork would re-nag.
-    if (event.reason !== "startup" || !ctx.hasUI) return;
-    await maybeOnboard(ctx);
+    //
+    // Deliberately NOT gated on ctx.hasUI. A `pi -p` user is still a user owed
+    // the news, and handleStartup reports through `report()`, which falls back
+    // to stderr precisely so those runs are not silent. Gating here would mark
+    // them as told without telling them.
+    if (event.reason !== "startup") return;
+    await handleStartup(pi, ctx);
   });
 }

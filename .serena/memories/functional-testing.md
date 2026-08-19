@@ -7,6 +7,16 @@ pi invocation traps that shaped the harness.
 |------|--------|------|-------|
 | Discovery / frontmatter | all 157, every sync | seconds | `npm run validate` + tarball probe |
 | Functional (skill actually run) | 4–8 per release, accumulating | model call + minutes each | `npm run test:batch` |
+| Search mode reached (extension, not a skill) | 3 probes per release | 3 model calls, ~1 min | `node scripts/test-find-live.mjs` |
+
+`test-find-live.mjs` is the **release gate for search mode**: only Core is
+loaded, and a small model is asked three questions whose skills are not in its
+prompt. If it does not call `sci_find`, the tool description and `aliases.ts`
+are the fix — before release. Results go under `extensionRuns` in the ledger,
+kept out of `runs` and out of any skill pass rate. It copies `auth.json` into
+the throwaway agent dir (deleted at exit): without that every probe fails with
+"No API key found" and the run reports a declining model when none ever ran, so
+the script separates "never ran" from "declined". See `mem:search-mode`.
 
 As of 1.0.2: **10 of 157** PASS. TIMEOUT rows are harness faults and do not
 count. README's "Functional runs — N of 157" counts PASS. The bar is whether

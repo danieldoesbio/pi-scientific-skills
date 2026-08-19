@@ -1,6 +1,6 @@
 {
   "name": "pi-scientific-skills",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "upstreamVersion": "v2.63.0",
   "description": "157 scientific Agent Skills for the pi coding agent: biology, genomics, chemistry, drug discovery, clinical research, machine learning, physics, statistics. Skills (c) 2025 K-Dense Inc. and contributors (MIT), from K-Dense-AI/scientific-agent-skills.",
   "license": "MIT",
@@ -61,12 +61,17 @@
     "node": ">=22.18"
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
   },
   "scripts": {
+    "test": "npm run validate && npm run test:search && npm run test:extension && npm run test:filter",
     "validate": "node scripts/validate.mjs",
-    "sync:upstream": "bash scripts/sync-upstream.sh",
+    "test:search": "node scripts/test-search.mjs",
+    "test:extension": "node scripts/test-extension.mjs",
+    "test:filter": "node scripts/test-filter.mjs",
     "test:batch": "node scripts/test-batch.mjs",
+    "sync:upstream": "bash scripts/sync-upstream.sh",
     "metrics:downloads": "node scripts/track-downloads.mjs"
   }
 }

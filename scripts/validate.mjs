@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Validate all skills against pi's Agent Skills rules (docs/skills.md), and
-// validate extensions/profiles.ts against what is actually on disk.
+// validate extensions/ against what is actually on disk and in package.json.
 //
 // Warnings are acceptable (pi loads leniently); a MISSING description is a hard
 // failure because pi refuses to load such skills. A profiles.ts that disagrees
@@ -9,7 +9,9 @@
 // skill — leaving /sci quoting stale token counts and stranding new skills in no
 // profile, silently, for every user who has applied one.
 //
-// Requires Node >= 22.18 (native TypeScript type stripping) to read profiles.ts.
+// Requires Node >= 22.18 (native TypeScript type stripping) to read the .ts
+// modules under extensions/. Deliberately does NOT require pi: this is the
+// pre-publish gate and must run anywhere, unlike the test suites.
 //
 // Usage: node scripts/validate.mjs  (or: npm run validate)
 // Exit codes: 0 = OK, 1 = hard failure, 2 = usage error.
@@ -20,65 +22,19 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(root, "skills");
 
-function unquote(s) {
-  const m = s.match(/^(['"])([\s\S]*)\1$/);
-  return m ? m[2] : s;
-}
-
-function parseFrontmatter(text) {
-  // Line-based parser for the top-level scalars this collection uses. It must
-  // resolve block scalars (`description: >` followed by indented lines), because
-  // a naive parser records the `>` indicator itself as the value — which makes a
-  // skill with an EMPTY block body look like it has a description and slip past
-  // the hard check below, even though pi would refuse to load it.
-  //
-  // Only top-level scalars are resolved. Nested mappings (`metadata:`) are
-  // recorded as present-but-empty and skipped; none are validated.
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/m);
-  if (!m) return null;
-
-  const fm = {};
-  const lines = m[1].split(/\r?\n/);
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    i++;
-
-    const kv = line.match(/^([A-Za-z0-9_-]+):[ \t]*(.*)$/);
-    if (!kv) continue; // continuation of a construct we skipped, or blank
-    const [, key, rawRest] = kv;
-    const rest = rawRest.trim();
-
-    // Block scalar: `>`, `|`, plus optional chomping/indent indicators (>-, |2+).
-    const block = rest.match(/^([|>])([+-]?\d*|\d*[+-]?)$/);
-    if (block) {
-      const folded = block[1] === ">";
-      const body = [];
-      while (i < lines.length) {
-        const next = lines[i];
-        if (next.trim() !== "" && !/^[ \t]/.test(next)) break; // dedent ends block
-        body.push(next.trim());
-        i++;
-      }
-      while (body.length && body[body.length - 1] === "") body.pop(); // chomp
-      fm[key] = folded ? body.join(" ").replace(/\s+/g, " ").trim() : body.join("\n").trim();
-      continue;
-    }
-
-    if (rest === "") {
-      // Either an empty scalar or the start of a nested mapping/sequence.
-      // Consume any indented block so its inner keys aren't read as top-level.
-      while (i < lines.length && (lines[i].trim() === "" || /^[ \t]/.test(lines[i]))) i++;
-      fm[key] = "";
-      continue;
-    }
-
-    fm[key] = unquote(rest);
-  }
-
-  return fm;
-}
+// The parser is shared with `search.ts`, which reads the same frontmatter at
+// runtime to build the sci_find catalogue. Two copies would drift, and the
+// drift would be invisible: validation would pass on files the runtime read
+// differently. Importing it here also exercises it against all 157 real
+// SKILL.md files on every release, including the block-scalar cases it exists
+// for.
+const { parseFrontmatter } = await import(
+  pathToFileURL(join(root, "extensions", "frontmatter.ts")).href
+).catch((error) => {
+  console.error(`FAIL: cannot import extensions/frontmatter.ts (${error?.message ?? error}).`);
+  console.error("Node >= 22.18 is required to strip TypeScript types.");
+  process.exit(1);
+});
 
 function collectSkills(dir) {
   const out = [];
@@ -99,6 +55,8 @@ function collectSkills(dir) {
 const nameRe = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const problems = { hard: [], warn: [] };
 let count = 0;
+/** Chars of name + description across all skills — the system-prompt index. */
+let indexChars = 0;
 
 for (const skill of collectSkills(skillsDir)) {
   count++;
@@ -125,6 +83,8 @@ for (const skill of collectSkills(skillsDir)) {
   } else if (fm.description.length > 1024) {
     problems.warn.push(`${skill.name}: description ${fm.description.length} chars > 1024 (warning only)`);
   }
+
+  indexChars += (fm.name ?? skill.name).length + (fm.description?.length ?? 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -202,9 +162,126 @@ function validateProfiles(mod, onDisk) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// extensions/package-info.ts vs. package.json
+// ---------------------------------------------------------------------------
+
+/**
+ * The extension keeps its own name and version as constants so the upgrade
+ * notice cannot fail on a file read. The price is drift, and drift here is
+ * silent in the worst way: a stale PACKAGE_VERSION suppresses the "what
+ * changed" notice for every user, which is the one promise a release makes.
+ */
+async function validatePackageInfo() {
+  let info;
+  try {
+    info = await import(pathToFileURL(join(root, "extensions", "package-info.ts")).href);
+  } catch (error) {
+    problems.hard.push(`extensions/package-info.ts could not be imported (${error?.message ?? error})`);
+    return;
+  }
+
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+
+  if (info.PACKAGE_VERSION !== manifest.version) {
+    problems.hard.push(
+      `package-info.ts PACKAGE_VERSION is "${info.PACKAGE_VERSION}" but package.json says ` +
+        `"${manifest.version}" — existing users would get no upgrade notice for this release`,
+    );
+  }
+  if (info.PACKAGE_NAME !== manifest.name) {
+    problems.hard.push(
+      `package-info.ts PACKAGE_NAME is "${info.PACKAGE_NAME}" but package.json says "${manifest.name}" — ` +
+        `/sci looks the package up in settings.json by this name and would find nothing`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// extensions/aliases.ts vs. skills/ on disk
+// ---------------------------------------------------------------------------
+
+/**
+ * An alias naming a skill that no longer exists is inert but harmful: the query
+ * it was written for silently loses its best match, and nothing surfaces that.
+ * sync-upstream.sh replaces skills/ wholesale, so this is exactly the kind of
+ * breakage a release introduces without touching extensions/.
+ */
+async function validateAliases(onDisk) {
+  let mod;
+  try {
+    mod = await import(pathToFileURL(join(root, "extensions", "aliases.ts")).href);
+  } catch (error) {
+    problems.hard.push(`extensions/aliases.ts could not be imported (${error?.message ?? error})`);
+    return;
+  }
+
+  const skillDirs = new Set(onDisk);
+  const triggers = new Set();
+  let targets = 0;
+
+  for (const alias of mod.ALIASES) {
+    if (!alias.match?.length) {
+      problems.hard.push(`an alias entry has no "match" phrases, so it can never fire`);
+      continue;
+    }
+    for (const phrase of alias.match) {
+      const key = phrase.toLowerCase();
+      // Duplicate triggers double-count their boost, quietly distorting ranking.
+      if (triggers.has(key)) problems.hard.push(`alias phrase "${phrase}" is listed twice`);
+      triggers.add(key);
+    }
+    if (!alias.terms?.length && !alias.skills?.length) {
+      problems.hard.push(`alias "${alias.match[0]}" expands to nothing`);
+    }
+    for (const skill of alias.skills ?? []) {
+      targets++;
+      if (!skillDirs.has(skill)) {
+        problems.hard.push(`alias "${alias.match[0]}" names '${skill}', which has no skills/${skill}/SKILL.md`);
+      }
+    }
+  }
+
+  console.log(`Validated aliases.ts: ${mod.ALIASES.length} rules, ${targets} skill targets`);
+}
+
+// ---------------------------------------------------------------------------
+// TOKENS_PER_SKILL ratchet
+// ---------------------------------------------------------------------------
+
+/** Chars per token in the original measurement (65,455 chars ≈ 17.7k tokens). */
+const CHARS_PER_TOKEN = 3.69;
+/** Drift below this is noise in a hand-calibrated estimate; above it, /sci lies. */
+const DRIFT_TOLERANCE = 0.1;
+
+/**
+ * TOKENS_PER_SKILL has to stay a constant — the picker needs a cost for a
+ * selection synchronously, before anything is on disk to measure. But upstream
+ * rewrites descriptions, and every /sci token figure is derived from this one
+ * number, so a silent 30% drift would turn honest guidance into confident
+ * nonsense. Warn rather than fail: the number is an estimate by construction.
+ */
+function checkTokenEstimate(profiles, skillCount) {
+  if (!profiles || skillCount === 0) return;
+  const measured = indexChars / skillCount / CHARS_PER_TOKEN;
+  const drift = Math.abs(measured - profiles.TOKENS_PER_SKILL) / profiles.TOKENS_PER_SKILL;
+  const summary =
+    `TOKENS_PER_SKILL is ${profiles.TOKENS_PER_SKILL}; skills/ now measures ` +
+    `${measured.toFixed(1)} (${(drift * 100).toFixed(1)}% drift)`;
+
+  if (drift > DRIFT_TOLERANCE) {
+    problems.warn.push(`${summary} — update it in profiles.ts, or every /sci figure is off by that much`);
+  } else {
+    console.log(`Validated token estimate: ${summary}`);
+  }
+}
+
 const onDiskNames = collectSkills(skillsDir).map((skill) => skill.name);
 const profiles = await loadProfiles();
 if (profiles) validateProfiles(profiles, onDiskNames);
+await validateAliases(onDiskNames);
+await validatePackageInfo();
+checkTokenEstimate(profiles, count);
 
 console.log(`Validated ${count} skills in ${skillsDir}`);
 for (const p of problems.warn) console.log(`  [warn] ${p}`);

@@ -144,13 +144,22 @@ custom skill.
 ```
 package.json            # pi manifest: "pi": { "skills": [...], "extensions": [...] }, keyword "pi-package"
 skills/                 # 157 skill directories, each with SKILL.md (+ references/scripts/assets)
-extensions/index.ts     # the /sci command — profile picker + settings.json writer
+extensions/index.ts     # the /sci command + sci_find tool — picker, search, settings.json writer
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
+extensions/search.ts    # sci_find's catalogue + ranking, and skills/ root resolution
+extensions/aliases.ts   # curated query→skill aliases, each from an observed miss
+extensions/frontmatter.ts    # the one YAML parser, shared with validate.mjs
+extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guards the drift
+scripts/lib/load-extension.mjs  # loads extensions/ the way pi does (jiti + host aliases)
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
-scripts/validate.mjs    # pi-rule validation across all skills + profiles.ts drift check
+scripts/validate.mjs    # pi-rule validation across all skills + extensions/ drift checks
+scripts/test-search.mjs # sci_find ranking against the real 157 descriptions
+scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
+scripts/test-filter.mjs # that pi itself honours the filter we write
+scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
-testing/ledger.json     # which skills have actually been RUN, with verdicts
+testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
 testing/transcripts/    # raw pi output per graded run, kept as evidence
 metrics/downloads.json  # npm daily series + publish dates, with revisions recorded
 LICENSE.md              # upstream MIT verbatim
@@ -181,19 +190,122 @@ similar descriptions, many of which are near-neighbours).
 
 ### Why it writes settings.json rather than filtering at runtime
 
-Three mechanisms could filter skills. Only one is compatible with this port:
+Four mechanisms could filter skills. Only one is compatible with this port:
 
 | Mechanism | Verdict |
 |---|---|
 | `disable-model-invocation: true` in frontmatter | **Rejected.** Edits `SKILL.md`, breaking byte-identity with upstream, and `sync-upstream.sh` replaces `skills/` wholesale — every sync would silently wipe the user's selection. |
-| Intercept `resources_discover` and return filtered `skillPaths` | **Rejected.** Opaque and invisible to `pi config`; selection dies with the extension. |
+| Intercept `resources_discover` and return filtered `skillPaths` | **Impossible**, not merely undesirable — see below. |
+| `before_agent_start` returning a rewritten `systemPrompt` | **Rejected.** Would strip the skills index while leaving pi's registry intact — the only route that preserves `/skill:<name>`. But it is per-turn prompt surgery, fragile across pi versions, and invisible to `pi config`. |
 | Write pi's own per-package filter into `settings.json` | **Chosen.** Native, inspectable, hand-editable, composes with `pi config`, survives sync, and outlives the extension. |
+
+**`resources_discover` cannot filter at all.** An earlier version of this document
+called it "rejected" on the grounds that the selection would die with the
+extension. The conclusion was right and the premise was wrong, which is worse
+than being wrong outright — it invites someone to re-litigate the decision on a
+false basis. The hook is **additive only**: `emitResourcesDiscover`
+(`dist/core/extensions/runner.js:891-926`) does nothing with a handler's return
+value except push it into accumulator arrays, and `agent-session.js:1764-1780`
+feeds those to `resource-loader.js`'s `extendResources` (229-255), which *merges*
+into the already-discovered set. No return value can remove a skill.
 
 The filter is the documented object form (`settings.md`):
 
 ```json
 { "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy"] } ] }
 ```
+
+### Search mode — progressive disclosure for the model (v1.1.0)
+
+Profiles solve the context budget for the **human**: you pick a field before the
+work starts. They do nothing for the **model**, and a profile is a bet — when it
+is wrong, the skill the scientist needed is invisible.
+
+`sci_find` closes that half. It loads no skills; it searches all 157 names and
+descriptions and returns the ones that match, with full descriptions and the
+absolute `SKILL.md` path for the model to `read`. That is mechanically identical
+to how pi loads a skill natively, one level further down: descriptions deferred
+rather than bodies.
+
+`/sci search` applies Core (10 skills, ~1.1k tokens) through the same
+`commitPlan` path everything else uses — deliberately **no second write path**,
+so the empty-array footgun handling below stays single-sourced.
+
+**Design decisions worth not re-deriving:**
+
+- **The tool is registered unconditionally**, not behind a mode flag. ~150 tokens
+  of tool definition against a ~18k index is not a trade worth a config toggle,
+  and someone running all 157 still benefits from looking a skill up by need
+  rather than by name. `/sci status` says so.
+- **Recall beats precision.** `sci_find` does not have to pick the right skill,
+  only get it into a list of eight with full descriptions attached. Even a small
+  model discriminates well among eight labelled options and badly among 157 in a
+  system prompt. That is why scoring is OR-based: requiring every term to match
+  returns nothing for ordinary phrasings ("variant calling" matches no single
+  description verbatim).
+- **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
+  plausible-but-wrong skill handed to someone designing an experiment is worse
+  than no answer. Matching is **word-boundary, not substring** — raw substring
+  matching scored `open-notebook` for "book a flight to paris", which is exactly
+  the failure mode this rule exists to prevent.
+- **`aliases.ts` entries must come from an observed miss**, never from
+  imagination. `pysam`'s description says VCF/BCF but never "variant";
+  `esm`'s says ESMFold2 but never "protein structure prediction". Speculative
+  aliases make results worse, and `validate.mjs` hard-fails on any alias naming
+  a skill that no longer exists.
+- **The catalogue is read lazily from disk** (~18ms for 157 files, head 8KB
+  each) and cached for the session. A committed generated catalog was rejected:
+  it would duplicate ~65KB of upstream description text into `extensions/`,
+  breaching the "everything in `skills/` is upstream's" claim this repo keeps
+  checkable, to save 18ms.
+
+**Locating our own `skills/` at runtime.** `import.meta.url` survives jiti — a TS
+module evaluated through pi's loader sees it rewritten to its own path, verified
+empirically against pi's bundled jiti 2.7.0 via `jiti.import`, the loader's own
+call. So `join(dirname(fileURLToPath(import.meta.url)), "..", "skills")` is
+correct. It is guarded by an actual `SKILL.md` check: if the directory does not
+hold skills, the tool is **not registered** rather than handing the model paths
+that do not exist.
+
+### Startup messaging — the obligation, and where it is enforced
+
+This package writes into a file it does not own. Two rules follow, and
+`scripts/test-extension.mjs` exists mainly to hold them:
+
+1. **A new user is offered, never given.** The first-run dialog has a recommended
+   answer; escape, timeout (20s) and decline all write nothing. The answer is
+   recorded *before* acting, so the question is asked exactly once either way.
+2. **An existing user is told, never asked.** Their `settings.json` is
+   **byte-identical** before and after an upgrade — asserted directly, because
+   nothing weaker actually proves it.
+
+Three details that are easy to get wrong:
+
+- **Gate the dialog on `ctx.mode === "tui"`, not `ctx.hasUI`.** `hasUI` is true in
+  RPC too, so gating on it hands a scripted client a modal with nobody to answer.
+  `ctx.mode` is genuinely populated at `session_start`, not still at its `"print"`
+  default: `bindExtensions` sets it (`agent-session.js:1746`) and applies it to the
+  runner (`:1805`) *before* emitting the event (`:1761`).
+- **Report through `report()`, not `ctx.ui.notify`.** `notify` is a documented
+  no-op with no UI bound, so a `pi -p` user would be informed into the void and
+  then marked as told. `report()` falls back to stderr. For the same reason the
+  `session_start` handler is **not** gated on `ctx.hasUI`.
+- **Someone who hand-filtered the package gets a notice too**, not silence. They
+  are not offered anything — they already answered that question — but `sci_find`
+  reaches the skills their filter excludes, and shipping that without saying so
+  would change what they chose out from under them. (A filter was never a
+  boundary; the model could always `read` any `SKILL.md`. That is precisely why
+  it has to be said out loud.)
+
+### Known trade-off — `/skill:<name>` fails silently under a filter
+
+With a filter active, `/skill:<name>` for a filtered-out skill is not an error.
+`_expandSkillCommand` (`agent-session.js:953-961`) misses the lookup and passes
+the **literal text** through to the model — worse than a plain failure, because
+nothing signals that anything went wrong. Disclosed in `/sci status` and the
+README. The real fix is a `/sci use <name>` that reads any of the 157 bodies and
+injects it via `pi.sendUserMessage`, wrapped as pi wraps it — deferred to v1.2.0,
+and explicitly **not** 157 shadow commands.
 
 ### The empty-array footgun
 
@@ -252,12 +364,37 @@ pi-tui's `Component`, not optional, even when nothing is cached.
 
 Pi loads extensions with **jiti** (`dist/core/extensions/loader.js:332`), which
 resolves extensionless relative imports — `from "./profiles"` is correct and will
-fail under raw Node ESM. Drive the extension in tests by loading it through jiti
-with a stubbed `ExtensionAPI`, and point `PI_CODING_AGENT_DIR` at a throwaway
-directory. To verify pi honours the written filter, construct a
-`DefaultPackageManager` and count `resolve().skills.filter(s => s.enabled)` —
-`resolve()` returns *all* resources with an `enabled` flag, so a plain `.length`
-will not change.
+fail under raw Node ESM. `scripts/lib/load-extension.mjs` reproduces that load
+path (finds pi on `PATH`, rebuilds the alias map, imports `jiti/lib/jiti-static.mjs`
+directly), so the suites exercise the same module graph pi does. An installed pi
+is therefore a hard prerequisite for `npm test`.
+
+`npm test` runs four things, none of which spend model tokens:
+
+| Script | What it proves |
+|---|---|
+| `validate.mjs` | All 157 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 157 descriptions — including four queries that must return *nothing*. |
+| `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
+| `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
+
+Two things are worth knowing before changing these:
+
+- `resolve()` returns *all* resources with an `enabled` flag, so `.length` does
+  not change when a filter applies. Count `resolve().skills.filter(s => s.enabled)`
+  or the test proves nothing.
+- `getAgentDir()` reads `PI_CODING_AGENT_DIR` on **every** call (`config.js:412-418`),
+  so a single test process can point successive cases at different throwaway dirs.
+
+`scripts/test-find-live.mjs` is the release gate and is **not** in `npm test`
+because it spends tokens. It installs the packed tarball into a throwaway agent
+dir filtered to Core and asks a small model three questions whose skills are not
+loaded, then checks the transcript for a `sci_find` call. If a weak model does
+not reach for the tool, the tool description and `aliases.ts` are the fix — not
+the test. It copies `auth.json` into the throwaway dir (deleted at exit,
+including under `--keep`): without that, every probe fails with "No API key
+found" and the run reports a model that declined to call the tool when in fact
+no model ran. It separates "never ran" from "declined" for exactly that reason.
 
 ## Port process (how a new upstream version lands)
 
@@ -311,6 +448,23 @@ Pi does not require the name to match its parent directory.
 - Reports violations of the table above; exits non-zero when a skill is missing
   its `description` (pi would refuse to load it) or when `extensions/profiles.ts`
   disagrees with `skills/`.
+- Checks `extensions/aliases.ts`: every alias must name a real skill directory,
+  no trigger phrase may be listed twice (a duplicate double-counts its boost and
+  quietly distorts ranking), and no rule may expand to nothing.
+- Hard-fails when `extensions/package-info.ts` disagrees with `package.json`. A
+  stale `PACKAGE_VERSION` silently suppresses the upgrade notice for every user,
+  which is the one promise a release makes; it must not be possible to ship that.
+- Warns when `TOKENS_PER_SKILL` drifts more than 10% from what `skills/` now
+  measures. It stays a constant because the picker needs a cost synchronously,
+  before anything is on disk to measure — but every `/sci` figure derives from
+  it, so silent drift turns honest guidance into confident nonsense. A warning,
+  not a failure: the number is an estimate by construction.
+
+The parser is **not** defined here. It lives in `extensions/frontmatter.ts` and
+is shared with `search.ts`, which parses the same files at runtime to build the
+`sci_find` catalogue. Two copies would drift, and the drift would be invisible —
+validation would pass on files the runtime read differently. Importing it here
+also exercises it against all 157 real files on every release.
 
 Block scalars matter more than they look. Two skills (`bids`, `onekgpd`) write
 `description: >` with the text on following lines. A naive line-based parser
@@ -423,7 +577,8 @@ claims about adoption and coverage have something behind them.
 
 ## Publishing checklist
 
-- [ ] `npm run validate` clean (no missing descriptions)
+- [ ] `npm test` clean — validation plus the three offline suites (requires an
+      installed pi; they load the extension through pi's own jiti)
 - [ ] License exceptions re-checked after any sync — `find skills -iname 'LICENSE*'` and
       `grep -h '^license:' skills/*/SKILL.md | sort -u`; record new non-MIT or
       NonCommercial skills under Provenance and in README credits
@@ -438,6 +593,17 @@ claims about adoption and coverage have something behind them.
       presence — the reported total also counts your personal skills.
 - [ ] `node scripts/test-batch.mjs --version <ver>` run, transcripts graded, and
       `testing/ledger.json` updated with the new batch (see "Functional testing")
+- [ ] `node scripts/test-find-live.mjs` passes on a **small** model, recorded under
+      `extensionRuns` in the ledger. This is the gate for search mode: if a weak
+      model does not reach for `sci_find`, the tool description and `aliases.ts`
+      are the fix, before release
+- [ ] `extensions/package-info.ts` `PACKAGE_VERSION` bumped alongside
+      `package.json` — `npm run validate` hard-fails otherwise, but bump it
+      deliberately: it is what decides whether existing users see the upgrade
+      notice at all
+- [ ] The upgrade notice actually says what changed for this release, and a
+      seeded prior-version config still leaves `settings.json` byte-identical
+      (`npm run test:extension` asserts this; re-read the wording by hand)
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
       the synced tag; README's `v<upstream>` mentions agree with it
 - [ ] git commit + tag + push (GitHub)

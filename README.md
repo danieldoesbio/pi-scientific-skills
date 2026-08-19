@@ -41,12 +41,45 @@ profile layer on top so you don't have to do that 157 times:
 
 ```bash
 /sci            # interactive menu
+/sci search     # recommended — load Core, reach the rest on demand
+/sci find <q>   # search all 157 by what you're trying to do
 /sci status     # what's active now, and what it costs
 /sci profiles   # jump straight to the picker
 /sci all        # re-enable everything
 /sci none       # disable all skills from this package
 /sci reset      # forget saved profiles, re-enable everything
 ```
+
+### Search mode — the recommended setup
+
+Choosing a profile means betting on what you'll need before the work starts.
+When the bet is wrong, the skill you needed is simply invisible.
+
+`/sci search` removes the bet. It loads the ten Core skills — **~1.1k tokens
+instead of ~18k** — and the model reaches everything else through a `sci_find`
+tool that searches all 157 by description and returns the path to load:
+
+```
+> I have a sorted BAM and need to call variants from it
+
+  sci_find("variant calling from a bam file")
+    → pysam, pathogen-variant-surveillance, genomic-intelligence …
+  read .../skills/pysam/SKILL.md
+```
+
+That's the same two-step pi already uses for skills — descriptions first, body
+on demand — pushed one level further, so narrowing what's always loaded no
+longer means making anything unreachable.
+
+`sci_find` is registered whether or not you run `/sci search`, so it works
+alongside any profile, and `/sci find` runs the same search for you. Verified
+against a small model (deepseek-v4-flash), not just a frontier one — the whole
+point is the low end.
+
+**One caveat.** With any filter active, `/skill:<name>` for a filtered-out skill
+fails *silently*: pi doesn't recognise the name and passes the literal text
+through to the model instead of erroring. Use `/sci find` or ask in plain
+language and let `sci_find` do it. `/sci status` repeats this warning.
 
 Ten profiles: Core, Genomics & Bioinformatics, Scientific ML & Data Science,
 Writing/Literature/Presentation, Single-Cell Omics, Drug Discovery, Clinical &
@@ -81,6 +114,11 @@ which has to write an empty list and can't carry them. If your settings are
 malformed, or a project-local `.pi/settings.json` would override the global one,
 `/sci` names the file and refuses to write rather than guess.
 
+Nothing is written unless you ask for it. On a first run `/sci` *offers* search
+mode and does nothing if you decline, escape, or ignore it. On an upgrade it
+tells you once what changed and leaves your selection exactly as it was — your
+`settings.json` is not touched by an upgrade you didn't ask for.
+
 ## What's inside
 
 157 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
@@ -93,6 +131,8 @@ What's actually been tested, with the numbers:
 
 - **Discovery & validation — all 157:** every skill is offered to the model in pi with the correct name and description, checked against the packed tarball; frontmatter passes a validator that reimplements pi's rules (0 warnings, 0 hard issues). The four omitted Anthropic skills are confirmed absent in the same run.
 - **Functional runs — 10 of 157.** Record in `testing/ledger.json` (in the repo; not shipped in the npm package). Four at 1.0.0: `statistical-analysis`, `pathogen-variant-surveillance`, `experimental-design`, `scientific-visualization` (the last two under `z-ai/glm-5.2`; the first two's model was not recorded). Six at 1.0.2 under `deepseek/deepseek-v4-flash`: `ncats-arax` (live ARAX/TRAPI one-hop, imatinib → ABL1), `relsa-severity-assessment` (bundled cohort scored, KDE plot written), `etetoolkit` (ete4 Newick I/O, prune, reroot, Robinson-Foulds), `venue-templates` (Nature scaffold generated; the author-substitution regex is a rough edge, not a fail), `arbor` (HTR cycle via bundled `tree.py`; merge gate correctly rejected a non-generalizing candidate), `deepspot-m` (pi offered it; the model loaded SKILL.md and followed the documented install path). The other 147 have not been exercised here, so take them as upstream ships them.
+- **`/sci` and `sci_find` — automated, on every change:** 44 behavioural checks against a stubbed pi (`/sci search` writes the Core filter and preserves hand-written `!pattern` overrides; a seeded prior-version config leaves `settings.json` byte-identical; malformed settings refuse without writing), 29 ranking checks against the real 157 descriptions including four queries that must return *nothing*, and 7 checks that **pi itself** honours the filter, run through a real `DefaultPackageManager`.
+- **Search mode against a small model — 3 of 3.** With only Core loaded, `deepseek/deepseek-v4-flash` was asked three questions whose skills were not in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand). It called `sci_find` unprompted every time, got a correct skill back, and read the `SKILL.md`. Recorded under `extensionRuns` in `testing/ledger.json`. The probes never name the skill — that's the whole test.
 - **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes on the byte-identical content. The 2,512-test figure quoted in earlier releases was counted at v2.62.0; v2.63.0 adds suites for the new skills, and I have not re-counted, so treat upstream's CI badge as the current source.
 
 Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.63.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
