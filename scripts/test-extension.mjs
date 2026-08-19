@@ -79,6 +79,7 @@ const makeHarness = ({ mode = "tui", selectAnswer, cwd, hasUI = true } = {}) => 
 };
 
 const extension = await loadExtensionModule("extensions/index.ts");
+const { TOTAL_SKILL_COUNT } = await loadExtensionModule("extensions/profiles.ts");
 
 /** Register the extension against doubles and hand back its hooks. */
 const register = (harness) => {
@@ -191,7 +192,8 @@ console.log("\n-- first run (new user, TUI) --");
   check("asks rather than assuming", harness.selects.length === 1);
   check(
     "offer states both costs",
-    /157/.test(harness.selects[0]?.title ?? "") && /Core/.test(harness.selects[0]?.title ?? ""),
+    new RegExp(String(TOTAL_SKILL_COUNT)).test(harness.selects[0]?.title ?? "") &&
+      /Core/.test(harness.selects[0]?.title ?? ""),
   );
   const queued = harness.sendUserMessage[0];
   check("accepting queues the command", queued?.content === "/sci search", JSON.stringify(queued));
@@ -325,7 +327,11 @@ console.log("\n-- first run (print mode, no UI bound) --");
 
   const stderr = await captureStderr(() => startup(hooks, harness));
 
-  check("falls back to stderr rather than going silent", /157/.test(stderr), stderr.slice(0, 80));
+  check(
+    "falls back to stderr rather than going silent",
+    new RegExp(String(TOTAL_SKILL_COUNT)).test(stderr),
+    stderr.slice(0, 80),
+  );
   check("never prompts", harness.selects.length === 0);
 }
 

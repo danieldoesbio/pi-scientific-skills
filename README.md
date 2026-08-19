@@ -1,6 +1,6 @@
 # pi-scientific-skills
 
-A pi package bundling **157 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
+A pi package bundling **159 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
 
 Use pi as an AI scientist: single-cell RNA-seq, drug discovery, protein design, medical imaging, clinical research, ML/AI, statistics, physics, geospatial analysis, scientific writing, grant proposals, and more — with curated, version-pinned documentation and, where useful, helper scripts.
 
@@ -18,7 +18,7 @@ Try without installing:
 pi -e npm:pi-scientific-skills
 ```
 
-After install, all 157 skills are available. When a task matches, pi loads the skill on demand; you can also force one:
+After install, all 159 skills are available. When a task matches, pi loads the skill on demand; you can also force one:
 
 ```bash
 /skill:scanpy             # single-cell RNA-seq analysis
@@ -30,19 +30,19 @@ List installed packages with `pi list`, and enable/disable individual skills wit
 
 ## `/sci` — pick what you load
 
-All 157 skill descriptions sit in the system prompt at startup: pi's progressive
+All 159 skill descriptions sit in the system prompt at startup: pi's progressive
 disclosure keeps descriptions always in context and loads only the skill *bodies*
 on demand. Measured, that index costs **~18k tokens**. That's over half a 32k
 context window, and more than an 8k window can hold at all. On a small local
 model it's the difference between usable and unusable.
 
 `pi config` can already toggle skills one at a time. `/sci` puts a curated
-profile layer on top so you don't have to do that 157 times:
+profile layer on top so you don't have to do that 159 times:
 
 ```bash
 /sci            # interactive menu
 /sci search     # recommended — load Core, reach the rest on demand
-/sci find <q>   # search all 157 by what you're trying to do
+/sci find <q>   # search all 159 by what you're trying to do
 /sci status     # what's active now, and what it costs
 /sci profiles   # jump straight to the picker
 /sci all        # re-enable everything
@@ -57,7 +57,7 @@ When the bet is wrong, the skill you needed is simply invisible.
 
 `/sci search` removes the bet. It loads the ten Core skills — **~1.1k tokens
 instead of ~18k** — and the model reaches everything else through a `sci_find`
-tool that searches all 157 by description and returns the path to load:
+tool that searches all 159 by description and returns the path to load:
 
 ```
 > I have a sorted BAM and need to call variants from it
@@ -94,7 +94,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/157 skills, ~1.4k tokens, saves ~16.4k
+Scientific skills — 12/159 skills, ~1.4k tokens, saves ~16.6k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
@@ -121,7 +121,7 @@ tells you once what changed and leaves your selection exactly as it was — your
 
 ## What's inside
 
-157 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
+159 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
 
 Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where useful, `references/` (on-demand docs), `scripts/` (helper code), and `assets/` (templates). Pi implements the Agent Skills standard, so discovery and on-demand loading work exactly as with Claude Code / Cursor / Codex.
 
@@ -129,21 +129,21 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
 
 What's actually been tested, with the numbers:
 
-- **Discovery & validation — all 157:** every skill is offered to the model in pi with the correct name and description, checked against the packed tarball; frontmatter passes a validator that reimplements pi's rules (0 warnings, 0 hard issues). The four omitted Anthropic skills are confirmed absent in the same run.
-- **Functional runs — 10 of 157.** Record in `testing/ledger.json` (in the repo; not shipped in the npm package). Four at 1.0.0: `statistical-analysis`, `pathogen-variant-surveillance`, `experimental-design`, `scientific-visualization` (the last two under `z-ai/glm-5.2`; the first two's model was not recorded). Six at 1.0.2 under `deepseek/deepseek-v4-flash`: `ncats-arax` (live ARAX/TRAPI one-hop, imatinib → ABL1), `relsa-severity-assessment` (bundled cohort scored, KDE plot written), `etetoolkit` (ete4 Newick I/O, prune, reroot, Robinson-Foulds), `venue-templates` (Nature scaffold generated; the author-substitution regex is a rough edge, not a fail), `arbor` (HTR cycle via bundled `tree.py`; merge gate correctly rejected a non-generalizing candidate), `deepspot-m` (pi offered it; the model loaded SKILL.md and followed the documented install path). The other 147 have not been exercised here, so take them as upstream ships them.
-- **`/sci` and `sci_find` — automated, on every change:** 49 behavioural checks against a stubbed pi (`/sci search` writes the Core filter and preserves hand-written `!pattern` overrides; a seeded prior-version config leaves `settings.json` byte-identical; malformed settings refuse without writing), 29 ranking checks against the real 157 descriptions including four queries that must return *nothing*, and 7 checks that **pi itself** honours the filter, run through a real `DefaultPackageManager`. The first-run offer is additionally driven through **pi's real TUI** over a pty: accepting writes Core's 10 skills, declining and timing out write nothing at all. To try any of it by hand, `npm run try` opens this package in a throwaway pi — your own `~/.pi/agent` is never touched.
-- **Search mode against a small model — 3 of 3.** With only Core loaded, `deepseek/deepseek-v4-flash` was asked three questions whose skills were not in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand). It called `sci_find` unprompted every time, got a correct skill back, and read the `SKILL.md`. Recorded under `extensionRuns` in `testing/ledger.json`. The probes never name the skill — that's the whole test.
-- **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes on the byte-identical content. The 2,512-test figure quoted in earlier releases was counted at v2.62.0; v2.63.0 adds suites for the new skills, and I have not re-counted, so treat upstream's CI badge as the current source.
+- **Discovery & validation — all 159:** every skill is offered to the model in pi with the correct name and description, checked against the packed tarball; frontmatter passes a validator that reimplements pi's rules (0 warnings, 0 hard issues). The four omitted Anthropic skills are confirmed absent in the same run.
+- **Functional runs — 16 of 159.** Record in `testing/ledger.json` (in the repo; not shipped in the npm package). Four at 1.0.0: `statistical-analysis`, `pathogen-variant-surveillance`, `experimental-design`, `scientific-visualization` (the last two under `z-ai/glm-5.2`; the first two's model was not recorded). Six at 1.0.2 under `deepseek/deepseek-v4-flash`: `ncats-arax` (live ARAX/TRAPI one-hop, imatinib → ABL1), `relsa-severity-assessment` (bundled cohort scored, KDE plot written), `etetoolkit` (ete4 Newick I/O, prune, reroot, Robinson-Foulds), `venue-templates` (Nature scaffold generated; the author-substitution regex is a rough edge, not a fail), `arbor` (HTR cycle via bundled `tree.py`; merge gate correctly rejected a non-generalizing candidate), `deepspot-m` (pi offered it; the model loaded SKILL.md and followed the documented install path). Six at 1.2.0 under the same model, including both skills new in v2.64.0: `lab-hardware-cad` (bundled `check.py` ran; ANSI/SLAS standards listed and inspected with tolerances), `waypoint-bio` (PyPI package installed, `waypoint` CLI verified with all five subcommands, stopped correctly at the gated Hugging Face login), `networkx` (workflow steps 1–2 scripted and run), `generate-image` (bundled script listed 43 models over the documented no-key path), `pi-agent` (First Decision routing followed to the overview reference), `scikit-bio` (installed 0.7.3 in a venv, Section 1 reverse-complement verified). The other 143 have not been exercised here, so take them as upstream ships them.
+- **`/sci` and `sci_find` — automated, on every change:** 49 behavioural checks against a stubbed pi (`/sci search` writes the Core filter and preserves hand-written `!pattern` overrides; a seeded prior-version config leaves `settings.json` byte-identical; malformed settings refuse without writing), 29 ranking checks against the real 159 descriptions including four queries that must return *nothing*, and 7 checks that **pi itself** honours the filter, run through a real `DefaultPackageManager`. The first-run offer is additionally driven through **pi's real TUI** over a pty: accepting writes Core's 10 skills, declining and timing out write nothing at all. To try any of it by hand, `npm run try` opens this package in a throwaway pi — your own `~/.pi/agent` is never touched.
+- **Search mode against a small model — 3 of 3.** With only Core loaded, `deepseek/deepseek-v4-flash` was asked three questions whose skills were not in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand). It called `sci_find` unprompted every time, got a correct skill back, and read the `SKILL.md`. Re-run against the 1.2.0 tarball with the same result. Recorded under `extensionRuns` in `testing/ledger.json`. The probes never name the skill — that's the whole test.
+- **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes on the byte-identical content. The 2,512-test figure quoted in earlier releases was counted at v2.62.0; upstream releases since then add suites for their new skills, and I have not re-counted, so treat upstream's CI badge as the current source.
 
-Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.63.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
+Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.64.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
 
 Caveats: `allowed-tools` is inert in pi (no pre-approval gate; no functional harm). Skills requiring heavy Python stacks (scanpy, rdkit, torch, …) need those installed in your environment — same as any harness.
 
 ## Updating
 
-The skills here are a snapshot of upstream at **v2.63.0**. This package's own
+The skills here are a snapshot of upstream at **v2.64.0**. This package's own
 version is separate — it starts at 1.0.0 and tracks changes to *this*
-distribution, since the contents differ from upstream (157 skills, plus `/sci`)
+distribution, since the contents differ from upstream (159 skills, plus `/sci`)
 and upstream ships patch releases that would collide. The upstream tag a given
 release wraps is always recorded in `package.json` as `upstreamVersion`.
 
@@ -194,10 +194,10 @@ and seem worth sharing. If I do:
   a separate directory registered as its own root (pi's `skills` field accepts
   several), so you can tell them apart from the file tree.
 - Each one will name its author in its frontmatter, and I'll list them here.
-- The counts in this README will stay separate, so "157 skills from upstream"
-  doesn't quietly drift into "157 skills" of mixed origin.
+- The counts in this README will stay separate, so "159 skills from upstream"
+  doesn't quietly drift into "159 skills" of mixed origin.
 
-None exist yet. **All 157 skills shipped today are upstream's.**
+None exist yet. **All 159 skills shipped today are upstream's.**
 
 ## License & Credits
 

@@ -7,7 +7,7 @@
 // runs it against the real `DefaultPackageManager` instead.
 //
 // It also pins the two edge cases `applyPlanToEntry` exists to handle, which are
-// the difference between "load ten skills" and "load none" / "load all 157":
+// the difference between "load ten skills" and "load none" / "load everything":
 //
 //   []              → 0 enabled   ("none" is expressible ONLY by an empty array)
 //   ["!scanpy"]     → 156 enabled (overrides alone INVERT to "everything minus")

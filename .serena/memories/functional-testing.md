@@ -5,7 +5,7 @@ pi invocation traps that shaped the harness.
 
 | Tier | Covers | Cost | Where |
 |------|--------|------|-------|
-| Discovery / frontmatter | all 157, every sync | seconds | `npm run validate` + tarball probe |
+| Discovery / frontmatter | all 159, every sync | seconds | `npm run validate` + tarball probe |
 | Functional (skill actually run) | 4–8 per release, accumulating | model call + minutes each | `npm run test:batch` |
 | Search mode reached (extension, not a skill) | 3 probes per release | 3 model calls, ~1 min | `node scripts/test-find-live.mjs` |
 
@@ -18,8 +18,8 @@ the throwaway agent dir (deleted at exit): without that every probe fails with
 "No API key found" and the run reports a declining model when none ever ran, so
 the script separates "never ran" from "declined". See `mem:search-mode`.
 
-As of 1.0.2: **10 of 157** PASS. TIMEOUT rows are harness faults and do not
-count. README's "Functional runs — N of 157" counts PASS. The bar is whether
+As of 1.2.0: **16 of 159** PASS. TIMEOUT rows are harness faults and do not
+count. README's "Functional runs — N of 159" counts PASS. The bar is whether
 pi sees and loads the skill. **Do not collect API keys, request Hub access, or
 download tool weights.** Following SKILL.md up to a documented login/download
 step is PASS.
