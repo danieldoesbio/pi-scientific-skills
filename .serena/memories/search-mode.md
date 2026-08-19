@@ -4,8 +4,8 @@ The model-facing half of progressive disclosure. `/sci` profiles let a *human*
 narrow the index ahead of time; `sci_find` lets the *model* reach the rest on
 demand, so narrowing no longer means making skills unreachable.
 
-Default it enables: **Core (10 skills, ~1.1k tokens) instead of all 157 (~18k)**,
-with all 157 still reachable. `/sci search` applies it. See
+Default it enables: **Core (10 skills, ~1.1k tokens) instead of all 159 (~18k)**,
+with all 159 still reachable. `/sci search` applies it. See
 `mem:project-overview` for why the index cost is the binding constraint.
 
 ## Shape
@@ -24,7 +24,7 @@ tool uses, so a human and a model can never see different answers.
 
 - **Recall beats precision.** `sci_find` need not pick the right skill, only get
   it into a list of 8 with full descriptions. Small models discriminate well
-  among 8 labelled options, badly among 157 in a prompt. Hence OR-scoring —
+  among 8 labelled options, badly among 159 in a prompt. Hence OR-scoring —
   AND-matching returns nothing for "variant calling".
 - **Never a confident wrong answer.** Below `MIN_SCORE` return nothing.
   Matching is **word-boundary, not substring**: substring matching scored
@@ -72,7 +72,7 @@ explicit on first load.* Enforced by `scripts/test-extension.mjs`.
 `/skill:<name>` for a filtered-out skill fails **silently** —
 `_expandSkillCommand` (`agent-session.js:953-961`) misses and passes the literal
 text through. Disclosed in `/sci status` and README. Real fix is `/sci use
-<name>` (v1.2.0), NOT 157 shadow commands.
+<name>` (v1.3.0 at the earliest), NOT 159 shadow commands.
 
 ## Testing
 

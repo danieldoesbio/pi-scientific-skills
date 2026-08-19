@@ -24,7 +24,7 @@ export interface UnassignedSkill {
 }
 
 /** Every skill shipped by the package. Used for the "vs. all skills" delta. */
-export const TOTAL_SKILL_COUNT = 157;
+export const TOTAL_SKILL_COUNT = 159;
 
 /**
  * Measured cost of one skill's name + description in the system prompt:
@@ -77,6 +77,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "pacsomatic",
       "pathogen-variant-surveillance",
       "genomic-intelligence",
+      "waypoint-bio",
       "onekgpd",
       "phylogenetics",
       "etetoolkit",
@@ -310,6 +311,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "pylabrobot",
       "ginkgo-cloud-lab",
       "adaptyv",
+      "lab-hardware-cad",
       "omero-integration",
       "lamindb",
       "dnanexus-integration",

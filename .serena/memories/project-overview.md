@@ -6,7 +6,7 @@ package, plus a `/sci` extension for curating which skills load.
 - Repo: `~/Developer/pi-scientific-skills`, remote `github.com/danieldoesbio/pi-scientific-skills` (**PUBLIC**)
 - Package version and upstream tag are independent: `package.json` carries both
   `version` (ours) and `upstreamVersion` (the vendored tag).
-- As of 1.1.0 / upstream v2.63.0: **157 skills**.
+- As of 1.2.0 / upstream v2.64.0: **159 skills** (v2.64.0 added lab-hardware-cad and waypoint-bio).
 
 ## Layout
 
@@ -20,17 +20,17 @@ package, plus a `/sci` extension for curating which skills load.
 | `extensions/search.ts` + `aliases.ts` + `frontmatter.ts` + `package-info.ts` | ours | search mode; see `mem:search-mode` |
 | `scripts/test-batch.mjs` | ours | 4–8 functional runs per release; see `mem:functional-testing` |
 | `scripts/track-downloads.mjs` | ours | appends npm daily counts to `metrics/downloads.json` |
-| `testing/ledger.json` | ours | conclusive functional-run record; README's N of 157 derives from it |
+| `testing/ledger.json` | ours | conclusive functional-run record; README's N of 159 derives from it |
 
 ## Why `/sci` exists
 
 pi's progressive disclosure keeps every skill's *name + description* in the
-system prompt for the whole session and defers only the bodies. Measured at 157
+system prompt for the whole session and defers only the bodies. Measured at 157–159
 skills that index is ~18k tokens (~113 tokens/skill) — over half a 32k context.
 `/sci` writes a normal per-package filter into `~/.pi/agent/settings.json`; it
 never modifies a `SKILL.md`, so a sync cannot clobber a user's selection.
 
-Since 1.1.0 that is only half the story: `sci_find` lets the model search all 157
+Since 1.1.0 that is only half the story: `sci_find` lets the model search all 159
 on demand, so the recommended default is Core (~1.1k tokens) with everything
 still reachable. See `mem:search-mode` — including the startup-messaging promise
 and the pi internals verified for it.
