@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Run a batch of skills for real in pi and capture transcripts for grading.
 //
-// Discovery testing (does pi offer the skill) is cheap and covers all 157 —
+// Discovery testing (does pi offer the skill) is cheap and covers every skill —
 // scripts/validate.mjs plus the tarball probe in DOCUMENTATION.md do that.
 // This script covers the expensive half: does pi load the skill, and does a
 // model follow SKILL.md. The bar is whether pi sees and loads the skill. An

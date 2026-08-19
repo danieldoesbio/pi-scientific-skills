@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Ranking tests for sci_find.
 //
-// These run against the REAL 157 descriptions, not fixtures. That is the point:
+// These run against the REAL vendored descriptions, not fixtures. That is the point:
 // the thing under test is whether upstream's actual wording can be found from
 // the words a scientist would actually type, and a fixture corpus would only
 // test the scoring arithmetic while hiding every vocabulary gap.
