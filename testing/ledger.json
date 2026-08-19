@@ -18,7 +18,13 @@
     "Grade from the transcript in testing/transcripts/<version>/, never from the model's own",
     "VERDICT line - that line is the claim under test.",
     "",
-    "Add a batch with: node scripts/test-batch.mjs --version <ver> [--include a,b]"
+    "Add a batch with: node scripts/test-batch.mjs --version <ver> [--include a,b]",
+    "",
+    "extensionRuns tracks the OTHER expensive test: whether a small model reaches for",
+    "sci_find when the skill it needs was filtered out of the system prompt. That is a",
+    "test of the extension, not of a skill, so it is kept out of `runs` and out of any",
+    "skill pass rate.",
+    "Add one with: node scripts/test-find-live.mjs [--model <id>]"
   ],
   "runs": [
     {
@@ -129,8 +135,21 @@
       "upstreamVersion": "v2.63.0",
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-12",
-      "note": "39 tool calls, 123s. Drove the bundled tree.py through Observe / set-status / set-evidence / propagate / merge / prune / validate (OK — 5 nodes, root=n0, best=n3). Merge gate correctly rejected n4 (dev=0.8, test=0.6 vs best=0.8). n3 test eval printed 0.8000; ARBOR_REPORT.md written (3KB). Combined with the earlier TIMEOUT run, which had already scaffolded the project (git init, sentence_scorer.py, data splits).",
+      "note": "39 tool calls, 123s. Drove the bundled tree.py through Observe / set-status / set-evidence / propagate / merge / prune / validate (OK \u2014 5 nodes, root=n0, best=n3). Merge gate correctly rejected n4 (dev=0.8, test=0.6 vs best=0.8). n3 test eval printed 0.8000; ARBOR_REPORT.md written (3KB). Combined with the earlier TIMEOUT run, which had already scaffolded the project (git init, sentence_scorer.py, data splits).",
       "harnessNote": "This re-run resumed leftover sandbox state from the killed first attempt (scratch is keyed only on version). The harness now wipes the per-skill sandbox before each run. Grade stands: the skill's own scripts and merge gate were exercised for real."
+    }
+  ],
+  "extensionRuns": [
+    {
+      "test": "sci_find reached from a cold prompt",
+      "verdict": "PASS",
+      "packageVersion": "1.1.0",
+      "upstreamVersion": "v2.63.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-18",
+      "probes": 3,
+      "note": "Packed tarball installed into a throwaway agent dir filtered to Core (10 of 157 skills in the prompt). All three probes - variant calling from a BAM, clustering a 10x matrix, docking a ligand - called sci_find unprompted, got an expected skill back, and went on to read its SKILL.md. Probes never name the skill; they are phrased the way a scientist would phrase the task. A first attempt reported three false negatives because the isolated agent dir also isolated the API key and no model ran at all; the script now separates 'never ran' from 'declined to call'. Re-run 2026-08-18 against the final tarball \u2014 the one carrying the expandPromptTemplates fix \u2014 with the same result: 7 / 1 / 1 sci_find calls, every expected skill surfaced, SKILL.md read each time. The first recording predated that fix, so it proved the tool but not the shipped build.",
+      "reruns": 1
     }
   ]
 }
