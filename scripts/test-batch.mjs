@@ -166,7 +166,18 @@ function distill(rawText, home, user) {
       .split(`/Users/${user}`).join("$HOME")
       .split(privateTmp).join("$TMPDIR")
       .split(tmp).join("$TMPDIR")
-      .split(user).join("$USER");
+      .split(user).join("$USER")
+      // The splits above match this run's tmpdir exactly. A model that types a
+      // *near-miss* path — one character off, or left over from another run —
+      // walks straight through them, which is how a per-user /var/folders hash
+      // reached a committed transcript: the model guessed a path, the `ls`
+      // failed, and the wrong string was never a scrub target. Transcripts
+      // record what the model typed, so match the shape, not the string.
+      .replace(/(?:\/private)?\/var\/folders\/[^/\s"']+\/[^/\s"']+\/[A-Z]\//g, () => "$TMPDIR/")
+      // Second pass, because a model also writes bare roots: `find /var/folders/<bucket> …`.
+      // Order matters — the specific rule above must run first or this would
+      // swallow the `/T/` that makes the full form a real tmpdir path.
+      .replace(/(?:\/private)?\/var\/folders(?:\/[^/\s"']+)*/g, () => "$TMPDIR");
   const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}… [+${s.length - n} chars]` : s);
 
   const calls = [];

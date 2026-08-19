@@ -13,43 +13,43 @@
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"ls -la /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/\"}",
+      "args": "{\"command\":\"ls -la $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/\"}",
       "isError": true,
-      "result": "ls: /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/: No such file or directory\n\n\nCommand exited with code 1"
+      "result": "ls: $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/: No such file or directory\n\n\nCommand exited with code 1"
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"ls /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/references/\"}",
+      "args": "{\"command\":\"ls $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/references/\"}",
       "isError": true,
-      "result": "ls: /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/references/: No such file or directory\n\n\nCommand exited with code 1"
+      "result": "ls: $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/references/: No such file or directory\n\n\nCommand exited with code 1"
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"ls /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/scripts/\"}",
+      "args": "{\"command\":\"ls $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/scripts/\"}",
       "isError": true,
-      "result": "ls: /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/scripts/: No such file or directory\n\n\nCommand exited with code 1"
+      "result": "ls: $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/scripts/: No such file or directory\n\n\nCommand exited with code 1"
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"ls /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/assets/journals/\"}",
+      "args": "{\"command\":\"ls $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/assets/journals/\"}",
       "isError": true,
-      "result": "ls: /var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/stage/package/skills/venue-templates/assets/journals/: No such file or directory\n\n\nCommand exited with code 1"
+      "result": "ls: $TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/assets/journals/: No such file or directory\n\n\nCommand exited with code 1"
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"find /var/folders/g6 -name \\\"SKILL.md\\\" -path \\\"*/venue-templates/*\\\" 2>/dev/null\"}",
+      "args": "{\"command\":\"find $TMPDIR -name \\\"SKILL.md\\\" -path \\\"*/venue-templates/*\\\" 2>/dev/null\"}",
       "isError": true,
       "result": "$TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates/SKILL.md\n\n\nCommand exited with code 1"
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"ls -la /private/var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/\"}",
+      "args": "{\"command\":\"ls -la $TMPDIR/pi-skill-test-1.0.2/\"}",
       "isError": true,
-      "result": "ls: /private/var/folders/g6/psxswfv11g73nkhrz_rlz6z1c0000gn/T/pi-skill-test-1.0.2/: No such file or directory\n\n\nCommand exited with code 1"
+      "result": "ls: $TMPDIR/pi-skill-test-1.0.2/: No such file or directory\n\n\nCommand exited with code 1"
     },
     {
       "tool": "bash",
-      "args": "{\"command\":\"find /var/folders/g6 -type d -name \\\"venue-templates\\\" 2>/dev/null\"}",
+      "args": "{\"command\":\"find $TMPDIR -type d -name \\\"venue-templates\\\" 2>/dev/null\"}",
       "isError": true,
       "result": "$TMPDIR/pi-skill-test-1.0.2/stage/package/skills/venue-templates\n$TMPDIR/pi-skill-test-1.0.2/runs/venue-templates\n\n\nCommand exited with code 1"
     },
