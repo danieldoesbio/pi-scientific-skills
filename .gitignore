@@ -17,6 +17,13 @@ node_modules/
 # project skills belong in git.
 .claude/worktrees/
 
+# --- Agent-side scratch ---
+# Serena's semantic memory is deliberately local. It is agent-facing notes on
+# a codebase that is itself mostly vendored, and it duplicates in compressed
+# form what DOCUMENTATION.md already says for humans — which stays in git and
+# remains the source of truth. `project.yml` regenerates on activation.
+.serena/
+
 # --- Secrets ---
 # A guard, not a record of a past mistake: this repo has never used env
 # files, and the only credential in the workflow (npm publish) lives in the
