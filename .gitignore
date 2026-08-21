@@ -1,6 +1,37 @@
+# What must never enter the tree: machine-local scratch, and anything that
+# would leak a path, a username, or a secret.
+#
+# This is not the ship list. `package.json` files[] decides what npm packs —
+# `extensions`, `skills`, and the three markdown files, nothing else. The
+# maintainer-side dirs (`scripts/`, `testing/`, `metrics/`) are tracked on
+# purpose: git is their only backup, and they reach `pi install git:...`.
+
+# --- Toolchain and OS noise ---
 node_modules/
 *.log
 .DS_Store
+
+# --- Local checkouts ---
+# Each agent worktree under here is a full copy of the repo. Ignore the
+# worktree directory only, never `.claude/` itself — project settings and
+# project skills belong in git.
+.claude/worktrees/
+
+# --- Agent-side scratch ---
+# Serena's semantic memory is deliberately local. It is agent-facing notes on
+# a codebase that is itself mostly vendored, and it duplicates in compressed
+# form what DOCUMENTATION.md already says for humans — which stays in git and
+# remains the source of truth. `project.yml` regenerates on activation.
+.serena/
+
+# --- Secrets ---
+# A guard, not a record of a past mistake: this repo has never used env
+# files, and the only credential in the workflow (npm publish) lives in the
+# maintainer's npm login, not on disk here.
+.env
+.env.*
+
+# --- Build and test output ---
 
 # Python bytecode. Skill scripts are executed during testing, which leaves
 # __pycache__ inside skills/ — those must never be committed: they break the
