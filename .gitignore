@@ -2,9 +2,9 @@
 # would leak a path, a username, or a secret.
 #
 # This is not the ship list. `package.json` files[] decides what npm packs —
-# `extensions`, `skills`, and the three markdown files, nothing else. The
-# maintainer-side dirs (`scripts/`, `testing/`, `metrics/`) are tracked on
-# purpose: git is their only backup, and they reach `pi install git:...`.
+# `extensions`, `skills`, and the three markdown files, nothing else. Of the
+# maintainer-side dirs, `scripts/` and `testing/` stay tracked: the suites are
+# the package, and README cites the ledger as the evidence record.
 
 # --- Toolchain and OS noise ---
 node_modules/
@@ -17,7 +17,13 @@ node_modules/
 # project skills belong in git.
 .claude/worktrees/
 
-# --- Agent-side scratch ---
+# --- Maintainer-side, deliberately local ---
+# Adoption metrics. Private working numbers: nothing downstream reads them,
+# and they should not travel to anyone installing from git. The series is
+# rebuildable from npm for the last ~18 months, so keep a copy off-repo if
+# the older tail matters.
+metrics/
+
 # Serena's semantic memory is deliberately local. It is agent-facing notes on
 # a codebase that is itself mostly vendored, and it duplicates in compressed
 # form what DOCUMENTATION.md already says for humans — which stays in git and
