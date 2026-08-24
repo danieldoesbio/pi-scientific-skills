@@ -164,17 +164,18 @@ scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
 testing/transcripts/    # raw pi output per graded run, kept as evidence
-metrics/downloads.json  # npm daily series + publish dates, with revisions recorded
+metrics/downloads.json  # gitignored: npm daily series + publish dates, with revisions
 LICENSE.md              # upstream MIT verbatim
 README.md               # pi-user-facing
 DOCUMENTATION.md        # this file
 test-artifacts/         # gitignored: output from local skill verification runs
 ```
 
-`scripts/`, `testing/` and `metrics/` are maintainer-side and do not ship —
-`package.json` `files[]` whitelists `extensions`, `skills` and the three
-markdown files. They do reach anyone installing via
-`pi install git:github.com/...`, which ships the whole tree.
+`scripts/` and `testing/` are maintainer-side and do not ship — `package.json`
+`files[]` whitelists `extensions`, `skills` and the three markdown files. They
+do reach anyone installing via `pi install git:github.com/...`, which ships the
+whole tree. `metrics/` reaches neither: it is gitignored, so the download ledger
+stays on the maintainer's disk.
 
 ## The `/sci` extension
 
@@ -582,8 +583,10 @@ safe: days merge by date, and a count that npm later revises is recorded in a
 `revisions` array rather than silently overwritten — the recent tail is
 provisional and the ledger should show that rather than hide it.
 
+The ledger is gitignored, so it lives on one machine and no clone will have it.
 The local copy exists because npm's range endpoint only serves ~18 months and
-offers no way to ask what it said last week. Two things to keep in mind when
+offers no way to ask what it said last week. Anything older than that window is
+gone if the file is; back it up off-repo if the deep tail is worth keeping. Two things to keep in mind when
 reading the series: npm counts **tarball fetches, not people**, so mirrors, CI
 caches and registry scrapers are in the same bucket; and a publish-day spike is
 almost certainly automated traffic. At 1.0.2 the series was 278 downloads over
