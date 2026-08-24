@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Run a batch of skills for real in pi and capture transcripts for grading.
 //
-// Discovery testing (does pi offer the skill) is cheap and covers all 157 —
+// Discovery testing (does pi offer the skill) is cheap and covers every skill —
 // scripts/validate.mjs plus the tarball probe in DOCUMENTATION.md do that.
 // This script covers the expensive half: does pi load the skill, and does a
 // model follow SKILL.md. The bar is whether pi sees and loads the skill. An
@@ -177,7 +177,14 @@ function distill(rawText, home, user) {
       // Second pass, because a model also writes bare roots: `find /var/folders/<bucket> …`.
       // Order matters — the specific rule above must run first or this would
       // swallow the `/T/` that makes the full form a real tmpdir path.
-      .replace(/(?:\/private)?\/var\/folders(?:\/[^/\s"']+)*/g, () => "$TMPDIR");
+      .replace(/(?:\/private)?\/var\/folders(?:\/[^/\s"']+)*/g, () => "$TMPDIR")
+      // Third party addresses, same reasoning one step out. A transcript records
+      // tool output verbatim, and package metadata is full of maintainer emails —
+      // `pip show` prints Author-email, and so do npm view and git log. None of it
+      // is this machine's user, but republishing someone's address in our repo is
+      // not ours to do, and the evidence a transcript exists to preserve is which
+      // tools ran and what they returned, never who wrote the library.
+      .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, () => "$EMAIL");
   const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}… [+${s.length - n} chars]` : s);
 
   const calls = [];

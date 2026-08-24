@@ -18,7 +18,7 @@ export const PACKAGE_NAME = "pi-scientific-skills";
  * owed an upgrade notice, so it must change on every release that changes
  * behaviour — including patch releases.
  */
-export const PACKAGE_VERSION = "1.1.0";
+export const PACKAGE_VERSION = "1.2.0";
 
 /**
  * Inert default export. Everything under `extensions/` is reachable by pi's

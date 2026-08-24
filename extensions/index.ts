@@ -1331,8 +1331,9 @@ const upgradeNotice = (from: string | undefined): string =>
   [
     `${PACKAGE_NAME} updated to ${PACKAGE_VERSION}${from ? ` (from ${from})` : ""}.`,
     `Your current selection is unchanged.`,
-    `New: ${TOOL_NAME} lets the model search all ${TOTAL_SKILL_COUNT} skills on demand,`,
-    `so you can load fewer without losing access to any.`,
+    `New: upstream snapshot v2.64.0 adds lab-hardware-cad (parametric CAD for lab`,
+    `hardware) and waypoint-bio (microbiome foundation models), and updates pi-agent.`,
+    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} skills on demand, new ones included.`,
     `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
     `"/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
@@ -1351,8 +1352,9 @@ const filteredNotice = (): string =>
   [
     `${PACKAGE_NAME} ${PACKAGE_VERSION}: your "skills" filter is unchanged and`,
     `/${COMMAND_NAME} has not touched it.`,
-    `New: ${TOOL_NAME} lets the model search all ${TOTAL_SKILL_COUNT} installed skills`,
-    `on demand — including the ones your filter leaves out of the system prompt.`,
+    `New: upstream snapshot v2.64.0 adds lab-hardware-cad and waypoint-bio, and`,
+    `updates pi-agent. ${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills`,
+    `on demand — including any your filter leaves out of the system prompt.`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
 

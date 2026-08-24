@@ -137,6 +137,60 @@
       "date": "2026-08-12",
       "note": "39 tool calls, 123s. Drove the bundled tree.py through Observe / set-status / set-evidence / propagate / merge / prune / validate (OK \u2014 5 nodes, root=n0, best=n3). Merge gate correctly rejected n4 (dev=0.8, test=0.6 vs best=0.8). n3 test eval printed 0.8000; ARBOR_REPORT.md written (3KB). Combined with the earlier TIMEOUT run, which had already scaffolded the project (git init, sentence_scorer.py, data splits).",
       "harnessNote": "This re-run resumed leftover sandbox state from the killed first attempt (scratch is keyed only on version). The harness now wipes the per-skill sandbox before each run. Grade stands: the skill's own scripts and merge gate were exercised for real."
+    },
+    {
+      "skill": "lab-hardware-cad",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "note": "8 tool calls, 25s. Read the full 21KB SKILL.md, inventoried references/, assets/standards.json and the four scripts, then ran the bundled check.py for real: `standards --list` printed all 11 bundled standards with verification status, and `standards --show slas-microplate-footprint` returned the ANSI/SLAS 1-2004 dimensions with tolerances. The standards path runs on the standard library alone, exactly as the frontmatter documents; geometry (build123d) was not exercised."
+    },
+    {
+      "skill": "waypoint-bio",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "note": "5 tool calls, 24s. Read SKILL.md, installed waypoint-bio 1.0.2 from PyPI, and verified the `waypoint` CLI exists with all five documented subcommands (pretrain, benchmark, finetune, embed, prepare-dataset) via --help. Checked HF_TOKEN, found it unset, and correctly stopped at the documented Hugging Face gated-repo authentication step rather than requesting access \u2014 which is the pass bar for skills gated on a login."
+    },
+    {
+      "skill": "networkx",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "note": "4 tool calls, 12s. Read SKILL.md, found networkx 3.4.2 already installed, wrote workflow_step1.py following the skill's Common Workflow Pattern steps 1-2 (create graph, examine structure) and ran it: 4 nodes, 3 edges, density 0.5, connected \u2014 all correct for the edge list used."
+    },
+    {
+      "skill": "generate-image",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "note": "4 tool calls, 14s. Read SKILL.md and ran the bundled scripts/generate_image.py --list-models \u2014 the documented no-credential path \u2014 which returned 43 image models from the OpenRouter API with per-model capability details. No image was generated (needs OPENROUTER_API_KEY), which SKILL.md documents; stopping there is the bar."
+    },
+    {
+      "skill": "pi-agent",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "note": "2 tool calls, 11s. Read SKILL.md and followed its 'First Decision' routing table to references/overview.md for the docs map, and read it. A documentation skill; the routing step is its whole first move and was followed as written."
+    },
+    {
+      "skill": "scikit-bio",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "note": "8 tool calls, 47s. Read SKILL.md, hit the no-venv uv error, recovered by creating a venv as uv instructed, installed scikit-bio 0.7.3, and ran the Section 1 sequence-manipulation example: reverse complement of ACTGACTG correctly printed CAGTCAGT with 50% GC."
     }
   ],
   "extensionRuns": [
@@ -150,6 +204,16 @@
       "probes": 3,
       "note": "Packed tarball installed into a throwaway agent dir filtered to Core (10 of 157 skills in the prompt). All three probes - variant calling from a BAM, clustering a 10x matrix, docking a ligand - called sci_find unprompted, got an expected skill back, and went on to read its SKILL.md. Probes never name the skill; they are phrased the way a scientist would phrase the task. A first attempt reported three false negatives because the isolated agent dir also isolated the API key and no model ran at all; the script now separates 'never ran' from 'declined to call'. Re-run 2026-08-18 against the final tarball \u2014 the one carrying the expandPromptTemplates fix \u2014 with the same result: 7 / 1 / 1 sci_find calls, every expected skill surfaced, SKILL.md read each time. The first recording predated that fix, so it proved the tool but not the shipped build.",
       "reruns": 1
+    },
+    {
+      "test": "sci_find reached from a cold prompt",
+      "verdict": "PASS",
+      "packageVersion": "1.2.0",
+      "upstreamVersion": "v2.64.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-19",
+      "probes": 3,
+      "note": "Re-run of the 1.1.0 gate against the 1.2.0 tarball (159 skills, upstream v2.64.0) installed into a throwaway agent dir filtered to Core. All three probes \u2014 variant calling from a BAM, clustering a 10x matrix, docking a ligand \u2014 called sci_find unprompted (once each, 19-23s), surfaced an expected skill (pysam/pathogen-variant-surveillance, scanpy/anndata/scvi-tools, diffdock/rdkit), and read a SKILL.md."
     }
   ]
 }

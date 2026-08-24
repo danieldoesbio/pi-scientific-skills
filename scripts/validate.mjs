@@ -25,8 +25,8 @@ const skillsDir = join(root, "skills");
 // The parser is shared with `search.ts`, which reads the same frontmatter at
 // runtime to build the sci_find catalogue. Two copies would drift, and the
 // drift would be invisible: validation would pass on files the runtime read
-// differently. Importing it here also exercises it against all 157 real
-// SKILL.md files on every release, including the block-scalar cases it exists
+// differently. Importing it here also exercises it against every real
+// SKILL.md file on every release, including the block-scalar cases it exists
 // for.
 const { parseFrontmatter } = await import(
   pathToFileURL(join(root, "extensions", "frontmatter.ts")).href
