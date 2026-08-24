@@ -15,7 +15,7 @@
       "tool": "bash",
       "args": "{\"command\":\"pip show networkx\"}",
       "isError": false,
-      "result": "Name: networkx\nVersion: 3.4.2\nSummary: Python package for creating and manipulating graphs and networks\nHome-page: https://networkx.org/\nAuthor: \nAuthor-email: Aric Hagberg <hagberg@lanl.gov>\nLicense: \nLocation: /opt/homebrew/Caskroom/miniforge/base/lib/python3.12/site-packages\nRequires: \nRequired-by: scikit-image, torch\n"
+      "result": "Name: networkx\nVersion: 3.4.2\nSummary: Python package for creating and manipulating graphs and networks\nHome-page: https://networkx.org/\nAuthor: \nAuthor-email: Aric Hagberg <$EMAIL>\nLicense: \nLocation: /opt/homebrew/Caskroom/miniforge/base/lib/python3.12/site-packages\nRequires: \nRequired-by: scikit-image, torch\n"
     },
     {
       "tool": "write",
