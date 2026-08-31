@@ -135,13 +135,13 @@ What's actually been tested, with the numbers:
 - **Search mode against a small model — 3 of 3.** With only Core loaded, `deepseek/deepseek-v4-flash` was asked three questions whose skills were not in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand). It called `sci_find` unprompted every time, got a correct skill back, and read the `SKILL.md`. Re-run against the 1.2.0 tarball with the same result. Recorded under `extensionRuns` in `testing/ledger.json`. The probes never name the skill — that's the whole test.
 - **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes on the byte-identical content. The 2,512-test figure quoted in earlier releases was counted at v2.62.0; upstream releases since then add suites for their new skills, and I have not re-counted, so treat upstream's CI badge as the current source.
 
-Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.64.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
+Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.65.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
 
 Caveats: `allowed-tools` is inert in pi (no pre-approval gate; no functional harm). Skills requiring heavy Python stacks (scanpy, rdkit, torch, …) need those installed in your environment — same as any harness.
 
 ## Updating
 
-The skills here are a snapshot of upstream at **v2.64.0**. This package's own
+The skills here are a snapshot of upstream at **v2.65.0**. This package's own
 version is separate — it starts at 1.0.0 and tracks changes to *this*
 distribution, since the contents differ from upstream (159 skills, plus `/sci`)
 and upstream ships patch releases that would collide. The upstream tag a given
