@@ -135,7 +135,7 @@
       "upstreamVersion": "v2.63.0",
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-12",
-      "note": "39 tool calls, 123s. Drove the bundled tree.py through Observe / set-status / set-evidence / propagate / merge / prune / validate (OK \u2014 5 nodes, root=n0, best=n3). Merge gate correctly rejected n4 (dev=0.8, test=0.6 vs best=0.8). n3 test eval printed 0.8000; ARBOR_REPORT.md written (3KB). Combined with the earlier TIMEOUT run, which had already scaffolded the project (git init, sentence_scorer.py, data splits).",
+      "note": "39 tool calls, 123s. Drove the bundled tree.py through Observe / set-status / set-evidence / propagate / merge / prune / validate (OK — 5 nodes, root=n0, best=n3). Merge gate correctly rejected n4 (dev=0.8, test=0.6 vs best=0.8). n3 test eval printed 0.8000; ARBOR_REPORT.md written (3KB). Combined with the earlier TIMEOUT run, which had already scaffolded the project (git init, sentence_scorer.py, data splits).",
       "harnessNote": "This re-run resumed leftover sandbox state from the killed first attempt (scratch is keyed only on version). The harness now wipes the per-skill sandbox before each run. Grade stands: the skill's own scripts and merge gate were exercised for real."
     },
     {
@@ -154,7 +154,7 @@
       "upstreamVersion": "v2.64.0",
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-19",
-      "note": "5 tool calls, 24s. Read SKILL.md, installed waypoint-bio 1.0.2 from PyPI, and verified the `waypoint` CLI exists with all five documented subcommands (pretrain, benchmark, finetune, embed, prepare-dataset) via --help. Checked HF_TOKEN, found it unset, and correctly stopped at the documented Hugging Face gated-repo authentication step rather than requesting access \u2014 which is the pass bar for skills gated on a login."
+      "note": "5 tool calls, 24s. Read SKILL.md, installed waypoint-bio 1.0.2 from PyPI, and verified the `waypoint` CLI exists with all five documented subcommands (pretrain, benchmark, finetune, embed, prepare-dataset) via --help. Checked HF_TOKEN, found it unset, and correctly stopped at the documented Hugging Face gated-repo authentication step rather than requesting access — which is the pass bar for skills gated on a login."
     },
     {
       "skill": "networkx",
@@ -163,7 +163,7 @@
       "upstreamVersion": "v2.64.0",
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-19",
-      "note": "4 tool calls, 12s. Read SKILL.md, found networkx 3.4.2 already installed, wrote workflow_step1.py following the skill's Common Workflow Pattern steps 1-2 (create graph, examine structure) and ran it: 4 nodes, 3 edges, density 0.5, connected \u2014 all correct for the edge list used."
+      "note": "4 tool calls, 12s. Read SKILL.md, found networkx 3.4.2 already installed, wrote workflow_step1.py following the skill's Common Workflow Pattern steps 1-2 (create graph, examine structure) and ran it: 4 nodes, 3 edges, density 0.5, connected — all correct for the edge list used."
     },
     {
       "skill": "generate-image",
@@ -172,7 +172,7 @@
       "upstreamVersion": "v2.64.0",
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-19",
-      "note": "4 tool calls, 14s. Read SKILL.md and ran the bundled scripts/generate_image.py --list-models \u2014 the documented no-credential path \u2014 which returned 43 image models from the OpenRouter API with per-model capability details. No image was generated (needs OPENROUTER_API_KEY), which SKILL.md documents; stopping there is the bar."
+      "note": "4 tool calls, 14s. Read SKILL.md and ran the bundled scripts/generate_image.py --list-models — the documented no-credential path — which returned 43 image models from the OpenRouter API with per-model capability details. No image was generated (needs OPENROUTER_API_KEY), which SKILL.md documents; stopping there is the bar."
     },
     {
       "skill": "pi-agent",
@@ -191,6 +191,91 @@
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-19",
       "note": "8 tool calls, 47s. Read SKILL.md, hit the no-venv uv error, recovered by creating a venv as uv instructed, installed scikit-bio 0.7.3, and ran the Section 1 sequence-manipulation example: reverse complement of ACTGACTG correctly printed CAGTCAGT with 50% GC."
+    },
+    {
+      "skill": "rowan",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "2 tool calls, 11s. Read the updated v1.5 SKILL.md and ran the documented single preflight (pip show rowan-python), which reported the package absent. Stopped at the ROWAN_API_KEY step, which is the correct stop under the probe rules. Confirms pi loads the resynced skill; does NOT confirm the new 3.1.13 API-surface claims, which need a key to exercise."
+    },
+    {
+      "skill": "pkpd-modeling",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "7 tool calls, 35s. Read SKILL.md, checked numpy 2.2.6 / scipy 1.15.2, then ran the skill's own bundled nca.py on a one-compartment oral profile it generated from the skill's documented parameters (CL/F=5, V/F=20, ka=1.2, dose=100). Real NCA table returned, with the script's own notes on trapezoidal rule, BLQ handling, and the AUCinf_obs vs AUCinf_pred distinction.",
+      "modelBehaviourNote": "The model called its Cmax 3.29678 a match to the skill's example. It generated the profile itself from those parameters, so that agreement is arithmetic, not independent validation. The bundled script running and producing a well-formed table is the real evidence."
+    },
+    {
+      "skill": "scanpy",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "3 tool calls, 19s. Read SKILL.md, listed the bundled scripts/, and checked prerequisites with one targeted probe: Python 3.12.9 satisfies the requirement, scanpy and anndata are absent. Stopped rather than installing a heavy stack with no input .h5ad in the sandbox. Load-and-follow only; no artifact."
+    },
+    {
+      "skill": "aeon",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "6 tool calls, 38s. Read SKILL.md, installed aeon 1.5.0, and ran the Quick Start example end to end: RocketClassifier on GunPoint, X_train (50, 1, 150), accuracy 1.0000. Strongest run in this batch.",
+      "harnessNote": "uv pip install failed with the no-venv error, and the model recovered with --system. That installed aeon, llvmlite and numba into the host base miniforge env and upgraded its numpy 2.2.6 -> 2.3.5 — a mutation outside the sandbox dir the probe confines work to. The probe forbids touching anything outside the working directory but the harness does not enforce it; worth a venv or a real sandbox before the next batch."
+    },
+    {
+      "skill": "glycoengineering",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "4 tool calls, 22s. Read SKILL.md and implemented its documented N-X-S/T sequon scan (the skill ships prose, not a script), then ran it on the skill's own IgG1 Fc example: 217 aa, one sequon, NST at fragment position 67, context EQYNSTYRV. The scan and the P-exclusion rule are correct.",
+      "roughEdge": "The model's summary calls the hit \"N297\". 297 is EU numbering for the whole heavy chain; 67 is the index within the Fc fragment actually scanned. Same residue, two numbering systems, stated as if one. The skill does not warn about this."
+    },
+    {
+      "skill": "research-lookup",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "5 tool calls, 23s. Read SKILL.md, ran the documented Setup check (parallel-cli --version, exit 127), and installed the version the skill pins, parallel-web-tools[cli]==0.7.1, resolving parallel-web 1.3.2. Stopped at parallel-cli login as the probe rules require.",
+      "harnessNote": "uv tool install put parallel-cli on the host PATH globally, not in the sandbox. Same containment gap as the aeon run."
+    },
+    {
+      "skill": "bids",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "5 tool calls, 18s. Read SKILL.md and references/core_workflows.md, then followed the first two documented workflows for real: wrote a valid dataset_description.json (BIDSVersion 1.10.0, DatasetType raw, License CC0) and created the sub-01/anat and sub-01/func layout. Artifact produced inside the sandbox."
+    },
+    {
+      "skill": "literature-review",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "3 tool calls, 21s. Read SKILL.md and references/core_workflow.md (seven-phase review workflow), then verified the primary dependency with one which parallel-cli — present at $HOME/.local/bin, installed minutes earlier by the research-lookup run in the same batch. Stopped before parallel.ai authentication."
+    },
+    {
+      "skill": "dnanexus-integration",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "note": "2 tool calls, 24s. Read SKILL.md and ran the preflight its Install and Authenticate section calls for (which dx, exit 1 — not installed). Stopped before dxpy install and dx login, which need a DNAnexus account. Shortest run in the batch; load-and-follow only."
     }
   ],
   "extensionRuns": [
@@ -202,7 +287,7 @@
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-18",
       "probes": 3,
-      "note": "Packed tarball installed into a throwaway agent dir filtered to Core (10 of 157 skills in the prompt). All three probes - variant calling from a BAM, clustering a 10x matrix, docking a ligand - called sci_find unprompted, got an expected skill back, and went on to read its SKILL.md. Probes never name the skill; they are phrased the way a scientist would phrase the task. A first attempt reported three false negatives because the isolated agent dir also isolated the API key and no model ran at all; the script now separates 'never ran' from 'declined to call'. Re-run 2026-08-18 against the final tarball \u2014 the one carrying the expandPromptTemplates fix \u2014 with the same result: 7 / 1 / 1 sci_find calls, every expected skill surfaced, SKILL.md read each time. The first recording predated that fix, so it proved the tool but not the shipped build.",
+      "note": "Packed tarball installed into a throwaway agent dir filtered to Core (10 of 157 skills in the prompt). All three probes - variant calling from a BAM, clustering a 10x matrix, docking a ligand - called sci_find unprompted, got an expected skill back, and went on to read its SKILL.md. Probes never name the skill; they are phrased the way a scientist would phrase the task. A first attempt reported three false negatives because the isolated agent dir also isolated the API key and no model ran at all; the script now separates 'never ran' from 'declined to call'. Re-run 2026-08-18 against the final tarball — the one carrying the expandPromptTemplates fix — with the same result: 7 / 1 / 1 sci_find calls, every expected skill surfaced, SKILL.md read each time. The first recording predated that fix, so it proved the tool but not the shipped build.",
       "reruns": 1
     },
     {
@@ -213,7 +298,7 @@
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-19",
       "probes": 3,
-      "note": "Re-run of the 1.1.0 gate against the 1.2.0 tarball (159 skills, upstream v2.64.0) installed into a throwaway agent dir filtered to Core. All three probes \u2014 variant calling from a BAM, clustering a 10x matrix, docking a ligand \u2014 called sci_find unprompted (once each, 19-23s), surfaced an expected skill (pysam/pathogen-variant-surveillance, scanpy/anndata/scvi-tools, diffdock/rdkit), and read a SKILL.md."
+      "note": "Re-run of the 1.1.0 gate against the 1.2.0 tarball (159 skills, upstream v2.64.0) installed into a throwaway agent dir filtered to Core. All three probes — variant calling from a BAM, clustering a 10x matrix, docking a ligand — called sci_find unprompted (once each, 19-23s), surfaced an expected skill (pysam/pathogen-variant-surveillance, scanpy/anndata/scvi-tools, diffdock/rdkit), and read a SKILL.md."
     }
   ]
 }

@@ -1,0 +1,37 @@
+{
+  "skill": "rowan",
+  "packageVersion": "1.3.0",
+  "model": "deepseek/deepseek-v4-flash",
+  "elapsedSeconds": 11,
+  "outcome": "completed",
+  "toolCalls": [
+    {
+      "tool": "read",
+      "args": "{\"path\":\"$TMPDIR/pi-skill-test-1.3.0/stage/package/skills/rowan/SKILL.md\"}",
+      "isError": false,
+      "result": "---\nname: rowan\ndescription: Rowan is a cloud-native molecular modeling and medicinal-chemistry workflow platform with a Python API. Use for pKa and macropKa prediction, conformer and tautomer ensembles, docking and analogue docking, protein-ligand cofolding, MSA generation, molecular dynamics, permeability, descriptor workflows, and related small-molecule or protein modeling tasks. Ideal for programmatic batch screening, multi-step chemistry pipelines, and workflows that would otherwise require maintaining local HPC/GPU infrastructure.\nlicense: Proprietary (API key required)\ncompatibility: Py… [+13721 chars]"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"pip show rowan-python 2>/dev/null || echo \\\"rowan-python is NOT installed\\\"\"}",
+      "isError": false,
+      "result": "rowan-python is NOT installed\n"
+    }
+  ],
+  "finalText": "The skill is loaded and I followed SKILL.md's quick-start path: I checked for the local `rowan-python` package with a single targeted command (`pip show rowan-python`). It's not installed, and the next step — installing it and authenticating with a `ROWAN_API_KEY` to submit a workflow — requires an API key / third-party service access, so per the rules I stop there.\n\nVERDICT: DONE — I loaded the `rowan` skill and verified that `rowan-python` is not installed locally, stopping before the API-key-requiring submission step.",
+  "usage": {
+    "input": 2114,
+    "output": 189,
+    "cacheRead": 4096,
+    "cacheWrite": 0,
+    "reasoning": 61,
+    "totalTokens": 6399,
+    "cost": {
+      "input": 0.00016810528,
+      "output": 0.00003005856,
+      "cacheRead": 0.000065142784,
+      "cacheWrite": 0,
+      "total": 0.00026330662400000004
+    }
+  }
+}
