@@ -1,0 +1,55 @@
+{
+  "skill": "research-lookup",
+  "packageVersion": "1.3.0",
+  "model": "deepseek/deepseek-v4-flash",
+  "elapsedSeconds": 23,
+  "outcome": "completed",
+  "toolCalls": [
+    {
+      "tool": "read",
+      "args": "{\"path\":\"$TMPDIR/pi-skill-test-1.3.0/stage/package/skills/research-lookup/SKILL.md\"}",
+      "isError": false,
+      "result": "---\nname: research-lookup\ndescription: \"Compile current scholarly evidence for a scientific manuscript or research brief. Use when the user explicitly asks to gather literature, references, background evidence, competing findings, or a manuscript research packet. Uses Parallel Search by default, Parallel Extract for source verification, Parallel Research for explicitly deep/exhaustive work, optional explicit Parallel Chat, and optional Perplexity only when requested or allowed as a failure fallback.\"\nlicense: MIT license\ncompatibility: Requires network access to api.parallel.ai through paralle… [+12924 chars]"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"parallel-cli --version 2>&1; echo \\\"---EXIT:$?\\\"\"}",
+      "isError": false,
+      "result": "/bin/bash: parallel-cli: command not found\n---EXIT:127\n"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"which parallel-cli 2>&1\"}",
+      "isError": true,
+      "result": "(no output)\n\nCommand exited with code 1"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"which uv 2>&1; uv --version 2>&1\"}",
+      "isError": false,
+      "result": "/opt/homebrew/bin/uv\nuv 0.11.17 (Homebrew 2026-05-28 aarch64-apple-darwin)\n"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"uv tool install \\\"parallel-web-tools[cli]==0.7.1\\\" 2>&1\",\"timeout\":120}",
+      "isError": false,
+      "result": "Resolved 25 packages in 509ms\nDownloading pydantic-core (1.8MiB)\n Downloaded pydantic-core\nPrepared 8 packages in 236ms\nInstalled 25 packages in 37ms\n + annotated-types==0.8.0\n + anyio==4.14.2\n + certifi==2026.7.22\n + click==8.5.0\n + distro==1.9.0\n + h11==0.16.0\n + httpcore==1.0.9\n + httpx==0.28.1\n + idna==3.19\n + markdown-it-py==4.2.0\n + mdurl==0.1.2\n + parallel-web==1.3.2\n + parallel-web-tools==0.7.1\n + prompt-toolkit==3.0.53\n + pydantic==2.13.5\n + pydantic-core==2.46.5\n + pygments==2.21.0\n + python-dotenv==1.2.3\n + pyyaml==6.0.3\n + questionary==2.1.1\n + rich==15.0.0\n + sniffio==1.3.1\n + typ… [+106 chars]"
+    }
+  ],
+  "finalText": "The installation succeeded — `parallel-cli 0.7.1` is now installed. The skill's next Setup step is `parallel-cli login`, which would require logging into a third-party service (Parallel's API). This is explicitly prohibited by the rules (\"Do not ... log into third-party services\").\n\n`VERDICT: DONE` Loaded the `research-lookup` skill, followed the Setup section by checking the installation with `parallel-cli --version`, and based on the missing CLI, installed the pinned `parallel-web-tools[cli]==0.7.1` package via `uv tool install`, stopping before the prohibited `parallel-cli login` step.",
+  "usage": {
+    "input": 3524,
+    "output": 212,
+    "cacheRead": 4096,
+    "cacheWrite": 0,
+    "reasoning": 70,
+    "totalTokens": 7832,
+    "cost": {
+      "input": 0.00028022848,
+      "output": 0.00003371648,
+      "cacheRead": 0.000065142784,
+      "cacheWrite": 0,
+      "total": 0.000379087744
+    }
+  }
+}

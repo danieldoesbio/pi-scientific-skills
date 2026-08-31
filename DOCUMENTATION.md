@@ -19,7 +19,7 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 ## Provenance
 
 - **Upstream:** https://github.com/K-Dense-AI/scientific-agent-skills
-- **Upstream version:** 2.64.0 (from `pyproject.toml`), recorded in
+- **Upstream version:** 2.65.0 (from `pyproject.toml`), recorded in
   `package.json` as `upstreamVersion`
 - **Our version is independent of upstream's.** This package uses its own semver
   line starting at 1.0.0. It deliberately does *not* mirror the upstream number:
