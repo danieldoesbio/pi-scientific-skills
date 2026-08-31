@@ -300,6 +300,16 @@
       "date": "2026-08-19",
       "probes": 3,
       "note": "Re-run of the 1.1.0 gate against the 1.2.0 tarball (159 skills, upstream v2.64.0) installed into a throwaway agent dir filtered to Core. All three probes — variant calling from a BAM, clustering a 10x matrix, docking a ligand — called sci_find unprompted (once each, 19-23s), surfaced an expected skill (pysam/pathogen-variant-surveillance, scanpy/anndata/scvi-tools, diffdock/rdkit), and read a SKILL.md."
+    },
+    {
+      "test": "sci_find reached from a cold prompt",
+      "verdict": "PASS",
+      "packageVersion": "1.3.0",
+      "upstreamVersion": "v2.65.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-08-31",
+      "probes": 3,
+      "note": "Re-run of the same gate against the 1.3.0 tarball (159 skills, upstream v2.65.0) installed into a throwaway agent dir filtered to Core. All three probes — variant calling from a BAM, clustering a 10x matrix, docking a ligand — called sci_find unprompted (2/2/1 calls, 15-27s), surfaced an expected skill (pysam/pathogen-variant-surveillance/genomic-intelligence, scanpy/anndata/scvi-tools, diffdock/rdkit/tamarind), and read a SKILL.md. The probes never name the skill."
     }
   ]
 }
