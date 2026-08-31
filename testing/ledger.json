@@ -266,7 +266,8 @@
       "upstreamVersion": "v2.65.0",
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-31",
-      "note": "3 tool calls, 21s. Read SKILL.md and references/core_workflow.md (seven-phase review workflow), then verified the primary dependency with one which parallel-cli — present at $HOME/.local/bin, installed minutes earlier by the research-lookup run in the same batch. Stopped before parallel.ai authentication."
+      "note": "3 tool calls, 21s. Read SKILL.md and references/core_workflow.md (seven-phase review workflow), then verified the primary dependency with one which parallel-cli — present at $HOME/.local/bin, installed minutes earlier by the research-lookup run in the same batch. Stopped before parallel.ai authentication.",
+      "harnessNote": "Batch-order contamination: parallel-cli was present only because the research-lookup run installed it onto the host earlier in the same batch. On a clean machine this run takes the dnanexus-integration shape — dependency absent, stop at the install gate — so this transcript will not reproduce. The verdict stands (load-and-follow is the bar) but the evidence is weaker than the note alone suggests."
     },
     {
       "skill": "dnanexus-integration",
