@@ -58,3 +58,9 @@ test-artifacts/
 # <skill>.summary.json beside them.
 testing/transcripts/**/*.jsonl
 testing/transcripts/**/*.stderr.txt
+
+# An upstream pi patch for the /skill: silent miss, plus the issue fact sheet
+# that would go with it. Prepared and tested, then kept local by decision: a
+# change to pi is filed by a person, not shipped in this tree. The stopgap in
+# extensions/index.ts is the supported behaviour.
+testing/upstream-*
