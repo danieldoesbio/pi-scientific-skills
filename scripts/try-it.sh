@@ -20,7 +20,7 @@
 #   upgrading  a 1.0.2 user with Genomics saved → upgrade notice; the filter
 #              must come out byte-identical
 #   filtered   hand-filtered, never ran /sci → "your filter is unchanged"
-#   current    already told about 1.1.0 → startup says nothing
+#   current    already told about this version → startup says nothing
 #
 #   --keep     leave the sandbox in place and print the path (credentials are
 #              still deleted)
@@ -79,6 +79,7 @@ import { join } from "node:path";
 import { loadExtensionModule } from "./scripts/lib/load-extension.mjs";
 
 const { REAL: real, AGENT: agent, PKG: pkg, SCENARIO: scenario } = process.env;
+const pkgVersion = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")).version;
 
 const read = (path, fallback) => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : fallback);
 const realSettings = read(join(real, "settings.json"), {});
@@ -108,7 +109,7 @@ const table = {
     config: { version: 1, onboardingSeen: true, profiles: [saved.id], lastSeenVersion: "1.0.2" },
   },
   filtered: { entry: { source: pkg, skills: [...saved.skills] }, config: null },
-  current: { entry: { source: pkg }, config: { version: 1, onboardingSeen: true, lastSeenVersion: "1.1.0" } },
+  current: { entry: { source: pkg }, config: { version: 1, onboardingSeen: true, lastSeenVersion: pkgVersion } },
 };
 
 const { entry, config } = table[scenario];
@@ -134,7 +135,7 @@ cat <<BANNER
 BANNER
 
 case "$scenario" in
-  mine)      echo "  expect: the upgrade notice — \"updated to 1.1.0 … your current selection is unchanged\"" ;;
+  mine)      echo "  expect: the upgrade notice — \"updated to $(node -p "require('$root/package.json').version") … your current selection is unchanged\"" ;;
   new)       echo "  expect: a dialog offering Core + search. Enter accepts, arrow-down + Enter declines," ;
              echo "          Esc or 20s of silence declines too. Only accepting may write anything." ;;
   upgrading) echo "  expect: the upgrade notice, and the saved profile still filtered afterwards" ;;
@@ -167,9 +168,10 @@ if [ -n "$check" ]; then
   # fired, without a human having to read a screenshot.
   out="$(PI_CODING_AGENT_DIR="$agent" pi --no-session -p "reply with the single word: ok" \
         --model "${CHECK_MODEL:-deepseek/deepseek-v4-flash}" 2>&1 || true)"
+  ver="$(node -p "require('$root/package.json').version")"
   case "$scenario" in
-    mine)      want='updated to 1.1.0' ;;
-    upgrading) want='updated to 1.1.0 (from 1.0.2)' ;;
+    mine)      want="updated to $ver" ;;
+    upgrading) want="updated to $ver (from 1.0.2)" ;;
     new)       want='Run "/sci search" to switch' ;;
     filtered)  want='filter is unchanged' ;;
     current)   want='' ;;   # this one owes nothing, so absence is the assertion

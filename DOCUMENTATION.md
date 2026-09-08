@@ -597,7 +597,9 @@ no model ran. It separates "never ran" from "declined" for exactly that reason.
    our own `version` — minor for a new upstream snapshot, patch for an
    extension-only fix. Never copy upstream's number into `version` (see
    Provenance for why). Update the upstream-version mentions in README.
-5. Commit, tag `v<version>` (ours, e.g. `v1.1.0`), push, `npm publish`.
+5. Commit, push, `npm publish`, confirm with `npm view pi-scientific-skills version`,
+   then tag `v<version>` (ours, e.g. `v1.1.0`) and push the tag. Publish before
+   tagging: a failed publish must not leave a tag no registry has.
 
 ## Validation rules (pi)
 
@@ -794,7 +796,10 @@ claims about adoption and coverage have something behind them.
       (`npm run test:extension` asserts this; re-read the wording by hand)
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
       the synced tag; README's `v<upstream>` mentions agree with it
-- [ ] git commit + tag + push (GitHub)
-- [ ] `npm publish` (requires npm login) → gallery auto-lists via `pi-package`
-      keyword; confirm with
-      `npm search --json pi-package` or the npm registry keyword endpoint
+- [ ] git commit + push, PR merged to `main` (GitHub)
+- [ ] `npm publish` from `main` (requires npm login) → gallery auto-lists via
+      `pi-package` keyword; confirm with `npm view pi-scientific-skills version`
+      or the npm registry keyword endpoint
+- [ ] tag `v<version>` on the published commit and push the tag — after the
+      publish is confirmed, never before (v1.1.0 sat untagged once; a tag with
+      no registry version is worse)
