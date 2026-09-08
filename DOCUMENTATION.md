@@ -196,6 +196,7 @@ scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
 testing/transcripts/    # raw pi output per graded run, kept as evidence
 testing/upstream-issue-skill-passthrough.md  # draft of the pi issue behind the /skill: stopgap
+testing/upstream-fix-skill-unknown-name.patch  # the pi fix itself: git am-able, with regression test
 metrics/downloads.json  # gitignored: npm daily series + publish dates, with revisions
 LICENSE.md              # upstream MIT verbatim
 README.md               # pi-user-facing
@@ -474,13 +475,19 @@ undisclosed partial fix would repeat the original mistake:
    difference on a symlinked install path and no difference at all on a
    normal one. It is the one axis `test-skill-expand.mjs` cannot see.
 
-**Upstream.** The real fix is three lines in pi: `emitError` on the miss the
-way the read failure already does, and split on whitespace. That closes every
-limit above at once, for every package. This package's discipline is not
-forking upstream content, and a downstream patch of an upstream control-flow
-bug is the same category of thing, so the handler is labelled a stopgap. The
-issue text is drafted at `testing/upstream-issue-skill-passthrough.md`; once
-filed, replace this sentence with the link.
+**Upstream.** The real fix is a few lines in pi: `emitError` on the miss the
+way the read failure already does. That makes the miss visible on every path
+(`prompt`, `steer`, `followUp`, RPC) for every package; it does not make a
+filtered-out skill load, which is the filter's job. This package's discipline
+is not forking upstream content, and a downstream patch of an upstream
+control-flow bug is the same category of thing, so the handler is labelled a
+stopgap. The patch, with a regression test, is at
+`testing/upstream-fix-skill-unknown-name.patch` (against pi 6160683, 0.85.1;
+`npm run check` and the test file pass). The issue fact sheet is at
+`testing/upstream-issue-skill-passthrough.md`; pi's contributor gate needs the
+issue in the maintainer's own words and a `lgtm` before a PR. Whitespace
+splitting was left out: pi closed #8413 on that as `no-action`. Once filed,
+replace this sentence with the links.
 
 ### The empty-array footgun
 

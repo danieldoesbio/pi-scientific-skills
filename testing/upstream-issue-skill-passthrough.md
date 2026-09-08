@@ -1,74 +1,50 @@
-# Draft upstream issue — not yet filed
+# Upstream issue — fact sheet, not yet filed
 
-Target: https://github.com/earendil-works/pi/issues (packages/coding-agent).
-File it from your own account; this file is the text, so the link in
-DOCUMENTATION.md can point at the real issue afterwards.
+Target: https://github.com/earendil-works/pi/issues → "Bug report" template.
+pi's CONTRIBUTING.md auto-closes issues from new contributors and rejects
+LLM-written text, so this is a fact sheet: file it in your own words, short.
+Once a maintainer answers `lgtm`, push `upstream-fix-skill-unknown-name.patch`
+to a fork and open the PR; before `lgtm`, a PR is auto-closed.
+
+Prior art to mention: #8413 asked for whitespace splitting only and was closed
+`no-action`. No open or closed issue reports the silent miss itself.
 
 ---
 
-**Title:** `/skill:<unknown-name>` is forwarded to the model as literal text instead of erroring
+**What happened?**
 
-**Version:** pi-coding-agent 0.84.3 (also present in 0.85.1 per source reading)
+`/skill:<name>` with a name that is not loaded is sent to the model as the
+literal user message `"/skill:<name>"`. Nothing is shown in the TUI. The model
+usually answers as if the skill had loaded.
 
-**What happens**
+Two ways to hit it: a typo, or a skill removed by a per-package `skills`
+filter in `settings.json` (the filter removes the skill from the registry, so
+the name misses).
 
-`AgentSession._expandSkillCommand` (`dist/core/agent-session.js`, 0.84.3 lines
-956–978) looks the name up in `resourceLoader.getSkills().skills` and, on a
-miss, returns the input unchanged:
+Where: `_expandSkillCommand` in `packages/coding-agent/src/core/agent-session.ts`
+returns `text` unchanged on a miss. The same method already emits a
+`skill_expansion` error when the file read fails, so the miss is the only
+silent branch. `prompt()`, `steer()` and `followUp()` all go through it, so an
+extension cannot fully patch around it (the `input` event covers `prompt()` only).
 
-```js
-const skill = this.resourceLoader.getSkills().skills.find((s) => s.name === skillName);
-if (!skill)
-    return text; // Unknown skill, pass through
-```
+**Steps to reproduce**
 
-So `/skill:typo` or `/skill:<a skill disabled through a package filter>` goes
-to the model as the user message `"/skill:typo"`. Nothing is shown to the user.
-The model usually replies as if the skill loaded, so the failure is invisible
-until the output is wrong.
+1. `pi`
+2. type `/skill:does-not-exist explain this`
+3. no error is shown; the model receives `/skill:does-not-exist explain this`
 
-The same method already has an error path for a *read* failure on a skill that
-was found (`emitError` with `event: "skill_expansion"`). The miss branch is the
-only silent one.
+**Expected**
 
-**Two ways to reach it**
+An error line, the way a failed skill read already shows one:
+`Extension "skill:does-not-exist" error: Unknown skill: does-not-exist`.
 
-1. A per-package `skills` filter in `settings.json` (or `pi config`) removes the
-   skill from the registry entirely (`package-manager.js applyPackageFilter`
-   marks it `enabled: false`; `resource-loader.js` keeps only survivors), so any
-   filtered-out name misses. Users reasonably expect "disabled from the prompt"
-   to still allow an explicit `/skill:` — which is exactly what the documented
-   `disable-model-invocation: true` frontmatter flag does — but the filter is a
-   different mechanism and removes it from `/skill:` too, silently.
-2. `text.indexOf(" ")` splits on the first *space*, not the first whitespace, so
-   `/skill:foo\nrest` yields the name `"foo\nrest"` and misses even for a loaded
-   skill. Multi-line input pasted after a `/skill:` command therefore also passes
-   through as prose.
+**Version**
 
-**Suggested fix**
+0.85.1 (source at 6160683). Also in 0.84.3.
 
-Treat the miss like the read failure:
+**Fix**
 
-```js
-if (!skill) {
-    this._extensionRunner.emitError({
-        extensionPath: "<skill>",
-        event: "skill_expansion",
-        error: `Unknown skill: ${skillName}`,
-    });
-    return text;
-}
-```
-
-and split on `/\s/` rather than `" "`. Both are a few lines and would close the
-issue for every package at once; a downstream extension can only patch the
-`prompt()` path through the `input` event, and `steer()` / `followUp()` (used by
-the compaction queue and RPC `steer`/`follow_up`) call `_expandSkillCommand`
-directly with no hook.
-
-**Context**
-
-Found while maintaining `pi-scientific-skills`, which ships 159 skills and
-writes a package filter so small models are not charged ~18k tokens of skill
-index. An `input`-event stopgap for that package's own skills is in its 1.4.0
-release; the limits of that stopgap are documented there.
+Emit the error on the miss with the existing `emitError` channel and keep
+forwarding the text, matching the read-failure branch. Regression test in
+`agent-session-prompt.test.ts`. `npm run check` and the test file pass.
+Patch: `testing/upstream-fix-skill-unknown-name.patch` in this repo.
