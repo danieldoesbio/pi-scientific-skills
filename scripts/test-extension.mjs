@@ -75,7 +75,17 @@ const makeHarness = ({ mode = "tui", selectAnswer, cwd, hasUI = true } = {}) => 
     },
   };
 
-  return { ctx, notes, selects, sent, reloadCount: () => reloads, sendUserMessage: sent };
+  return {
+    ctx,
+    notes,
+    selects,
+    sent,
+    reloadCount: () => reloads,
+    sendUserMessage: sent,
+    // What pi.getCommands() reports: the skills pi actually loaded under the
+    // user's filter, as `skill:<name>` entries. Empty until a case sets it.
+    commands: [],
+  };
 };
 
 const extension = await loadExtensionModule("extensions/index.ts");
@@ -85,6 +95,7 @@ const { TOTAL_SKILL_COUNT } = await loadExtensionModule("extensions/profiles.ts"
 const register = (harness) => {
   let commandHandler;
   let sessionStart;
+  let inputHandler;
   let tool;
   const pi = {
     registerCommand: (_name, options) => {
@@ -95,7 +106,11 @@ const register = (harness) => {
     },
     on: (event, handler) => {
       if (event === "session_start") sessionStart = handler;
+      if (event === "input") inputHandler = handler;
     },
+    // Only ever called from inside the input handler; the extension must not
+    // call it during registration, when a real pi would throw "not initialized".
+    getCommands: () => harness.commands ?? [],
     // Records options too, not just text. Asserting only that "/sci search" was
     // queued is what let a silently-broken accept path pass: without
     // expandPromptTemplates the same string goes to the model as plain text.
@@ -104,7 +119,7 @@ const register = (harness) => {
     },
   };
   extension.default(pi);
-  return { commandHandler, sessionStart, tool };
+  return { commandHandler, sessionStart, inputHandler, tool };
 };
 
 const startup = async (hooks, harness) =>
@@ -382,6 +397,126 @@ console.log("\n-- /sci status --");
   const output = harness.notes.join("\n");
 
   check("no filter → no caveat", !/\/skill:<name>/.test(output), output.slice(0, 200));
+}
+
+// --- /skill:<name> under a filter -------------------------------------------
+
+console.log("\n-- /skill:<name> under a filter --");
+{
+  // scanpy is in the filter, so pi's registry holds it; pysam is filtered out,
+  // so pi has no entry for it and would forward the literal text to the model.
+  const paths = newAgentDir();
+  writeFileSync(
+    paths.settings,
+    JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills: ["scanpy"] }] }, null, 2),
+  );
+  const harness = makeHarness();
+  harness.commands = [
+    { name: "sci", source: "extension" },
+    { name: "skill:scanpy", source: "skill" },
+  ];
+  const hooks = register(harness);
+  // The input context is runner.createContext(): no reload() on it.
+  const { reload: _reload, ...inputCtx } = harness.ctx;
+  const send = (text, source = "interactive") =>
+    hooks.inputHandler({ type: "input", text, images: undefined, source, streamingBehavior: undefined }, inputCtx);
+  const passes = (result) => result?.action === "continue";
+  const transformed = (result) => result?.action === "transform" && typeof result.text === "string";
+
+  check("registers an input handler", typeof hooks.inputHandler === "function");
+  check("a skill pi still has loaded stays pi's job", passes(await send("/skill:scanpy")));
+
+  const plain = await send("/skill:pysam");
+  check("a filtered-out skill is transformed", transformed(plain), JSON.stringify(plain));
+  const text = plain?.text ?? "";
+  check(
+    "opens with pi's own wrapper, pointing at this package's file",
+    /^<skill name="pysam" location="[^"]+\/skills\/pysam\/SKILL\.md">\nReferences are relative to [^\n]+\/skills\/pysam\.\n\n/.test(text),
+    text.slice(0, 160),
+  );
+  check("closes the wrapper", text.endsWith("\n</skill>"));
+  const body = text.slice(text.indexOf("\n\n") + 2);
+  check("frontmatter is stripped, body is trimmed", !body.startsWith("---") && !body.startsWith("\n"), body.slice(0, 40));
+  check("carries real skill content", /pysam/i.test(body) && body.length > 500, `${body.length} chars`);
+  // Both of pi's own expanders bail on their first character, so a "<" start is
+  // what proves there is no double expansion afterwards.
+  check("does not start with / (neither downstream expander touches it)", !text.startsWith("/"));
+
+  const withArgs = await send("/skill:pysam do the thing");
+  check("args follow the block after a blank line", (withArgs?.text ?? "").endsWith("</skill>\n\ndo the thing"));
+  const spaced = await send("/skill:pysam    lots   of   spaces");
+  check(
+    "internal spacing survives, leading spacing does not",
+    (spaced?.text ?? "").endsWith("</skill>\n\nlots   of   spaces"),
+    JSON.stringify((spaced?.text ?? "").slice(-30)),
+  );
+  const blankArgs = await send("/skill:pysam   ");
+  check("whitespace-only args are the no-args form", blankArgs?.text === text);
+
+  check("an unknown name passes through", passes(await send("/skill:not-a-real-skill")));
+  // pi splits on the first space, not the first whitespace, so this misses on
+  // stock pi for a loaded skill too. Pinned so nobody "fixes" it here and makes
+  // a filtered skill behave differently from an active one.
+  check("the multi-line form misses, exactly as pi's does", passes(await send("/skill:pysam\nrest")));
+
+  for (const other of ["hello world", "/sci status", "/skill-ish", "x /skill:pysam", "/skill:", "/skill: "]) {
+    check(`untouched: ${JSON.stringify(other)}`, passes(await send(other)));
+  }
+
+  // sendUserMessage defaults expandPromptTemplates to false: pi's intent there
+  // is not to expand, and source is the only proxy the event carries.
+  check("extension-injected input passes through", passes(await send("/skill:pysam", "extension")));
+
+  // The lookup is a Map over real directory entries, never a path join. These
+  // must pass through, and this check must fail loudly if anyone rewrites it.
+  for (const escape of [
+    "/skill:../../etc/passwd",
+    "/skill:../../../../home/user/.ssh/id_rsa",
+    "/skill:pysam/../../package.json",
+    "/skill:/etc/passwd",
+  ]) {
+    check(`never resolves a path: ${escape}`, passes(await send(escape)));
+  }
+
+  check("reads, never writes", readFileSync(paths.settings, "utf8").includes('"scanpy"') && harness.reloadCount() === 0);
+}
+
+{
+  // Unfiltered: pi has the skill, so the hook must stand down even though the
+  // name is in this package's catalogue.
+  newAgentDir();
+  const harness = makeHarness();
+  harness.commands = [{ name: "skill:pysam", source: "skill" }];
+  const hooks = register(harness);
+  const { reload: _reload, ...inputCtx } = harness.ctx;
+  const result = await hooks.inputHandler(
+    { type: "input", text: "/skill:pysam", images: undefined, source: "interactive", streamingBehavior: undefined },
+    inputCtx,
+  );
+  check("no filter → every /skill: passes through", result?.action === "continue");
+}
+
+{
+  // The hook never reads settings.json, so a broken one must not disable it —
+  // and must not be written, either.
+  const paths = newAgentDir();
+  const broken = "{ this is not json";
+  writeFileSync(paths.settings, broken);
+  const harness = makeHarness();
+  const hooks = register(harness);
+  const { reload: _reload, ...inputCtx } = harness.ctx;
+  let result;
+  let threw = false;
+  try {
+    result = await hooks.inputHandler(
+      { type: "input", text: "/skill:pysam", images: undefined, source: "interactive", streamingBehavior: undefined },
+      inputCtx,
+    );
+  } catch {
+    threw = true;
+  }
+  check("malformed settings.json: still transforms", !threw && result?.action === "transform");
+  check("malformed settings.json: not written", readFileSync(paths.settings, "utf8") === broken);
 }
 
 // --- refusal ---------------------------------------------------------------

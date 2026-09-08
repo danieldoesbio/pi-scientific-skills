@@ -19,7 +19,7 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 ## Provenance
 
 - **Upstream:** https://github.com/K-Dense-AI/scientific-agent-skills
-- **Upstream version:** 2.65.0 (from `pyproject.toml`), recorded in
+- **Upstream version:** 2.66.0 (from `pyproject.toml`), recorded in
   `package.json` as `upstreamVersion`
 - **Our version is independent of upstream's.** This package uses its own semver
   line starting at 1.0.0. It deliberately does *not* mirror the upstream number:
@@ -65,6 +65,36 @@ Two traps for whoever touches this next:
 If you ever obtain written permission from Anthropic, that is the only thing that
 changes this decision — accurate licence labelling alone does not confer the
 right to redistribute.
+
+### The citation block is carried, not stripped (arrived with v2.66.0)
+
+Upstream v2.66.0 appended a `## Citing Scientific Agent Skills` section to 135
+of its 163 skills. It asks the model to add upstream's paper
+(Kassis et al. 2026, arXiv:2609.00065) to the references or software section
+of any manuscript, report, presentation or code release the skill materially
+contributed to, and to tell the user it did so. It arrived here wholesale with
+the sync, in the body of each `SKILL.md`.
+
+- **It is skill body text, not a licence term.** `LICENSE.md` is unchanged
+  (MIT, © 2025 K-Dense Inc.). MIT requires only that the copyright notice be
+  preserved, which this package does. Nothing in the block is enforceable
+  against this package or its users; it is a request.
+- **It is carried because it cannot be stripped safely.** Exclusions here are
+  declarative name lists that `sync-upstream.sh` re-applies. There is no
+  mechanism to drop a section from 135 files, and a hand edit inside `skills/`
+  is silently reverted by the next `rm -rf skills/ && cp -R`. Rewriting the
+  script to strip it would be the first edit inside vendored content, which
+  the scope note below rules out.
+- **Side effect worth knowing.** The block tells the model to fetch
+  `arxiv.org/abs/2609.00065` before writing the reference when network access
+  is available. That reaches skills which otherwise make no network calls,
+  including `analytical-method-validation`, whose own description advertises
+  none.
+- **No token-budget change.** `validate.mjs` estimates the always-loaded index
+  from `name` + `description` only; the block touches neither. Drift stayed at
+  1.7% before and after the sync, so `TOKENS_PER_SKILL` and every `/sci`
+  figure are unchanged. The block is body cost, paid only when a skill is
+  read, roughly 155 tokens per read.
 
 ### Upstream's `plugin.json` is deliberately not carried (decided at v2.63.0)
 
@@ -157,6 +187,7 @@ scripts/validate.mjs    # pi-rule validation across all skills + extensions/ dri
 scripts/test-search.mjs # sci_find ranking against the real 159 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
+scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to pi's, oracle = pi's own method
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
@@ -201,6 +232,7 @@ Four mechanisms could filter skills. Only one is compatible with this port:
 | `disable-model-invocation: true` in frontmatter | **Rejected.** Edits `SKILL.md`, breaking byte-identity with upstream, and `sync-upstream.sh` replaces `skills/` wholesale — every sync would silently wipe the user's selection. |
 | Intercept `resources_discover` and return filtered `skillPaths` | **Impossible**, not merely undesirable — see below. |
 | `before_agent_start` returning a rewritten `systemPrompt` | **Rejected.** Would strip the skills index while leaving pi's registry intact — the only route that preserves `/skill:<name>`. But it is per-turn prompt surgery, fragile across pi versions, and invisible to `pi config`. |
+| Set `disableModelInvocation` on the live `Skill[]` at runtime (via `ctx.getSystemPromptOptions().skills` or `before_agent_start`'s `systemPromptOptions`, both returned by reference) | **Rejected (decided at 1.4.0).** This is the one pi feature whose semantics match "hide from the prompt, keep `/skill:`": `formatSkillsForPrompt` (`skills.js:276`) is the only consumer of the flag, and pi's own comment says such skills "can only be invoked explicitly via /skill:name". But it requires **all 159 to load** so `/skill:` can resolve, which means abandoning the `settings.json` filter entirely. That costs `pi config` composition, hand-editability, and survival of extension removal — and `pi config` would then show all 159 enabled while the prompt carried 10, actively misreporting rather than merely not knowing. |
 | Write pi's own per-package filter into `settings.json` | **Chosen.** Native, inspectable, hand-editable, composes with `pi config`, survives sync, and outlives the extension. |
 
 **`resources_discover` cannot filter at all.** An earlier version of this document
@@ -208,10 +240,11 @@ called it "rejected" on the grounds that the selection would die with the
 extension. The conclusion was right and the premise was wrong, which is worse
 than being wrong outright — it invites someone to re-litigate the decision on a
 false basis. The hook is **additive only**: `emitResourcesDiscover`
-(`dist/core/extensions/runner.js:891-926`) does nothing with a handler's return
-value except push it into accumulator arrays, and `agent-session.js:1764-1780`
-feeds those to `resource-loader.js`'s `extendResources` (229-255), which *merges*
-into the already-discovered set. No return value can remove a skill.
+(`dist/core/extensions/runner.js:891-928`) does nothing with a handler's return
+value except push it into accumulator arrays, and `agent-session.js:1854` feeds
+those to `resource-loader.js`'s `extendResources` (`:230`), which *merges*
+into the already-discovered set. No return value can remove a skill. (Line
+numbers as of pi 0.84.3; they move about one release at a time.)
 
 The filter is the documented object form (`settings.md`):
 
@@ -295,9 +328,9 @@ Four details that are easy to get wrong:
   then marked as told. `report()` falls back to stderr. For the same reason the
   `session_start` handler is **not** gated on `ctx.hasUI`.
 - **`pi.sendUserMessage` needs `expandPromptTemplates: true` to run a command.**
-  It defaults that flag to `false` (`agent-session.js:1130`) — the opposite of
-  `prompt()`, which defaults it to `true` (`:793`) — and extension-command
-  dispatch is gated on it (`:799`). Without it, accepting the offer sends the
+  It defaults that flag to `false` (`agent-session.js:1133` in pi 0.84.3) — the
+  opposite of `prompt()`, which defaults it to `true` (`:796`) — and
+  extension-command dispatch is gated on it (`:802`). Without it, accepting the offer sends the
   literal string `/sci search` to the model as a user message: the user says
   yes, no filter is written, and a turn is spent on nothing. This is the whole
   reason the accept path is routed through the command at all — `session_start`
@@ -312,19 +345,149 @@ Four details that are easy to get wrong:
   boundary; the model could always `read` any `SKILL.md`. That is precisely why
   it has to be said out loud.)
 
-### Known trade-off — `/skill:<name>` fails silently under a filter
+### `/skill:<name>` under a filter — the stopgap, and what it does not cover (1.4.0)
 
-With a filter active, `/skill:<name>` for a filtered-out skill is not an error.
-`_expandSkillCommand` (`agent-session.js:953-961`) misses the lookup and passes
-the **literal text** through to the model — worse than a plain failure, because
-nothing signals that anything went wrong. Disclosed in `/sci status` and the
-README. The real fix is a `/sci use <name>` that reads any of the 159 bodies and
-injects it via `pi.sendUserMessage`, wrapped as pi wraps it — deferred to a later release (v1.3.0 at the earliest),
-and explicitly **not** 159 shadow commands.
+**The defect, precisely.** pi never validates a `/skill:` name.
+`_expandSkillCommand` (`agent-session.js:956-978` in pi 0.84.3) looks the name
+up in `resourceLoader.getSkills().skills` and on a miss returns the input
+unchanged (`:963-964`, "Unknown skill, pass through"). The `emitError` path in
+the same method exists only for a *read* failure on a skill that was found. A
+filtered skill reaches the miss branch because the filter removes it from the
+registry entirely rather than hiding it from the prompt: `applyPackageFilter`
+(`package-manager.js:1856`) marks the file `enabled: false`, `resource-loader.js`
+keeps only survivors, and `getSkills()` has no entry. The model then receives
+the user message `"/skill:pysam"` and usually answers as if the skill loaded.
+
+Two bounds on that, both of which matter:
+
+- **Search was never affected.** `sci_find` returns `SKILL.md` paths for the
+  model to `read`; nothing on the model's path goes through `/skill:`. The
+  defect surface is exactly one thing: a human typing `/skill:<filtered-name>`.
+- **The same branch has a second, filter-free instance.** `text.indexOf(" ")`
+  splits on the first *space*, not the first whitespace, so
+  `/skill:<loaded-skill>\nrest` also misses on stock pi, with no filter at all.
+
+**Why not the `disable-model-invocation` route.** That is a real pi feature with
+exactly the wanted semantics — see the mechanism table above — but it needs
+all 159 loaded, which means giving up the `settings.json` filter and having
+`pi config` misreport. Recorded there so it is not re-derived.
+
+**The stopgap.** An `input`-event handler in `extensions/index.ts`. `prompt()`
+runs extension commands, then `emitInput`, then `_expandSkillCommand`, then
+`expandPromptTemplate` (`agent-session.js:802-831`), with nothing touching the
+text in between; pi's `docs/extensions.md` shows a literal "intercept skill
+commands before expansion" example on this hook. The handler:
+
+1. stands down for `source === "extension"` (`sendUserMessage` defaults
+   `expandPromptTemplates` to false, and the event does not carry that flag,
+   so source is the only readable proxy);
+2. parses the command with pi's own split, quirks included (constraint 5);
+3. stands down when `pi.getCommands()` lists `skill:<name>` with
+   `source: "skill"` — that is `getSkills().skills` mapped unfiltered
+   (`agent-session.js:1927-1932`), the exact array `_expandSkillCommand`
+   searches, so the gate is not an approximation. It also keeps pi's
+   resolution for a same-named skill from another package;
+4. otherwise looks the name up in a **Map built from the `sci_find`
+   catalogue**, reads the file, strips frontmatter with pi's own exported
+   `stripFrontmatter`, and returns pi's wrapper verbatim as a `transform`.
+
+Because the output starts with `<`, both downstream expanders no-op on their
+first-character guard, so there is no double expansion. A throw is swallowed
+and the text passes through, which is today's behaviour, never worse.
+
+Five constraints that are not negotiable, each pinned by a test:
+
+1. **Name resolution is a Map lookup, never a path join.** `join(SKILLS_DIR,
+   name, "SKILL.md")` turns `/skill:../../../../home/user/.ssh/id_rsa` into an
+   arbitrary file read whose contents land in the user turn. The catalogue
+   enumerates real directory entries, so there is nothing to escape.
+2. **`stripFrontmatter` is resolved lazily, not statically imported.**
+   `peerDependencies` pins no floor. On a pi build lacking the export a static
+   named import fails at module link and takes `/sci` and `sci_find` down with
+   it; a lazy import degrades to pi's existing behaviour. If anyone converts it
+   to a static import, add a version floor.
+3. **`extensions/frontmatter.ts` is not reused.** It returns fields only,
+   computes no body, and its `m`-flag regex can match a mid-document `---`.
+4. **The gate is `pi.getCommands()`, not a regex over the system prompt.**
+   The `<available_skills>` block drops `disableModelInvocation` skills and is
+   omitted entirely unless `read` or `bash` is active, so it is a lossy
+   projection that misfires in exactly the case the fix is for.
+5. **pi's parsing quirks are reproduced, including the multi-line miss.**
+   Repairing it here would make a filtered skill behave differently from an
+   active one, the opposite of the goal.
+
+**Verified live, not only in the suites.** With the packed 1.4.0 tarball
+installed into a throwaway agent dir filtered to `["scanpy"]`,
+`pi --mode json -p "/skill:pysam …"` delivered pi's `<skill name="pysam" …>`
+block to the model, and `/skill:scanpy` (loaded) still went through pi's own
+expansion. `settings.json` was untouched. Note that pi blocks on an open,
+non-TTY stdin in `-p` mode, so a scripted run needs `</dev/null`.
+
+**Byte fidelity is proven, not assumed.** `scripts/test-skill-expand.mjs`
+borrows `AgentSession.prototype._expandSkillCommand` onto a fake `this` holding
+pi's own `loadSkillsFromDir` output and compares it against the handler across
+all 159 skills × 3 argument forms: 477 of 477 identical at 1.4.0. It is
+circular on one axis — both sides read the same `skills/` — so it proves string
+fidelity, not that pi's package manager resolves the same path for an installed
+copy. `validate.mjs` guards the three content invariants the handler depends
+on and a sync could break: frontmatter `name` equals the directory name (the
+handler keys on the directory; pi uses `frontmatter.name || dirname`), no body
+contains `<skill ` or `</skill>` (pi's `parseSkillBlock` is non-greedy and
+would truncate), and the `disable-model-invocation` count (0, informational).
+
+**Residual limits.** Narrowed, not closed. Every one of these is disclosed in
+`/sci status` or the README, because replacing a disclosed bug with an
+undisclosed partial fix would repeat the original mistake:
+
+1. **`steer()` and `followUp()` bypass the hook.** Both call
+   `_expandSkillCommand` directly with no `emitInput` (`agent-session.js:995`,
+   `:1012`). Reached from `interactive-mode.js` (`flushCompactionQueue`, lines
+   3640-3680: on the retry branch every queued message bypasses; on the normal
+   branch the first goes through `prompt()` and the rest bypass) and from
+   `rpc-mode.js:322,326` (RPC `steer` and `follow_up`, unconditionally). So a
+   `/skill:<filtered>` typed while compaction is running, or sent as an RPC
+   steer, still forwards literal text. Not closable from the input hook.
+2. **No autocomplete.** `interactive-mode.js:520` builds the `/skill:`
+   completion list from `getSkills().skills` only. The user types the name
+   from `/sci find` output.
+3. **Only this package's skills.** The defect is global; another package's
+   filtered skills, or a skill disabled through `pi config` in another
+   package, still leak literal text. This covers 159 names out of an open set.
+4. **The multi-line variant is untouched**, deliberately (constraint 5).
+5. **Extension-injected `/skill:` is skipped** on `source === "extension"`.
+   The proxy is lossy in both directions.
+6. **An earlier `input` handler can silently disable this.** `emitInput`
+   chains transforms, so an extension that prepends text makes
+   `startsWith("/skill:")` false, and a later `{action: "handled"}` discards
+   the transform. Package extensions load last, so this one is maximally
+   exposed.
+7. **On any doubt the handler is inert by design**, so a silent no-op is a
+   possible failure mode. Do not document it as "always fires".
+8. **`location=` is the realpath; pi's is not.** `resolveSkillsDir()` goes
+   through `import.meta.url`, which jiti hands back resolved, while pi's
+   `mapSkillPath` does a plain `join` with no `realpath`. Observed in a live run
+   under a filter on macOS: the hook emitted
+   `/private/var/folders/.../skills/pysam/SKILL.md` where pi emits
+   `/var/folders/.../skills/scanpy/SKILL.md` for a loaded skill. Both name the
+   same file and the model can `read` either, so this is a cosmetic
+   difference on a symlinked install path and no difference at all on a
+   normal one. It is the one axis `test-skill-expand.mjs` cannot see.
+
+**Upstream.** The complete fix is a few lines in pi: `emitError` on the miss
+the way the read failure already does. That would make the miss visible on
+every path (`prompt`, `steer`, `followUp`, RPC) for every package; it would not
+make a filtered-out skill load, which is the filter's job. A patch with a
+regression test was prepared against pi 6160683 (0.85.1) and passes pi's
+`npm run check`; it is kept out of the tree (`testing/upstream-*`, gitignored)
+and has not been filed. Sending it is a maintainer decision, not something
+this package does, and pi's contributor gate needs an issue in the filer's own
+words plus a maintainer `lgtm` before any PR. Whitespace splitting is not part
+of it: pi closed #8413 on that as `no-action`. Until pi changes, the handler
+above is the supported behaviour and the limits above stand.
 
 ### The empty-array footgun
 
-`applyPackageFilter` (pi `dist/core/package-manager.js:1804`) treats a **literally
+`applyPackageFilter` (pi `dist/core/package-manager.js:1856` in 0.84.3) treats a **literally
 empty** `skills` array as "disable all". A *non-empty* array containing only
 override patterns (`!x`, `+x`, `-x`) instead falls through to `applyPatterns`,
 which starts from **all** paths when there are no plain includes
@@ -384,7 +547,7 @@ path (finds pi on `PATH`, rebuilds the alias map, imports `jiti/lib/jiti-static.
 directly), so the suites exercise the same module graph pi does. An installed pi
 is therefore a hard prerequisite for `npm test`.
 
-`npm test` runs four things, none of which spend model tokens:
+`npm test` runs five things, none of which spend model tokens:
 
 | Script | What it proves |
 |---|---|
@@ -392,6 +555,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-search.mjs` | `sci_find`'s ranking, against the **real** 159 descriptions — including four queries that must return *nothing*. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
+| `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 159 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes Core, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -403,6 +567,10 @@ Two things are worth knowing before changing these:
   or the test proves nothing.
 - `getAgentDir()` reads `PI_CODING_AGENT_DIR` on **every** call (`config.js:412-418`),
   so a single test process can point successive cases at different throwaway dirs.
+- Since pi 0.84.x the `pi` binary is `dist/bundle/cli.js`, a single-file build
+  with no `core/` beside it. `findPiDist()` steps up to the unbundled `dist/`
+  when that is where `core/` lives; without that, every suite importing
+  `core/*.js` by path fails with `ERR_MODULE_NOT_FOUND`. `PI_DIST` overrides it.
 
 `scripts/test-find-live.mjs` is the release gate and is **not** in `npm test`
 because it spends tokens. It installs the packed tarball into a throwaway agent
@@ -429,7 +597,9 @@ no model ran. It separates "never ran" from "declined" for exactly that reason.
    our own `version` — minor for a new upstream snapshot, patch for an
    extension-only fix. Never copy upstream's number into `version` (see
    Provenance for why). Update the upstream-version mentions in README.
-5. Commit, tag `v<version>` (ours, e.g. `v1.1.0`), push, `npm publish`.
+5. Commit, push, `npm publish`, confirm with `npm view pi-scientific-skills version`,
+   then tag `v<version>` (ours, e.g. `v1.1.0`) and push the tag. Publish before
+   tagging: a failed publish must not leave a tag no registry has.
 
 ## Validation rules (pi)
 
@@ -597,7 +767,7 @@ claims about adoption and coverage have something behind them.
 
 ## Publishing checklist
 
-- [ ] `npm test` clean — validation plus the three offline suites (requires an
+- [ ] `npm test` clean — validation plus the four offline suites (requires an
       installed pi; they load the extension through pi's own jiti)
 - [ ] License exceptions re-checked after any sync — `find skills -iname 'LICENSE*'` and
       `grep -h '^license:' skills/*/SKILL.md | sort -u`; record new non-MIT or
@@ -626,7 +796,10 @@ claims about adoption and coverage have something behind them.
       (`npm run test:extension` asserts this; re-read the wording by hand)
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
       the synced tag; README's `v<upstream>` mentions agree with it
-- [ ] git commit + tag + push (GitHub)
-- [ ] `npm publish` (requires npm login) → gallery auto-lists via `pi-package`
-      keyword; confirm with
-      `npm search --json pi-package` or the npm registry keyword endpoint
+- [ ] git commit + push, PR merged to `main` (GitHub)
+- [ ] `npm publish` from `main` (requires npm login) → gallery auto-lists via
+      `pi-package` keyword; confirm with `npm view pi-scientific-skills version`
+      or the npm registry keyword endpoint
+- [ ] tag `v<version>` on the published commit and push the tag — after the
+      publish is confirmed, never before (v1.1.0 sat untagged once; a tag with
+      no registry version is worse)
