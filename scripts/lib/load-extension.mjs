@@ -25,10 +25,22 @@ export function findPiDist() {
       encoding: "utf8",
     }).trim();
     if (!bin) return undefined;
-    return dirname(realpathSync(bin));
+    return unbundledDist(dirname(realpathSync(bin)));
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Since pi 0.84.x the `pi` binary is `dist/bundle/cli.js`, a single-file build
+ * with no `core/` beside it. The suites import `core/*.js` by path, so resolve
+ * to the unbundled `dist/` one level up when that is where `core/` lives.
+ */
+function unbundledDist(dir) {
+  const hasCore = (candidate) => existsSync(join(candidate, "core", "agent-session.js"));
+  if (hasCore(dir)) return dir;
+  const parent = dirname(dir);
+  return hasCore(parent) ? parent : dir;
 }
 
 /**

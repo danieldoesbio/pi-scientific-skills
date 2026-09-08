@@ -57,6 +57,8 @@ const problems = { hard: [], warn: [] };
 let count = 0;
 /** Chars of name + description across all skills — the system-prompt index. */
 let indexChars = 0;
+/** Skills pi would hide from the prompt but still serve to `/skill:` (informational). */
+let modelInvocationDisabled = 0;
 
 for (const skill of collectSkills(skillsDir)) {
   count++;
@@ -85,6 +87,26 @@ for (const skill of collectSkills(skillsDir)) {
   }
 
   indexChars += (fm.name ?? skill.name).length + (fm.description?.length ?? 0);
+
+  // Three invariants the /skill: input hook depends on. All content-dependent,
+  // and sync-upstream.sh replaces content wholesale, so a release is exactly
+  // when they would break — silently, unless checked here.
+  //
+  // The hook keys on the directory name (search.ts), while pi names a skill
+  // `frontmatter.name || basename(dirname(filePath))`. If they disagree, the
+  // hook emits a different name= attribute than pi would for the same skill.
+  if (fm.name && fm.name !== skill.name) {
+    problems.hard.push(
+      `${skill.name}: frontmatter name '${fm.name}' differs from its directory — ` +
+        `/skill:${skill.name} would be wrapped under a name pi never uses`,
+    );
+  }
+  // pi's parser for the wrapped block is a non-greedy match on these tags, so
+  // a body containing either would end the block early and dump the raw file.
+  if (/<\/skill>|<skill /.test(text)) {
+    problems.hard.push(`${skill.name}: body contains a <skill> tag, which would truncate its /skill: block`);
+  }
+  if (/^disable-model-invocation:\s*true/m.test(text)) modelInvocationDisabled++;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +306,7 @@ await validatePackageInfo();
 checkTokenEstimate(profiles, count);
 
 console.log(`Validated ${count} skills in ${skillsDir}`);
+console.log(`  ${modelInvocationDisabled} declare disable-model-invocation (pi hides those from the prompt only)`);
 for (const p of problems.warn) console.log(`  [warn] ${p}`);
 for (const p of problems.hard) console.log(`  [FAIL] ${p}`);
 

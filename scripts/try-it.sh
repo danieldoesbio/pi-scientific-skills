@@ -146,8 +146,9 @@ if [ -z "$check" ]; then
 cat <<'TRY'
 
   worth trying once inside:
-    /sci status            what mode you are in, the real cost, and the /skill: caveat
+    /sci status            what mode you are in, the real cost, and where /skill: still fails
     /sci find crispr       the human-facing search
+    /skill:<filtered name> a skill your filter left out — it should load, not echo the text
     /sci profiles          the ten field profiles
     ask the model something whose skill is NOT loaded, e.g.
       "I have a 10x single-cell matrix and want to cluster it — what's here?"

@@ -54,6 +54,8 @@ import { PACKAGE_NAME, PACKAGE_VERSION } from "./package-info";
 const COMMAND_NAME = "sci";
 const CONFIG_VERSION = 1;
 const TOOL_NAME = "sci_find";
+/** pi's own prefix for forcing a skill (agent-session.js:957). */
+const SKILL_COMMAND_PREFIX = "/skill:";
 
 /** The profile applied by `/sci search` — the everyday-work baseline. */
 const DEFAULT_PROFILE_ID = "core";
@@ -277,6 +279,102 @@ const catalog = (): SkillEntry[] => {
 };
 
 /**
+ * Name → catalogue entry, from the same catalogue `sci_find` uses.
+ *
+ * A Map, never `join(SKILLS_DIR, name, "SKILL.md")`: `/skill:` names arrive
+ * from user input, and a path join would turn `/skill:../../../../etc/passwd`
+ * into an arbitrary file read whose contents land in the user turn. The
+ * catalogue enumerates real directory entries, so there is nothing to escape.
+ */
+let skillIndexCache: Map<string, SkillEntry> | undefined;
+const skillIndex = (): ReadonlyMap<string, SkillEntry> => {
+  if (skillIndexCache === undefined) {
+    skillIndexCache = new Map(catalog().map((entry) => [entry.name, entry]));
+  }
+  return skillIndexCache;
+};
+
+// ---------------------------------------------------------------------------
+// /skill:<name> for a filtered-out skill
+// ---------------------------------------------------------------------------
+
+type Stripper = (text: string) => string;
+
+/**
+ * pi's own frontmatter stripper, resolved lazily and optionally.
+ *
+ * Deliberately not a static named import. `peerDependencies` pins no floor
+ * (`"*"`), so a pi build without this export is reachable, and a missing named
+ * binding fails at module link and takes /sci and sci_find down with it. Lazy
+ * and optional degrades to pi's existing behaviour instead of to a dead
+ * extension. Exported from pi's `dist/index.js` (0.84.3: line 42). If anyone
+ * converts this to a static import, `peerDependencies` needs a version floor.
+ *
+ * Not `./frontmatter`: that parser returns fields only, computes no body, and
+ * its `m`-flag regex can match a mid-document `---` rule. Byte fidelity with
+ * pi needs pi's stripper.
+ */
+let stripperCache: Stripper | null | undefined;
+const getStripper = async (): Promise<Stripper | null> => {
+  if (stripperCache !== undefined) return stripperCache;
+  try {
+    const mod = (await import("@earendil-works/pi-coding-agent")) as { stripFrontmatter?: unknown };
+    stripperCache =
+      typeof mod.stripFrontmatter === "function" ? (mod.stripFrontmatter as Stripper) : null;
+  } catch {
+    stripperCache = null;
+  }
+  return stripperCache;
+};
+
+interface SkillCommand {
+  readonly name: string;
+  readonly args: string;
+}
+
+/**
+ * Split `/skill:name args` exactly as pi does (agent-session.js:959-961).
+ *
+ * The split is on the first literal space, not the first whitespace, so
+ * `/skill:foo\nbar` yields the name "foo\nbar" and misses. Reproduced on
+ * purpose: stock pi does the same for an *unfiltered* skill, and diverging here
+ * would make a filtered skill behave differently from an active one. That quirk
+ * belongs upstream. Whitespace-only args trim to "" and take the no-args
+ * branch, so no stray "\n\n" is appended.
+ */
+const parseSkillCommand = (text: string): SkillCommand | undefined => {
+  if (!text.startsWith(SKILL_COMMAND_PREFIX)) return undefined;
+  const spaceIndex = text.indexOf(" ");
+  const nameEnd = spaceIndex === -1 ? text.length : spaceIndex;
+  return {
+    name: text.slice(SKILL_COMMAND_PREFIX.length, nameEnd),
+    args: spaceIndex === -1 ? "" : text.slice(spaceIndex + 1).trim(),
+  };
+};
+
+/**
+ * Rebuild the block pi would have built (agent-session.js:966-969) for a skill
+ * its resource filter removed from the registry. Byte-identical by
+ * construction: same stripper, same template, same trims.
+ * `scripts/test-skill-expand.mjs` pins it against pi's own method across every
+ * skill in the catalogue.
+ *
+ * `undefined` means "nothing better than pi's own behaviour", and the caller
+ * must then let the text through untouched.
+ */
+const expandFilteredSkill = async (command: SkillCommand): Promise<string | undefined> => {
+  const entry = skillIndex().get(command.name);
+  if (!entry) return undefined;
+  const strip = await getStripper();
+  if (!strip) return undefined;
+  const body = strip(await readFile(entry.path, "utf8")).trim();
+  const block =
+    `<skill name="${entry.name}" location="${entry.path}">\n` +
+    `References are relative to ${entry.dir}.\n\n${body}\n</skill>`;
+  return command.args ? `${block}\n\n${command.args}` : block;
+};
+
+/**
  * Render hits for the model.
  *
  * Full descriptions, not truncated ones: the entire design bet is that a model
@@ -308,9 +406,8 @@ const noMatchText = (query: string): string =>
 const formatProfile = (id: string): string | undefined => {
   const profile = PROFILES.find((entry) => entry.id === id.trim().toLowerCase());
   if (!profile) return undefined;
-  const known = new Map(catalog().map((entry) => [entry.name, entry]));
   const listed = profile.skills
-    .map((name) => known.get(name))
+    .map((name) => skillIndex().get(name))
     .filter((entry): entry is SkillEntry => entry !== undefined);
   return [`# ${profile.label}`, profile.description, "", formatHits(listed.map((entry) => ({ entry, score: 0 })))].join(
     "\n",
@@ -843,6 +940,10 @@ const describeSkillsFilter = (skills: readonly unknown[]): string => {
   return `${describeCost(includes.length)}${note}`;
 };
 
+/** Whether the user's packages entry carries a `skills` filter of any shape. */
+const hasSkillsFilter = (location: PackageLocation | undefined): boolean =>
+  location !== undefined && typeof location.entry !== "string" && location.entry.skills !== undefined;
+
 const describeCurrentEntry = (location: PackageLocation | undefined): string => {
   if (!location) return "not installed as a global package";
   const entry = location.entry;
@@ -880,16 +981,15 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
       : `${TOOL_NAME}: unavailable — could not locate this package's skills/ directory.`,
   );
 
-  // Worth stating plainly: pi does not error on an unknown /skill: command, it
-  // forwards the literal text to the model, which looks like the skill loaded.
-  const filtered =
-    location !== undefined &&
-    typeof location.entry !== "string" &&
-    Array.isArray(location.entry.skills);
-  if (filtered) {
+  // The input hook rebuilds /skill:<name> for a filtered-out skill, but only on
+  // the one path that fires it. Say where it still fails rather than promising
+  // it always works.
+  if (hasSkillsFilter(location)) {
     lines.push(
-      `Note: /skill:<name> works only for active skills. For a filtered one pi passes the` +
-        ` text through unchanged rather than reporting an error — use ${TOOL_NAME} instead.`,
+      `Note: /skill:<name> reaches this package's filtered-out skills when typed at the` +
+        ` prompt (no autocomplete — get the name from /${COMMAND_NAME} find). pi still passes` +
+        ` the text through silently while compaction is queuing input, over RPC` +
+        ` steer/follow_up, and for other packages' filtered skills.`,
     );
   }
 
@@ -1331,9 +1431,10 @@ const upgradeNotice = (from: string | undefined): string =>
   [
     `${PACKAGE_NAME} updated to ${PACKAGE_VERSION}${from ? ` (from ${from})` : ""}.`,
     `Your current selection is unchanged.`,
-    `Upstream snapshot v2.65.0 adds no skills. It corrects rowan's code examples`,
-    `against rowan-python 3.1.13 — the old ones raised at runtime — and repairs two`,
-    `stable-baselines3 documentation links.`,
+    `Upstream snapshot v2.66.0 adds no skills; 135 of them now end with a section`,
+    `asking the model to cite upstream's paper when a skill materially contributed`,
+    `to your work. New here: /skill:<name> typed at the prompt now loads a skill`,
+    `your filter leaves out, instead of passing the text through silently.`,
     `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} skills on demand.`,
     `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
     `"/${COMMAND_NAME} status" to see where you stand.`,
@@ -1353,10 +1454,12 @@ const filteredNotice = (): string =>
   [
     `${PACKAGE_NAME} ${PACKAGE_VERSION}: your "skills" filter is unchanged and`,
     `/${COMMAND_NAME} has not touched it.`,
-    `Upstream snapshot v2.65.0 adds no skills — it corrects rowan's code examples`,
-    `against rowan-python 3.1.13 and repairs two stable-baselines3 documentation`,
-    `links. ${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills`,
-    `on demand — including any your filter leaves out of the system prompt.`,
+    `Upstream snapshot v2.66.0 adds no skills; 135 of them now end with a section`,
+    `asking the model to cite upstream's paper when a skill materially contributed`,
+    `to your work. /skill:<name> typed at the prompt now loads a skill your filter`,
+    `leaves out, instead of passing the text through silently. ${TOOL_NAME}`,
+    `searches all ${TOTAL_SKILL_COUNT} installed skills on demand — including any`,
+    `your filter leaves out of the system prompt.`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
 
@@ -1386,8 +1489,7 @@ const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> =>
     const location =
       settings.kind === "ok" ? findPackageEntry(settings.document.packages) : undefined;
     // Someone who already hand-filtered the package has answered this question.
-    const alreadyFiltered =
-      location !== undefined && typeof location.entry !== "string" && location.entry.skills !== undefined;
+    const alreadyFiltered = hasSkillsFilter(location);
 
     if (alreadyFiltered) {
       report(ctx, filteredNotice(), "info");
@@ -1427,9 +1529,9 @@ const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> =>
     // the work to the command, which does.
     //
     // `expandPromptTemplates: true` is load-bearing, not decoration.
-    // sendUserMessage defaults it to FALSE (agent-session.js:1130) — unlike
-    // prompt(), which defaults it to true (:793) — and extension-command
-    // dispatch is gated on it (:799). Without the flag the literal text
+    // sendUserMessage defaults it to FALSE (agent-session.js:1133 in pi
+    // 0.84.3) — unlike prompt(), which defaults it to true (:796) — and
+    // extension-command dispatch is gated on it (:802). Without the flag the literal text
     // "/sci search" is sent to the model as a user message: the user answers
     // yes, no filter is written, and a turn is burned telling the model
     // nothing. With it, _tryExecuteExtensionCommand runs the command and
@@ -1499,6 +1601,47 @@ export default function (pi: ExtensionAPI): void {
         const text = runToolSearch(params);
         return { content: [{ type: "text" as const, text }], details: {} };
       },
+    });
+  }
+
+  // pi does not error on an unknown /skill:<name>; it forwards the literal text
+  // to the model as prose (agent-session.js:963-964 in 0.84.3), so a
+  // filtered-out skill looks like it loaded. The input event fires before pi's
+  // own expansion (:816-826, then :830), so this hands back the block pi would
+  // have built. The transform starts with "<", so neither _expandSkillCommand
+  // (:957) nor expandPromptTemplate touches it afterwards. A stopgap until pi
+  // reports the miss itself — DOCUMENTATION.md lists what it does not cover.
+  if (SKILLS_DIR) {
+    pi.on("input", async (event) => {
+      const passThrough = { action: "continue" as const };
+      try {
+        // sendUserMessage defaults expandPromptTemplates to false
+        // (agent-session.js:1133): pi's intent there is *not* to expand, and
+        // the event does not carry that flag, so source is the only readable
+        // proxy. pi's docs/extensions.md branches on the same field.
+        if (event.source === "extension") return passThrough;
+
+        const command = parseSkillCommand(event.text);
+        if (!command) return passThrough;
+
+        // Skills pi can still resolve stay pi's job. getCommands maps
+        // getSkills().skills unfiltered (agent-session.js:1927-1932), the exact
+        // array _expandSkillCommand searches. It also stops this hook shadowing
+        // a same-named skill from another package, whose filePath/baseDir
+        // would differ and silently break every relative reference in the body.
+        const loaded = pi
+          .getCommands()
+          .some((c) => c.source === "skill" && c.name === `skill:${command.name}`);
+        if (loaded) return passThrough;
+
+        const text = await expandFilteredSkill(command);
+        return text === undefined ? passThrough : { action: "transform" as const, text };
+      } catch {
+        // emitInput catches a throw, reports it, and passes the text through
+        // unchanged (runner.js:952-958): the user would get a red banner *and*
+        // the original bug. Let pi behave as it does today instead.
+        return passThrough;
+      }
     });
   }
 

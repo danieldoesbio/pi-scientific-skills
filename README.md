@@ -18,13 +18,18 @@ Try without installing:
 pi -e npm:pi-scientific-skills
 ```
 
-After install, all 159 skills are available. When a task matches, pi loads the skill on demand; you can also force one:
+After install, all 159 skills are offered to the model. When a task matches, pi
+loads the skill on demand; you can also force one:
 
 ```bash
 /skill:scanpy             # single-cell RNA-seq analysis
 /skill:scientific-writing # papers, reports, proposals
 /skill:pathogen-variant-surveillance
 ```
+
+If you later narrow the set with `/sci` or `pi config`, `/skill:<name>` still
+works for this package's filtered-out skills when typed at the prompt (see the
+caveat under search mode), and `sci_find` reaches all 159 either way.
 
 List installed packages with `pi list`, and enable/disable individual skills with `pi config`.
 
@@ -76,10 +81,16 @@ alongside any profile, and `/sci find` runs the same search for you. Verified
 against a small model (deepseek-v4-flash), not just a frontier one — the whole
 point is the low end.
 
-**One caveat.** With any filter active, `/skill:<name>` for a filtered-out skill
-fails *silently*: pi doesn't recognise the name and passes the literal text
-through to the model instead of erroring. Use `/sci find` or ask in plain
-language and let `sci_find` do it. `/sci status` repeats this warning.
+**One caveat.** pi does not error on a `/skill:<name>` it cannot find; it
+passes the literal text through to the model, which then answers as if the
+skill had loaded. Under a filter every filtered-out skill is "not found". Since
+1.4.0 this package's extension catches that case for its own 159 skills and
+hands pi the same skill block pi would have built, so `/skill:<name>` typed at
+the prompt works whether or not the skill is in your filter. There is no
+autocomplete for a filtered-out name, so get it from `/sci find`. It still
+fails silently in three places the extension cannot reach: input queued while
+compaction is running, RPC `steer`/`follow_up`, and other packages' filtered
+skills. `/sci status` repeats this.
 
 Ten profiles: Core, Genomics & Bioinformatics, Scientific ML & Data Science,
 Writing/Literature/Presentation, Single-Cell Omics, Drug Discovery, Clinical &
@@ -131,17 +142,17 @@ What's actually been tested, with the numbers:
 
 - **Discovery & validation — all 159:** every skill is offered to the model in pi with the correct name and description, checked against the packed tarball; frontmatter passes a validator that reimplements pi's rules (0 warnings, 0 hard issues). The four omitted Anthropic skills are confirmed absent in the same run.
 - **Functional runs — 25 of 159.** Record in `testing/ledger.json` (in the repo; not shipped in the npm package). Four at 1.0.0: `statistical-analysis`, `pathogen-variant-surveillance`, `experimental-design`, `scientific-visualization` (the last two under `z-ai/glm-5.2`; the first two's model was not recorded). Six at 1.0.2 under `deepseek/deepseek-v4-flash`: `ncats-arax` (live ARAX/TRAPI one-hop, imatinib → ABL1), `relsa-severity-assessment` (bundled cohort scored, KDE plot written), `etetoolkit` (ete4 Newick I/O, prune, reroot, Robinson-Foulds), `venue-templates` (Nature scaffold generated; the author-substitution regex is a rough edge, not a fail), `arbor` (HTR cycle via bundled `tree.py`; merge gate correctly rejected a non-generalizing candidate), `deepspot-m` (pi offered it; the model loaded SKILL.md and followed the documented install path). Six at 1.2.0 under the same model, including both skills new in v2.64.0: `lab-hardware-cad` (bundled `check.py` ran; ANSI/SLAS standards listed and inspected with tolerances), `waypoint-bio` (PyPI package installed, `waypoint` CLI verified with all five subcommands, stopped correctly at the gated Hugging Face login), `networkx` (workflow steps 1–2 scripted and run), `generate-image` (bundled script listed 43 models over the documented no-key path), `pi-agent` (First Decision routing followed to the overview reference), `scikit-bio` (installed 0.7.3 in a venv, Section 1 reverse-complement verified). Nine at 1.3.0 under the same model, including `rowan`, the skill this release actually changed: `aeon` (installed 1.5.0 and ran the Quick Start RocketClassifier on GunPoint to 100% accuracy), `pkpd-modeling` (bundled `nca.py` ran a full non-compartmental analysis on a one-compartment oral profile), `bids` (wrote a valid `dataset_description.json` and the `sub-01/anat`, `sub-01/func` layout), `glycoengineering` (implemented and ran the documented N-X-S/T sequon scan on the IgG1 Fc example; the model's "N297" gloss mixes EU numbering with a fragment-local index, a rough edge, not a fail), `research-lookup` (installed the pinned `parallel-web-tools[cli]==0.7.1`), and four that stop at a documented credential or install gate — `rowan` (needs `ROWAN_API_KEY`), `scanpy`, `literature-review`, `dnanexus-integration`. Two of those runs installed packages onto the host rather than into the sandbox; see `harnessNote` in the ledger. The other 134 have not been exercised here, so take them as upstream ships them.
-- **`/sci` and `sci_find` — automated, on every change:** 49 behavioural checks against a stubbed pi (`/sci search` writes the Core filter and preserves hand-written `!pattern` overrides; a seeded prior-version config leaves `settings.json` byte-identical; malformed settings refuse without writing), 29 ranking checks against the real 159 descriptions including four queries that must return *nothing*, and 7 checks that **pi itself** honours the filter, run through a real `DefaultPackageManager`. The first-run offer is additionally driven through **pi's real TUI** over a pty: accepting writes Core's 10 skills, declining and timing out write nothing at all. To try any of it by hand, `npm run try` opens this package in a throwaway pi — your own `~/.pi/agent` is never touched.
-- **Search mode against a small model — 3 of 3.** With only Core loaded, `deepseek/deepseek-v4-flash` was asked three questions whose skills were not in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand). It called `sci_find` unprompted every time, got a correct skill back, and read the `SKILL.md`. Re-run against the 1.2.0 and 1.3.0 tarballs with the same result. Recorded under `extensionRuns` in `testing/ledger.json`. The probes never name the skill — that's the whole test.
+- **`/sci` and `sci_find` — automated, on every change:** 77 behavioural checks against a stubbed pi (`/sci search` writes the Core filter and preserves hand-written `!pattern` overrides; a seeded prior-version config leaves `settings.json` byte-identical; malformed settings refuse without writing; `/skill:<filtered-name>` is rebuilt, `/skill:../../etc/passwd` is not), 481 byte-identity checks against pi's own `/skill:` expansion (every skill, three argument forms, compared to pi's `_expandSkillCommand` output), 29 ranking checks against the real 159 descriptions including four queries that must return *nothing*, and 7 checks that **pi itself** honours the filter, run through a real `DefaultPackageManager`. The first-run offer is additionally driven through **pi's real TUI** over a pty: accepting writes Core's 10 skills, declining and timing out write nothing at all. To try any of it by hand, `npm run try` opens this package in a throwaway pi — your own `~/.pi/agent` is never touched.
+- **Search mode against a small model — 3 of 3.** With only Core loaded, `deepseek/deepseek-v4-flash` was asked three questions whose skills were not in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand). It called `sci_find` unprompted every time, got a correct skill back, and read the `SKILL.md`. Re-run against the 1.2.0, 1.3.0 and 1.4.0 tarballs with the same result. At 1.4.0 the same setup also confirmed that `/skill:pysam`, filtered out, reaches the model as pi's skill block rather than as literal text. Recorded under `extensionRuns` in `testing/ledger.json`. The probes never name the skill — that's the whole test.
 - **Skill assets (upstream's suite, not run in pi):** upstream's own pytest battery passes on the byte-identical content. The 2,512-test figure quoted in earlier releases was counted at v2.62.0; upstream releases since then add suites for their new skills, and I have not re-counted, so treat upstream's CI badge as the current source.
 
-Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.65.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
+Upstream notes that review depth varies by authorship: K-Dense-authored skills go through their internal review, while community-contributed skills are reviewed "to the best of our ability, but with limited resources" — and upstream advises against enabling everything at once. This package ships the full v2.66.0 snapshot, so `/sci` (or `pi config`) is how you narrow it to what you actually intend to run. Treat an enabled skill as third-party code you are choosing to execute.
 
 Caveats: `allowed-tools` is inert in pi (no pre-approval gate; no functional harm). Skills requiring heavy Python stacks (scanpy, rdkit, torch, …) need those installed in your environment — same as any harness.
 
 ## Updating
 
-The skills here are a snapshot of upstream at **v2.65.0**. This package's own
+The skills here are a snapshot of upstream at **v2.66.0**. This package's own
 version is separate — it starts at 1.0.0 and tracks changes to *this*
 distribution, since the contents differ from upstream (159 skills, plus `/sci`)
 and upstream ships patch releases that would collide. The upstream tag a given
@@ -201,7 +212,7 @@ None exist yet. **All 159 skills shipped today are upstream's.**
 
 ## License & Credits
 
-- The collection is © 2025 **K-Dense Inc.**, MIT — see [LICENSE.md](LICENSE.md) (upstream text verbatim). This package is an independent distribution of [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills); **all credit for the skills goes to the upstream maintainers and their community contributors.** Nothing in `skills/` is this maintainer's work — it is a byte-identical snapshot. If you use this in a project or publication, please cite upstream using the formats in their [Citation section](https://github.com/K-Dense-AI/scientific-agent-skills#-citation) — the collection, plus each individual skill that contributed to your work.
+- The collection is © 2025 **K-Dense Inc.**, MIT — see [LICENSE.md](LICENSE.md) (upstream text verbatim). This package is an independent distribution of [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills); **all credit for the skills goes to the upstream maintainers and their community contributors.** Nothing in `skills/` is this maintainer's work — it is a byte-identical snapshot. If you use this in a project or publication, please cite upstream using the formats in their [Citation section](https://github.com/K-Dense-AI/scientific-agent-skills#-citation) — the collection, plus each individual skill that contributed to your work. Since upstream v2.66.0 most skills end with a section asking the model to add upstream's paper (arXiv:2609.00065) to your references when the skill materially contributed, and to tell you it did so. That is a request from upstream carried here verbatim, not a licence condition; `LICENSE.md` is unchanged.
 - Many skills were contributed to upstream by **third-party authors**, credited in each skill's `metadata.skill-author` frontmatter field (pointing at the field rather than listing names here, so credit cannot drift out of date on a sync). A few declare their own terms for the skill text: `what-if-oracle` is CC BY-NC-SA 4.0 (**non-commercial**, © AHK Strategies), `bids` and `depmap` are CC BY 4.0, and `pacsomatic` ships its own `LICENSE` (MIT, © 2026 Beifang Niu). Check that field before commercial or redistributive use. Note that on skills wrapping a library, the `license:` field records *that library's* license (e.g. `cobrapy: GPL-2.0`), not the license of the skill text. One of those wrapped tools is itself non-commercial: `deepspot-m` documents the DeepSpot-M package (PolyForm Noncommercial 1.0.0) and its gated Hugging Face weights (CC BY-NC-SA 4.0). The skill text is MIT like the rest; the tool it drives is not, so check before commercial use.
 - **Not included:** upstream also vendors Anthropic's `docx`, `pdf`, `pptx` and `xlsx` skills. Their licence reserves all rights and forbids redistribution to third parties, so this package deliberately omits them — that is the only difference from upstream's `skills/`. Get them from Anthropic directly. (`pptx-posters` is K-Dense's own skill and *is* included.)
 - Pi packaging, the `/sci` extension, and maintenance by **[danieldoesbio](https://github.com/danieldoesbio)** — © 2026, MIT, same terms as above. This covers `extensions/` and `scripts/` only; `LICENSE.md` is reproduced unmodified from upstream and governs the bundled skills.
