@@ -700,8 +700,11 @@ Two kinds of testing here, with very different costs:
   large download, following it up to that point is a pass. An artifact is extra
   evidence when the skill produces one; it is not required.
 
-`testing/ledger.json` is the record of the second kind. README's
-"Functional runs — N of 159" derives from it.
+`testing/ledger.json` is the record of the second kind. README's count of
+skills run end to end derives from it; the per-release narrative is under "Run
+record by release" below, and the caveats that used to sit on the README are
+under "What pi does and does not enforce". The README is the landing page on
+npm and GitHub and stays positive and short; this file is where the hedges live.
 
 ```bash
 npm run test:batch -- --version 1.0.3 --include <skills-new-this-release>
@@ -741,6 +744,76 @@ Verdicts are `PASS`, `FAIL`, `BLOCKED`, or `TIMEOUT`. **`BLOCKED` and `TIMEOUT`
 are not failures of the skill.** BLOCKED means a missing dependency, credential
 or network; TIMEOUT is a fact about the run (wall clock or a harness fault).
 Neither folds into a pass rate, and TIMEOUT skills stay in the sampling pool.
+
+### Run record by release
+
+Model is `deepseek/deepseek-v4-flash` unless noted. Verdicts, timings and the
+full notes, including every `harnessNote`, are in `testing/ledger.json`; the
+scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
+
+- **1.0.0 (4):** `statistical-analysis`, `pathogen-variant-surveillance`,
+  `experimental-design`, `scientific-visualization` (the last two under
+  `z-ai/glm-5.2`; the first two's model was not recorded).
+- **1.0.2 (6):** `ncats-arax` (live ARAX/TRAPI one-hop, imatinib → ABL1),
+  `relsa-severity-assessment` (bundled cohort scored, KDE plot written),
+  `etetoolkit` (ete4 Newick I/O, prune, reroot, Robinson-Foulds),
+  `venue-templates` (Nature scaffold generated; the author-substitution regex is
+  a rough edge, not a fail), `arbor` (HTR cycle via bundled `tree.py`; the merge
+  gate correctly rejected a non-generalizing candidate), `deepspot-m` (pi
+  offered it; the model loaded SKILL.md and followed the documented install
+  path).
+- **1.2.0 (6), including both skills new in v2.64.0:** `lab-hardware-cad`
+  (bundled `check.py` ran; ANSI/SLAS standards listed and inspected with
+  tolerances), `waypoint-bio` (PyPI package installed, `waypoint` CLI verified
+  with all five subcommands, stopped correctly at the gated Hugging Face login),
+  `networkx` (workflow steps 1–2 scripted and run), `generate-image` (bundled
+  script listed 43 models over the documented no-key path), `pi-agent` (First
+  Decision routing followed to the overview reference), `scikit-bio` (installed
+  0.7.3 in a venv, Section 1 reverse-complement verified).
+- **1.3.0 (9), including `rowan`, the skill that release changed:** `aeon`
+  (installed 1.5.0 and ran the Quick Start RocketClassifier on GunPoint to 100%
+  accuracy), `pkpd-modeling` (bundled `nca.py` ran a full non-compartmental
+  analysis on a one-compartment oral profile), `bids` (wrote a valid
+  `dataset_description.json` and the `sub-01/anat`, `sub-01/func` layout),
+  `glycoengineering` (implemented and ran the documented N-X-S/T sequon scan on
+  the IgG1 Fc example; the model's "N297" gloss mixes EU numbering with a
+  fragment-local index, a rough edge, not a fail), `research-lookup` (installed
+  the pinned `parallel-web-tools[cli]==0.7.1`), and four that stop at a
+  documented credential or install gate: `rowan` (needs `ROWAN_API_KEY`),
+  `scanpy`, `literature-review`, `dnanexus-integration`. Two of these runs
+  installed packages onto the host rather than into the sandbox; see
+  `harnessNote` in the ledger.
+- **1.4.0 (6), none new in v2.66.0, which adds no skills:**
+  `markdown-mermaid-writing` (status report written from the bundled template
+  with a Mermaid timeline, footnote citations and the style guide's emoji rule),
+  `pytdc` (SKILL.md's ephemeral `uv run` form listed all 27 ADME datasets from
+  the metadata registry, no data download), `hypogenic` (bundled
+  `validate_config.py` passed both the example run policy and the example task
+  config, no model call), `cellxgene-census` (installed 1.17.0 and opened the
+  2025-11-08 LTS Census: 217,768,036 cells, matching SKILL.md's figure; this run
+  installed into the host's conda base env with `uv pip install --system`, a
+  third `harnessNote`), and two that stop at a documented gate: `deeptools`
+  (Quick Start step 1 script ran; no input BAM and no deepTools install) and
+  `adaptyv` (`.env` check and SDK presence check, then the API-key gate).
+- The other 128 have not been exercised here; they ship as upstream ships them.
+
+### What pi does and does not enforce
+
+- `allowed-tools` in a skill's frontmatter is inert in pi: there is no
+  pre-approval gate, and no functional harm. Skills that need heavy Python
+  stacks (scanpy, rdkit, torch, …) need those installed in the user's
+  environment, as in any harness.
+- Upstream notes that review depth varies by authorship: K-Dense-authored
+  skills go through their internal review, while community-contributed skills
+  are reviewed "to the best of our ability, but with limited resources", and
+  upstream advises against enabling everything at once. This package ships the
+  full snapshot; `/sci` (or `pi config`) is how a user narrows it to what they
+  intend to run. An enabled skill is third-party code the user is choosing to
+  execute.
+- Upstream's own pytest battery passes on the byte-identical content. The
+  2,512-test figure quoted in early releases was counted at v2.62.0; later
+  upstream releases add suites for their new skills and it has not been
+  re-counted, so upstream's CI badge is the current source.
 
 ## Adoption metrics
 
