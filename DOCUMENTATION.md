@@ -435,9 +435,11 @@ handler keys on the directory; pi uses `frontmatter.name || dirname`), no body
 contains `<skill ` or `</skill>` (pi's `parseSkillBlock` is non-greedy and
 would truncate), and the `disable-model-invocation` count (0, informational).
 
-**Residual limits.** Narrowed, not closed. Every one of these is disclosed in
-`/sci status` or the README, because replacing a disclosed bug with an
-undisclosed partial fix would repeat the original mistake:
+**Residual limits.** Narrowed, not closed. This list is the disclosure. The
+README and `/sci status` state what works (type the name at the prompt); the
+paths that still forward literal text are written down here, where someone who
+finds a literal `/skill:` in a transcript will look. Until 1.4.1 the status
+line repeated items 1 and 3 to every filtered user; it no longer does.
 
 1. **`steer()` and `followUp()` bypass the hook.** Both call
    `_expandSkillCommand` directly with no `emitInput` (`agent-session.js:995`,
@@ -798,6 +800,9 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
 - **1.4.1 (0):** a patch release. It carries the 1.4.0 grades above, the
   README rewrite that moved the caveats into this file, and a shorter
   upgrade notice for patch bumps. No skill changed, so nothing new was run.
+- **1.4.2 (0):** `/sci status` under a filter now states what `/skill:<name>`
+  does instead of listing where pi's own paths still forward literal text;
+  those stay under "Residual limits". No skill changed, nothing new was run.
 - The other 128 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
