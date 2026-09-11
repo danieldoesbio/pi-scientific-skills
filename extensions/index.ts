@@ -1427,10 +1427,24 @@ const offerTitle = (): string => {
   );
 };
 
-const upgradeNotice = (from: string | undefined): string =>
-  [
+/**
+ * "1.4.1" and "1.4.0" share a minor line. A patch release changes only the
+ * extension or the docs, never the skills or anyone's settings, so it owes the
+ * user one line, not a re-run of the last minor release's news.
+ */
+const sameMinorLine = (from: string | undefined, current: string): boolean =>
+  from !== undefined && from.split(".").slice(0, 2).join(".") === current.split(".").slice(0, 2).join(".");
+
+const upgradeNotice = (from: string | undefined): string => {
+  const head = [
     `${PACKAGE_NAME} updated to ${PACKAGE_VERSION}${from ? ` (from ${from})` : ""}.`,
     `Your current selection is unchanged.`,
+  ];
+  if (sameMinorLine(from, PACKAGE_VERSION)) {
+    return [...head, `Patch release: no change to the skills, and your settings are untouched.`].join(" ");
+  }
+  return [
+    ...head,
     `Upstream snapshot v2.66.0 adds no skills; 135 of them now end with a section`,
     `asking the model to cite upstream's paper when a skill materially contributed`,
     `to your work. New here: /skill:<name> typed at the prompt now loads a skill`,
@@ -1439,6 +1453,7 @@ const upgradeNotice = (from: string | undefined): string =>
     `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
     `"/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
+};
 
 /**
  * For someone who hand-filtered the package before ever running `/sci`.
