@@ -981,15 +981,15 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
       : `${TOOL_NAME}: unavailable — could not locate this package's skills/ directory.`,
   );
 
-  // The input hook rebuilds /skill:<name> for a filtered-out skill, but only on
-  // the one path that fires it. Say where it still fails rather than promising
-  // it always works.
+  // The input hook rebuilds /skill:<name> for a filtered-out skill typed at the
+  // prompt. The paths it cannot see (compaction queue, RPC steer, other
+  // packages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
+  // status answers "what can I do now", and the answer is "type the name".
   if (hasSkillsFilter(location)) {
     lines.push(
-      `Note: /skill:<name> reaches this package's filtered-out skills when typed at the` +
-        ` prompt (no autocomplete — get the name from /${COMMAND_NAME} find). pi still passes` +
-        ` the text through silently while compaction is queuing input, over RPC` +
-        ` steer/follow_up, and for other packages' filtered skills.`,
+      `/skill:<name>: typed at the prompt, loads any of this package's ${TOTAL_SKILL_COUNT}` +
+        ` skills, filtered or not. Filtered-out names have no autocomplete, so take the` +
+        ` name from /${COMMAND_NAME} find.`,
     );
   }
 
