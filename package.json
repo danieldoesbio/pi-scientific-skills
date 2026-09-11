@@ -1,6 +1,6 @@
 {
   "name": "pi-scientific-skills",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "upstreamVersion": "v2.66.0",
   "description": "159 modular K-Dense scientific Agent Skills for the pi coding agent \u2014 pick only the fields you need: biology, genomics, chemistry, drug discovery, clinical research, machine learning, physics, statistics. Skills (c) 2025 K-Dense Inc. and contributors (MIT), from K-Dense-AI/scientific-agent-skills.",
   "license": "MIT",

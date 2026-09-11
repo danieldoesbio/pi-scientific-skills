@@ -795,6 +795,9 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   third `harnessNote`), and two that stop at a documented gate: `deeptools`
   (Quick Start step 1 script ran; no input BAM and no deepTools install) and
   `adaptyv` (`.env` check and SDK presence check, then the API-key gate).
+- **1.4.1 (0):** a patch release. It carries the 1.4.0 grades above, the
+  README rewrite that moved the caveats into this file, and a shorter
+  upgrade notice for patch bumps. No skill changed, so nothing new was run.
 - The other 128 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce

@@ -297,6 +297,31 @@ console.log("\n-- upgrade (existing user) --");
   check("notice is shown exactly once", second.notes.length === 0);
 }
 
+console.log("\n-- upgrade (patch release, same minor line) --");
+{
+  const paths = newAgentDir();
+  const PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+  const [major, minor, patch] = PACKAGE_VERSION.split(".").map(Number);
+  const prior = `${major}.${minor}.${patch > 0 ? patch - 1 : patch + 1}`;
+  writeFileSync(
+    paths.config,
+    JSON.stringify({ version: 1, onboardingSeen: true, lastSeenVersion: prior }, null, 2),
+  );
+
+  const harness = makeHarness({ mode: "tui" });
+  const hooks = register(harness);
+  await startup(hooks, harness);
+
+  const notice = harness.notes[0] ?? "";
+  check(
+    "a patch bump gets the one-line notice, not the last minor release's news",
+    harness.notes.length === 1 && /updated to/.test(notice) && /Patch release/.test(notice) && !/Upstream snapshot/.test(notice),
+    notice,
+  );
+  const config = JSON.parse(readFileSync(paths.config, "utf8"));
+  check("and records the version", config.lastSeenVersion === PACKAGE_VERSION);
+}
+
 console.log("\n-- first run (already hand-filtered) --");
 {
   // No extension config, but a `pi config`-written filter already in place.
