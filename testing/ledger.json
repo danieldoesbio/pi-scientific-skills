@@ -277,6 +277,62 @@
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-08-31",
       "note": "2 tool calls, 24s. Read SKILL.md and ran the preflight its Install and Authenticate section calls for (which dx, exit 1 — not installed). Stopped before dxpy install and dx login, which need a DNAnexus account. Shortest run in the batch; load-and-follow only."
+    },
+    {
+      "skill": "markdown-mermaid-writing",
+      "verdict": "PASS",
+      "packageVersion": "1.4.0",
+      "upstreamVersion": "v2.66.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-08",
+      "note": "7 tool calls, 31s. Read SKILL.md, listed the nine bundled templates, read templates/status_report.md and the first 100 lines of references/markdown_style_guide.md (core workflow steps 1-2), then wrote a 69-line status report in the sandbox: one H1, emoji on H2 only, a Mermaid timeline block with the italic descriptive paragraph above it that SKILL.md prescribes for types without accTitle/accDescr, tables, and two footnote citations. Read the file back. Skipped step 3 (the per-diagram-type guide). Artifact produced inside the sandbox."
+    },
+    {
+      "skill": "deeptools",
+      "verdict": "PASS",
+      "packageVersion": "1.4.0",
+      "upstreamVersion": "v2.66.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-08",
+      "note": "8 tool calls, 23s. Read SKILL.md, confirmed deepTools is not installed, listed scripts/, assets/ and references/, then ran Quick Start step 1's scripts/validate_files.py with --help under the system python (argparse usage printed, exit 0). Stopped there: the sandbox has no BAM or BED to validate and deepTools itself needs a conda or uv environment. Did not try workflow_generator.py --list, which needs no inputs. Load-and-follow only; the thinnest evidence in the batch after adaptyv."
+    },
+    {
+      "skill": "adaptyv",
+      "verdict": "PASS",
+      "packageVersion": "1.4.0",
+      "upstreamVersion": "v2.66.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-08",
+      "note": "3 tool calls, 17s. Read SKILL.md and followed its Quick Start literally: checked the project root for a .env file (ls -la, empty sandbox) and, per the SDK version note that adaptyv-sdk 0.1.0 is GitHub-only, ran pip show adaptyv-sdk (not installed). Stopped before the GitHub install and the ADAPTYV_API_KEY gate. Shortest run in the batch; same shape as dnanexus-integration and rowan at 1.3.0."
+    },
+    {
+      "skill": "pytdc",
+      "verdict": "PASS",
+      "packageVersion": "1.4.0",
+      "upstreamVersion": "v2.66.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-08",
+      "note": "5 tool calls, 61s. Read SKILL.md, verified uv 0.11.17, listed the six bundled scripts, then ran SKILL.md's ephemeral command form verbatim: uv run --python 3.11 --with setuptools==80.9.0 --with PyTDC==1.1.15 python scripts/discover_metadata.py --kind datasets --task ADME --limit 50. Output, checked in the raw transcript because the summary clips it: 27 ADME datasets from the installed tdc.metadata registry, package_version 1.1.15, download_performed false. The skill's 'discover first' policy followed exactly, with no dataset download.",
+      "harnessNote": "The ephemeral uv environment resolved and installed 125 packages (torch 121 MB, gget 76 MB, llvmlite 39 MB, rdkit 26 MB, and so on), roughly half a gigabyte of wheels into the host uv cache. Dependency wheels, not tool weights, and SKILL.md warns the environment is this size. `uv cache clean` reclaims it."
+    },
+    {
+      "skill": "hypogenic",
+      "verdict": "PASS",
+      "packageVersion": "1.4.0",
+      "upstreamVersion": "v2.66.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-08",
+      "note": "12 tool calls, 39s. Read SKILL.md, listed assets/ and scripts/, read assets/run_config.example.json and scripts/validate_config.py, then did workflow step 3 for real: validate_config.py run on the example run config (ok true; model_called false, network_access false, requires_separate_confirmation true) and validate_config.py task on the example task config via uv run --with pyyaml==6.0.2 (ok true; task reviewed_binary_text, three prompt-template keys, split paths distinct). The first run attempt exited 2 with 'path escapes the declared root directory' because --root . named the sandbox while the input lived in the skill dir; that is the script's guard working, and the model re-ran from the skill dir. No hypogenic install, no model call."
+    },
+    {
+      "skill": "cellxgene-census",
+      "verdict": "PASS",
+      "packageVersion": "1.4.0",
+      "upstreamVersion": "v2.66.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-08",
+      "note": "10 tool calls, 45s. Read SKILL.md and references/core_workflow_patterns.md, confirmed the package was absent, installed cellxgene-census 1.17.0, then wrote and ran Pattern 1 in the sandbox: open_soma(census_version=\"2025-11-08\") and read census_info/summary. Live public read, no auth: total cells 217,768,036 and unique cells 125,463,259, matching SKILL.md's stated 217+ million and 125+ million for that LTS. The first script run raised KeyError('dataset_count') on a label the model guessed; it listed the real labels and fixed its own script. Artifact: step1_open_census.py in the sandbox.",
+      "harnessNote": "Host contamination, the third instance after the two at 1.3.0. SKILL.md's `uv pip install \"cellxgene-census==1.17.*\"` assumes a venv; the sandbox has none, so uv refused, and the model re-ran with --system, which wrote into the miniforge base environment at /opt/homebrew/Caskroom/miniforge/base: 24 packages added and 6 replaced (aiohttp 3.13.2 to 3.14.3, botocore 1.40.76 to 1.43.75, fsspec 2025.3.2 to 2026.7.0, packaging 24.2 to 26.3, typing-extensions 4.15.0 to 4.16.0, zarr 3.0.7 to 3.3.0). Not a skill defect. The harness should give each run its own venv."
     }
   ],
   "extensionRuns": [
