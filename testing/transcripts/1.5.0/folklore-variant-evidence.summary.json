@@ -1,0 +1,43 @@
+{
+  "skill": "folklore-variant-evidence",
+  "packageVersion": "1.5.0",
+  "model": "deepseek/deepseek-v4-flash",
+  "elapsedSeconds": 20,
+  "outcome": "completed",
+  "toolCalls": [
+    {
+      "tool": "read",
+      "args": "{\"path\":\"$TMPDIR/pi-skill-test-1.5.0/stage/package/skills/folklore-variant-evidence/SKILL.md\"}",
+      "isError": false,
+      "result": "---\nname: folklore-variant-evidence\ndescription: \"Retrieve ClinGen gene-disease validity assertions for a public gene or disease, and review source-linked public evidence and literature for one supported GRCh38 germline nuclear SNV or simple indel through Folklore Clinical Variant Interpretation MCP. Use when a scientific agent must branch deterministically on resolved, ambiguous, not-found, invalid, unsupported, or unavailable variant outcomes; chain a resolved public variant into related literature or publication details; or preserve evidence provenance without accepting patient, phenotype, … [+10124 chars]"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"curl --silent --show-error --fail-with-body --max-time 30 \\\\\\n  -X POST https://api.helena.bio/folklore/v1/mcp \\\\\\n  -H 'Content-Type: application/json' \\\\\\n  -H 'Accept: application/json, text/event-stream' \\\\\\n  -H 'MCP-Protocol-Version: 2026-07-28' \\\\\\n  -H 'Mcp-Method: tools/list' \\\\\\n  -d '{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"tools/list\\\",\\\"params\\\":{\\\"_meta\\\":{\\\"io.modelcon… [+119 chars]",
+      "isError": false,
+      "result": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"cacheScope\":\"public\",\"resultType\":\"complete\",\"tools\":[{\"_meta\":{\"ui\":{\"resourceUri\":\"ui://folklore/variant-evidence/v1.html\"},\"openai/outputTemplate\":\"ui://folklore/variant-evidence/v1.html\",\"openai/toolInvocation/invoking\":\"Reading Folklore variant evidence\",\"openai/toolInvocation/invoked\":\"Folklore evidence ready\"},\"annotations\":{\"destructiveHint\":false,\"idempotentHint\":true,\"openWorldHint\":false,\"readOnlyHint\":true,\"title\":\"Classify or interpret a germline variant under ACMG/AMP\"},\"description\":\"Interpret this variant, explain what this HGVS means, or revi… [+31225 chars]"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"curl --silent --show-error --fail-with-body --max-time 30 \\\\\\n  -X POST https://api.helena.bio/folklore/v1/mcp \\\\\\n  -H 'Content-Type: application/json' \\\\\\n  -H 'Accept: application/json, text/event-stream' \\\\\\n  -H 'MCP-Protocol-Version: 2026-07-28' \\\\\\n  -H 'Mcp-Method: tools/call' \\\\\\n  -H 'Mcp-Name: search_variant_evidence' \\\\\\n  -d '{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":2,\\\"method\\\":\\\"tool… [+266 chars]",
+      "isError": false,
+      "result": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"text\":\"The query is ambiguous and has 2 supported GRCh38 candidates. Ask the user to choose; do not guess.\",\"type\":\"text\"}],\"isError\":false,\"resultType\":\"complete\",\"structuredContent\":{\"contract_version\":\"1\",\"record_url\":null,\"result\":{\"search_contract_version\":\"1.0\",\"status\":\"ambiguous\",\"resolution\":{\"normalized_query\":\"rs80357914\",\"notation_family\":\"rsid\",\"input_accession\":\"rs80357914\",\"input_version\":null,\"resolver_schema_version\":\"public-variant-resolver-3\",\"resolver_asset_version\":\"pvr-sha256-02400e1bac7f3ed7db3de7027c6e86e6a7fb6d49d1dcf61fb5… [+1540 chars]"
+    }
+  ],
+  "finalText": "The tool catalog verification succeeded (all 6 scientific tools + `support_helena` are live). Then, following the skill's \"Falsifiable smoke test\" instructions, I called `search_variant_evidence` with `rs80357914`. The response returned **ambiguous** with 2 candidates:\n\n| # | Canonical Key | Type |\n|---|--------------|------|\n| 1 | `GRCh38:chr17:43124027:A:ACT` | Insertion of CT |\n| 2 | `GRCh38:chr17:43124027:ACT:A` | Deletion of CT |\n\nPer the skill's branching table, an `ambiguous` status means: *show the returned candidates and ask for an explicit public variant selection. Never choose a candidate automatically.* I will not proceed further.\n\n**VERDICT: DONE** I loaded the `folklore-variant-evidence` skill, verified the live tool catalog against the hosted MCP endpoint, then executed the skill's falsifiable smoke test with rs80357914 and correctly stopped on the expected ambiguous outcome without automatically selecting a candidate.",
+  "usage": {
+    "input": 1389,
+    "output": 412,
+    "cacheRead": 13056,
+    "cacheWrite": 0,
+    "reasoning": 181,
+    "totalTokens": 14857,
+    "cost": {
+      "input": 0.00011045328,
+      "output": 0.00006552448,
+      "cacheRead": 0.00020764262400000002,
+      "cacheWrite": 0,
+      "total": 0.00038362038400000003
+    }
+  }
+}

@@ -333,6 +333,62 @@
       "date": "2026-09-08",
       "note": "10 tool calls, 45s. Read SKILL.md and references/core_workflow_patterns.md, confirmed the package was absent, installed cellxgene-census 1.17.0, then wrote and ran Pattern 1 in the sandbox: open_soma(census_version=\"2025-11-08\") and read census_info/summary. Live public read, no auth: total cells 217,768,036 and unique cells 125,463,259, matching SKILL.md's stated 217+ million and 125+ million for that LTS. The first script run raised KeyError('dataset_count') on a label the model guessed; it listed the real labels and fixed its own script. Artifact: step1_open_census.py in the sandbox.",
       "harnessNote": "Host contamination, the third instance after the two at 1.3.0. SKILL.md's `uv pip install \"cellxgene-census==1.17.*\"` assumes a venv; the sandbox has none, so uv refused, and the model re-ran with --system, which wrote into the miniforge base environment at /opt/homebrew/Caskroom/miniforge/base: 24 packages added and 6 replaced (aiohttp 3.13.2 to 3.14.3, botocore 1.40.76 to 1.43.75, fsspec 2025.3.2 to 2026.7.0, packaging 24.2 to 26.3, typing-extensions 4.15.0 to 4.16.0, zarr 3.0.7 to 3.3.0). Not a skill defect. The harness should give each run its own venv."
+    },
+    {
+      "skill": "datalad",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "note": "8 tool calls, 39s. New in v2.67.0. Read SKILL.md, found no datalad on the host, followed the Installation section: installed datalad 1.6.2 and the git-annex 10.20260901 PyPI wheel, then ran the documented health check `datalad wtf --section dependencies`, which listed cmd:annex once the wheel was in. No dataset cloned; the install-and-verify path SKILL.md opens with ran to completion.",
+      "harnessNote": "Host contamination, the fourth instance. SKILL.md's `uv pip install` assumes a venv; the sandbox has none, so the model re-ran with --system and wrote into the miniforge base env: 14 packages added, and botocore moved 1.43.75 to 1.40.76 (reversing the 1.4.0 cellxgene-census run's upgrade). Not a skill defect. The harness still needs a venv per run."
+    },
+    {
+      "skill": "folklore-variant-evidence",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "note": "3 tool calls, 20s. New in v2.69.0. Read SKILL.md, then ran its two documented curl calls against the live api.helena.bio MCP endpoint with no credentials: tools/list returned the six scientific tools plus support_helena, and the 'Falsifiable smoke test' call search_variant_evidence(GRCh38, rs80357914) returned status ambiguous with two candidates (chr17:43124027 A>ACT and ACT>A). The model then stopped and reported the candidates without choosing one, which is exactly the branch SKILL.md's outcome table prescribes for ambiguous."
+    },
+    {
+      "skill": "pymoo",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "note": "9 tool calls, 34s. Read SKILL.md, created a venv with `uv venv`, installed pymoo, and ran the bundled scripts/single_objective_example.py: GA over 100 generations, f_min from 0.31 to ~1.3e-06. One slip, calling the script with the system python3 before the venv's, was self-corrected on the next call."
+    },
+    {
+      "skill": "pydeseq2",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "note": "9 tool calls, 30s. Read SKILL.md, installed pydeseq2 0.5.4 (the pinned version), wrote a 5-gene x 4-sample counts.csv and a matching metadata.csv, and ran Quick Start steps 1-2: transpose to samples x genes and drop genes with total count under 10. Stopped before DeseqDataSet; the loaded-and-followed bar is met.",
+      "harnessNote": "Host contamination, the fifth instance: `uv pip install` refused without a venv and the model re-ran with --system, adding six packages (formulaic, formulaic-contrasts, interface-meta, pydeseq2, session-info, stdlib-list) to the miniforge base env. Same root cause as the datalad run in this batch; the harness still needs a venv per run."
+    },
+    {
+      "skill": "gget",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "note": "8 tool calls, 63s. Read SKILL.md, created a venv and installed the pinned gget==0.30.5, then ran `gget search BRCA1 -s human -l 3` against live Ensembl (homo_sapiens_core_116_38): 19 matches, top hit ENSG00000012048. Two guessed invocations first (a missing -s, then `gget info --limit`) failed on argparse and the model read --help before the correct call; that is model behaviour, not a SKILL.md defect."
+    },
+    {
+      "skill": "pydicom",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "note": "15 tool calls, 49s. Read SKILL.md, created a venv and installed the pinned pydicom==3.0.2, copied the package's own CT_small.dcm test file into the sandbox, and followed the 'Read datasets safely' section: dcmread with stop_before_pixels=True and a specific_tags allowlist, printing only SOPClassUID 1.2.840.10008.5.1.4.1.1.2, Modality CT, 128 x 128. No bundled script run; the prescribed safe-read pattern was reproduced verbatim."
     }
   ],
   "extensionRuns": [
@@ -396,6 +452,16 @@
       "date": "2026-09-08",
       "probes": 4,
       "note": "scripts/try-it.sh --check on the packed tarball in a throwaway agent dir: `mine` (real entry, skills: [], lastSeenVersion 1.2.0) printed \"updated to 1.4.0 (from 1.2.0)\"; `upgrading` (Genomics profile, 1.0.2) printed \"updated to 1.4.0 (from 1.0.2)\" and kept the 27-skill filter; `current` (lastSeenVersion 1.4.0) printed nothing. settings.json byte-identical in all three. Discovery probe per the publishing checklist: tarball extracted to scratch, `pi -ne --skill ./skills --no-session -p` name-presence question answered scanpy=yes, pathogen-variant-surveillance=yes with 159 skills on disk. test-batch.mjs was not run for 1.4.0: upstream v2.66.0 adds no skills and changes only the trailing citation section."
+    },
+    {
+      "test": "release gates on the packed 1.5.0 tarball: upgrade notice, discovery probe, sci_find from a cold prompt",
+      "verdict": "PASS",
+      "packageVersion": "1.5.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-14",
+      "probes": 6,
+      "note": "scripts/try-it.sh --check on the packed tarball in a throwaway agent dir: `mine` (lastSeenVersion 1.2.0) printed \"updated to 1.5.0 (from 1.2.0)\" with the v2.69.0 wording; `upgrading` (Genomics profile, 1.0.2) printed \"updated to 1.5.0 (from 1.0.2)\" and kept its filter; `current` (1.5.0) printed nothing. settings.json byte-identical in all three. Discovery probe per the checklist: tarball extracted to scratch, `pi -ne --skill ./skills --no-session -p` name-presence question answered datalad, folklore-variant-evidence and genomic-intelligence present with 161 skills on disk (run under --model deepseek/deepseek-v4-flash; the host's default model is a local MLX endpoint that was not running). test-find-live.mjs, Core-only prompt: variants called sci_find x2 and surfaced pysam, pathogen-variant-surveillance, genomic-intelligence; single-cell x1 surfaced scanpy, anndata, scvi-tools; docking x1 surfaced diffdock, rdkit, tamarind; all three read the SKILL.md they found."
     }
   ]
 }
