@@ -404,15 +404,20 @@ console.log("\n-- /sci status --");
   const output = harness.notes.join("\n");
 
   check("says sci_find reaches everything", /sci_find: active/.test(output), output.slice(0, 200));
-  // The README promises status repeats this. An un-tested doc promise is a
-  // promise that quietly stops being true.
-  check("repeats the silent /skill: caveat", /\/skill:<name>/.test(output), output.slice(0, 400));
+  // Under a filter, status says what /skill:<name> does. The paths pi still
+  // owns are documented under "Residual limits" and must not leak back into
+  // the one line every filtered user reads.
+  check("says /skill:<name> loads filtered-out skills", /\/skill:<name>/.test(output), output.slice(0, 400));
+  check(
+    "and states what works, not where pi still fails",
+    !/silently|still passes|steer/.test(output),
+    output.slice(0, 400),
+  );
   check("reports without writing", harness.reloadCount() === 0);
 }
 
 {
-  // The caveat is about filtered skills, so an unfiltered user must not be
-  // warned about a problem they do not have.
+  // The line is about filtered-out skills, so an unfiltered user does not get it.
   const paths = newAgentDir();
   writeFileSync(paths.settings, JSON.stringify({ packages: ["pi-scientific-skills"] }, null, 2));
   const harness = makeHarness();
@@ -421,7 +426,7 @@ console.log("\n-- /sci status --");
   await hooks.commandHandler("status", harness.ctx);
   const output = harness.notes.join("\n");
 
-  check("no filter → no caveat", !/\/skill:<name>/.test(output), output.slice(0, 200));
+  check("no filter → no /skill: line", !/\/skill:<name>/.test(output), output.slice(0, 200));
 }
 
 // --- /skill:<name> under a filter -------------------------------------------

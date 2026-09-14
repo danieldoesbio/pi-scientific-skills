@@ -981,15 +981,15 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
       : `${TOOL_NAME}: unavailable — could not locate this package's skills/ directory.`,
   );
 
-  // The input hook rebuilds /skill:<name> for a filtered-out skill, but only on
-  // the one path that fires it. Say where it still fails rather than promising
-  // it always works.
+  // The input hook rebuilds /skill:<name> for a filtered-out skill typed at the
+  // prompt. The paths it cannot see (compaction queue, RPC steer, other
+  // packages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
+  // status answers "what can I do now", and the answer is "type the name".
   if (hasSkillsFilter(location)) {
     lines.push(
-      `Note: /skill:<name> reaches this package's filtered-out skills when typed at the` +
-        ` prompt (no autocomplete — get the name from /${COMMAND_NAME} find). pi still passes` +
-        ` the text through silently while compaction is queuing input, over RPC` +
-        ` steer/follow_up, and for other packages' filtered skills.`,
+      `/skill:<name>: typed at the prompt, loads any of this package's ${TOTAL_SKILL_COUNT}` +
+        ` skills, filtered or not. Filtered-out names have no autocomplete, so take the` +
+        ` name from /${COMMAND_NAME} find.`,
     );
   }
 
@@ -1445,10 +1445,12 @@ const upgradeNotice = (from: string | undefined): string => {
   }
   return [
     ...head,
-    `Upstream snapshot v2.66.0 adds no skills; 135 of them now end with a section`,
-    `asking the model to cite upstream's paper when a skill materially contributed`,
-    `to your work. New here: /skill:<name> typed at the prompt now loads a skill`,
-    `your filter leaves out, instead of passing the text through silently.`,
+    `Upstream snapshot v2.69.0 adds two skills: datalad (dataset versioning and`,
+    `provenance with DataLad/git-annex) and folklore-variant-evidence (ClinGen`,
+    `gene-disease validity and public variant evidence). It also repairs skills`,
+    `that had drifted from live services: genomic-intelligence now matches the`,
+    `real /v1 API, database-lookup drops the dead PatentsView host, and`,
+    `usfiscaldata, statsmodels and rdkit fix wrong field and function names.`,
     `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} skills on demand.`,
     `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
     `"/${COMMAND_NAME} status" to see where you stand.`,
@@ -1469,10 +1471,11 @@ const filteredNotice = (): string =>
   [
     `${PACKAGE_NAME} ${PACKAGE_VERSION}: your "skills" filter is unchanged and`,
     `/${COMMAND_NAME} has not touched it.`,
-    `Upstream snapshot v2.66.0 adds no skills; 135 of them now end with a section`,
-    `asking the model to cite upstream's paper when a skill materially contributed`,
-    `to your work. /skill:<name> typed at the prompt now loads a skill your filter`,
-    `leaves out, instead of passing the text through silently. ${TOOL_NAME}`,
+    `Upstream snapshot v2.69.0 adds two skills, datalad and folklore-variant-evidence,`,
+    `which your filter does not include until you add them. It also repairs skills`,
+    `that had drifted from live services: genomic-intelligence now matches the real`,
+    `/v1 API, database-lookup drops the dead PatentsView host, and usfiscaldata,`,
+    `statsmodels and rdkit fix wrong field and function names. ${TOOL_NAME}`,
     `searches all ${TOTAL_SKILL_COUNT} installed skills on demand — including any`,
     `your filter leaves out of the system prompt.`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,

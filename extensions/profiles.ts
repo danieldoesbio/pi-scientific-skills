@@ -24,7 +24,7 @@ export interface UnassignedSkill {
 }
 
 /** Every skill shipped by the package. Used for the "vs. all skills" delta. */
-export const TOTAL_SKILL_COUNT = 159;
+export const TOTAL_SKILL_COUNT = 161;
 
 /**
  * Measured cost of one skill's name + description in the system prompt:
@@ -77,6 +77,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "pacsomatic",
       "pathogen-variant-surveillance",
       "genomic-intelligence",
+      "folklore-variant-evidence",
       "waypoint-bio",
       "onekgpd",
       "phylogenetics",
@@ -88,6 +89,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "ontology-term-resolution",
       "database-lookup",
       "nextflow",
+      "datalad",
       "statsmodels",
     ],
   },
@@ -238,6 +240,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "ncats-arax",
       "database-lookup",
       "pathogen-variant-surveillance",
+      "folklore-variant-evidence",
     ],
   },
   {
@@ -278,6 +281,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "Pixels-and-signals day: BIDS datasets, spike sorting, physiological time series, whole-slide pathology and radiology images, and the array stack that carries them.",
     skills: [
       "bids",
+      "datalad",
       "neuropixels-analysis",
       "neurokit2",
       "pydicom",
