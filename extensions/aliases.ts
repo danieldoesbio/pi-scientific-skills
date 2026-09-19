@@ -30,7 +30,12 @@ export const ALIASES: readonly Alias[] = [
   {
     match: ["variant calling", "variant caller", "call variants", "variants", "variant"],
     terms: ["vcf", "bcf", "mutation"],
-    skills: ["pysam", "genomic-intelligence", "pacsomatic", "pathogen-variant-surveillance"],
+    skills: ["pysam", "genomic-intelligence", "pacsomatic"],
+  },
+  {
+    match: ["circulating variant", "circulating variants", "lineage", "variant prevalence", "dominant variant"],
+    terms: ["lineage", "prevalence"],
+    skills: ["pathogen-variant-surveillance"],
   },
   {
     match: ["snp", "indel", "genotype"],
@@ -125,7 +130,7 @@ export const ALIASES: readonly Alias[] = [
     skills: ["clinical-decision-support", "pyhealth"],
   },
   {
-    match: ["mixed model", "regression", "anova", "hypothesis test", "p value", "p-value"],
+    match: ["statistics", "mixed model", "regression", "anova", "hypothesis test", "p value", "p-value"],
     terms: ["statistical", "model"],
     skills: ["statistical-analysis", "statsmodels"],
   },
@@ -137,12 +142,17 @@ export const ALIASES: readonly Alias[] = [
 
   // --- imaging / neuro -----------------------------------------------------
   {
-    match: ["dicom", "radiology", "ct scan", "mri"],
+    match: ["dicom", "ct scan", "mri"],
     terms: ["medical", "imaging"],
     skills: ["pydicom", "imaging-data-commons"],
   },
   {
-    match: ["histology", "whole slide", "pathology slide", "wsi"],
+    match: ["medical image", "medical imaging", "image segmentation", "radiology", "histology", "whole slide"],
+    terms: ["medical", "imaging", "histopathology", "slide"],
+    skills: ["pydicom", "histolab", "imaging-data-commons"],
+  },
+  {
+    match: ["pathology slide", "wsi"],
     terms: ["histopathology", "slide"],
     skills: ["histolab", "pathml"],
   },
@@ -205,6 +215,35 @@ export const ALIASES: readonly Alias[] = [
     terms: ["pipeline", "workflow"],
     skills: ["nextflow"],
   },
+];
+
+/**
+ * Trigger phrases that compact (lowercase, strip non-alphanumerics) to fewer
+ * than `MIN_COMPACT_LENGTH` characters.
+ *
+ * These are safe only because `search.ts` matches triggers as whole words
+ * (`matchesPhrase`), never as raw substrings — a short trigger under raw
+ * substring matching would fire on almost anything ("bam" inside "bamboo").
+ * Any new short trigger must be added here deliberately; `scripts/validate.mjs`
+ * hard-fails an alias phrase this short that is missing from the list, and
+ * hard-fails a listed entry that no alias actually uses.
+ */
+export const SHORT_TRIGGER_ALLOWLIST: readonly string[] = [
+  "snp",
+  "bam",
+  "deg",
+  "gsea",
+  "10x",
+  "umap",
+  "mcmc",
+  "mri",
+  "wsi",
+  "ecg",
+  "eeg",
+  "plot",
+  "talk",
+  "gpu",
+  "cuda",
 ];
 
 /**

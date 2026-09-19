@@ -240,6 +240,8 @@ async function validateAliases(onDisk) {
 
   const skillDirs = new Set(onDisk);
   const triggers = new Set();
+  const allowlist = new Set((mod.SHORT_TRIGGER_ALLOWLIST ?? []).map((entry) => entry.toLowerCase()));
+  const shortTriggersUsed = new Set();
   let targets = 0;
 
   for (const alias of mod.ALIASES) {
@@ -252,6 +254,19 @@ async function validateAliases(onDisk) {
       // Duplicate triggers double-count their boost, quietly distorting ranking.
       if (triggers.has(key)) problems.hard.push(`alias phrase "${phrase}" is listed twice`);
       triggers.add(key);
+
+      // search.ts matches triggers as whole words, which makes a short trigger
+      // safe — but only deliberately, via SHORT_TRIGGER_ALLOWLIST.
+      const compacted = key.replace(/[^a-z0-9]/g, "");
+      if (compacted.length < 5) {
+        if (!allowlist.has(compacted)) {
+          problems.hard.push(
+            `alias phrase "${phrase}" compacts to "${compacted}" (< 5 chars) and is not in ` +
+              `SHORT_TRIGGER_ALLOWLIST — a new short trigger must be added there deliberately`,
+          );
+        }
+        shortTriggersUsed.add(compacted);
+      }
     }
     if (!alias.terms?.length && !alias.skills?.length) {
       problems.hard.push(`alias "${alias.match[0]}" expands to nothing`);
@@ -261,6 +276,12 @@ async function validateAliases(onDisk) {
       if (!skillDirs.has(skill)) {
         problems.hard.push(`alias "${alias.match[0]}" names '${skill}', which has no skills/${skill}/SKILL.md`);
       }
+    }
+  }
+
+  for (const entry of allowlist) {
+    if (!shortTriggersUsed.has(entry)) {
+      problems.hard.push(`SHORT_TRIGGER_ALLOWLIST lists "${entry}", which no alias trigger uses`);
     }
   }
 

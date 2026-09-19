@@ -40,9 +40,11 @@ import {
   TOGGLES,
   TOKENS_PER_SKILL,
   TOTAL_SKILL_COUNT,
+  UNASSIGNED,
 } from "./profiles";
 import {
   DEFAULT_LIMIT,
+  MAX_LIMIT,
   loadCatalog,
   resolveSkillsDir,
   search,
@@ -374,18 +376,57 @@ const expandFilteredSkill = async (command: SkillCommand): Promise<string | unde
   return command.args ? `${block}\n\n${command.args}` : block;
 };
 
+/** skill name → held-out reason, for the "not in any profile" caveat below. */
+const unassignedReasons = new Map<string, string>(
+  UNASSIGNED.map(({ skill, reason }) => [skill, reason]),
+);
+
+/** A two-initial abbreviation ("U.S.", "U.K.") ending right where it is tested. */
+const endsWithAbbreviation = (prefix: string): boolean => /\b[A-Za-z]\.[A-Za-z]\.$/.test(prefix);
+
+/**
+ * Text up to and including the first sentence-ending period.
+ *
+ * A period ends the sentence only when followed by whitespace or the
+ * string's end, AND is not the closing dot of a two-initial abbreviation.
+ * usfiscaldata's reason opens with "U.S. Treasury Fiscal Data REST API" —
+ * without both checks, the naive "first period" reading surfaces "U." or
+ * "U.S." instead of the actual first sentence.
+ */
+const firstSentence = (text: string): string => {
+  for (const match of text.matchAll(/\.(?=\s|$)/g)) {
+    const end = match.index ?? -1;
+    if (end < 0) continue;
+    if (endsWithAbbreviation(text.slice(0, end + 1))) continue;
+    return text.slice(0, end + 1);
+  }
+  return text;
+};
+
+/** " — not in any profile: <reason>", or "" for a skill some profile lists. */
+const unassignedCaveat = (name: string): string => {
+  const reason = unassignedReasons.get(name);
+  return reason ? ` — not in any profile: ${firstSentence(reason)}` : "";
+};
+
 /**
  * Render hits for the model.
  *
  * Full descriptions, not truncated ones: the entire design bet is that a model
  * discriminates well between eight fully-labelled options. Trimming the
  * descriptions to save a few hundred transient tokens would defeat the point.
+ *
+ * A hit naming a skill `profiles.ts` held out of every profile gets a caveat
+ * on its heading line — the model should know it is reaching for something no
+ * curated profile ever surfaces. Harmless when called from `formatProfile`:
+ * `validate.mjs` keeps PROFILES and UNASSIGNED disjoint, so a profile listing
+ * never contains an unassigned skill and the caveat never fires there.
  */
 const formatHits = (hits: readonly SearchHit[]): string =>
   hits
     .map(({ entry }) =>
       [
-        `## ${entry.name}`,
+        `## ${entry.name}${unassignedCaveat(entry.name)}`,
         entry.description,
         `Load with: read ${entry.path}`,
         `References inside it are relative to ${entry.dir}`,
@@ -453,7 +494,9 @@ const runToolSearch = (params: ToolParams): string => {
   const asProfile = formatProfile(query);
   if (asProfile) return asProfile;
 
-  const limit = Number.isFinite(params.limit) ? Number(params.limit) : DEFAULT_LIMIT;
+  const limit = Number.isInteger(params.limit)
+    ? Math.min(Math.max(params.limit as number, 1), MAX_LIMIT)
+    : DEFAULT_LIMIT;
   const hits = search(catalog(), query, limit);
   return hits.length === 0 ? noMatchText(query) : formatHits(hits);
 };
@@ -1612,7 +1655,11 @@ export default function (pi: ExtensionAPI): void {
           Type.String({ description: "Profile id to list instead of searching." }),
         ),
         limit: Type.Optional(
-          Type.Number({ description: `Maximum results (default ${DEFAULT_LIMIT}).` }),
+          Type.Integer({
+            minimum: 1,
+            maximum: MAX_LIMIT,
+            description: `Maximum results (default ${DEFAULT_LIMIT}). Capped at ${MAX_LIMIT}.`,
+          }),
         ),
       }),
       async execute(_toolCallId: string, params: ToolParams) {

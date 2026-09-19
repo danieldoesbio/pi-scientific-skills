@@ -56,7 +56,7 @@ const PROBES = [
   {
     id: "variants",
     task: "I have a sorted BAM file of sequencing reads and I need to call variants from it. What is the best way to do this here?",
-    want: ["pysam", "pathogen-variant-surveillance", "genomic-intelligence"],
+    want: ["pysam", "genomic-intelligence"],
   },
   {
     id: "single-cell",
