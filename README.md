@@ -37,9 +37,9 @@ List installed packages with `pi list`, and enable/disable individual skills wit
 
 All 161 skill descriptions sit in the system prompt at startup: pi's progressive
 disclosure keeps descriptions always in context and loads only the skill *bodies*
-on demand. Measured, that index costs **~18k tokens**. That's over half a 32k
-context window, and more than an 8k window can hold at all. On a small local
-model it's the difference between usable and unusable.
+on demand. Measured, that index costs **roughly 14k tokens**. That's a large
+share of a 32k context window, and more than an 8k window can hold at all. On a
+small local model it's the difference between usable and unusable.
 
 `pi config` can already toggle skills one at a time. `/sci` puts a curated
 profile layer on top so you don't have to do that 161 times:
@@ -60,8 +60,8 @@ profile layer on top so you don't have to do that 161 times:
 Choosing a profile means betting on what you'll need before the work starts.
 When the bet is wrong, the skill you needed is simply invisible.
 
-`/sci search` removes the bet. It loads the ten Core skills — **~1.1k tokens
-instead of ~18k** — and the model reaches everything else through a `sci_find`
+`/sci search` removes the bet. It loads the ten Core skills — **~870 tokens
+instead of ~14k** — and the model reaches everything else through a `sci_find`
 tool that searches all 161 by description and returns the path to load:
 
 ```
@@ -99,7 +99,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/161 skills, ~1.4k tokens, saves ~16.8k
+Scientific skills — 12/161 skills, ~1.0k tokens, saves ~13.0k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
@@ -111,7 +111,9 @@ Scientific skills — 12/161 skills, ~1.4k tokens, saves ~16.8k
 So it composes with `pi config` instead of replacing it. Fine-tune there
 afterward and `/sci status` will tell you it did. No `SKILL.md` is ever modified,
 so `npm run sync:upstream` can't clobber your selection, and uninstalling the
-extension leaves your settings working.
+extension leaves your settings working. See
+[Uninstalling](DOCUMENTATION.md#uninstalling) for the one-time files `/sci`
+leaves behind.
 
 Overrides you wrote by hand (`!pattern`, `+path`, `-path`) are preserved. The one
 exception is disabling everything (`/sci none`, or applying an empty selection),
@@ -119,10 +121,12 @@ which has to write an empty list and can't carry them. If your settings are
 malformed, or a project-local `.pi/settings.json` would override the global one,
 `/sci` names the file and refuses to write rather than guess.
 
-Nothing is written unless you ask for it. On a first run `/sci` *offers* search
-mode and does nothing if you decline, escape, or ignore it. On an upgrade it
-tells you once what changed and leaves your selection exactly as it was — your
-`settings.json` is not touched by an upgrade you didn't ask for.
+Your `settings.json` is never written unless you ask for it. `/sci` keeps one
+small state file of its own in `~/.pi/agent/` so it asks its first-run
+question once. On a first run `/sci` *offers* search mode and does nothing if
+you decline, escape, or ignore it. On an upgrade it tells you once what
+changed and leaves your selection exactly as it was — your `settings.json` is
+not touched by an upgrade you didn't ask for.
 
 ## What's inside
 
@@ -133,9 +137,9 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
 ## Tested in pi
 
 - **All 161 skills are offered to the model in pi** with the correct name and
-  description, checked against the packed tarball on every release. Frontmatter
-  passes a validator that reimplements pi's rules with 0 warnings and 0 hard
-  issues.
+  description, checked by the validator on every change and by a tarball smoke
+  test on every release. Frontmatter passes a validator that reimplements pi's
+  rules with 0 warnings and 0 hard issues.
 - **37 skills have been run end to end in pi** under a small model
   (`deepseek/deepseek-v4-flash`): loaded, followed, and in most cases producing a
   real result — a live ARAX knowledge-graph query, a full non-compartmental PK
@@ -163,7 +167,9 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   at 1.4.0 the same setup confirmed `/skill:pysam`, filtered out, reaches the
   model as pi's skill block. Recorded under `extensionRuns` in
   `testing/ledger.json`. The probes never name the skill.
-- **Upstream's own pytest suite passes** on the byte-identical content.
+- **Upstream's own pytest suite passed at the last count** (upstream v2.62.0);
+  details in
+  [DOCUMENTATION.md](DOCUMENTATION.md#what-pi-does-and-does-not-enforce).
 
 ## Updating
 

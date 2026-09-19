@@ -27,11 +27,15 @@ export interface UnassignedSkill {
 export const TOTAL_SKILL_COUNT = 161;
 
 /**
- * Measured cost of one skill's name + description in the system prompt:
- * 65,455 chars across 157 skills ~= 18k tokens ~= 113 tokens per skill.
+ * Measured cost of one skill's name + description in the system prompt.
+ * Recipe (2026-09-19): tiktoken over each skill's `"<name>: <description>"`
+ * string, across the real 161-skill catalogue — 66,921 chars, 14,100 tokens
+ * under cl100k_base (87.6/skill), 13,987 under o200k_base (86.9/skill).
+ * TOKENS_PER_SKILL is the rounded average of the two. A model provider's own
+ * tokenizer may count differently; this is an estimate, not a guarantee.
  * Descriptions stay in context permanently, so this is a per-session floor.
  */
-export const TOKENS_PER_SKILL = 113;
+export const TOKENS_PER_SKILL = 87;
 
 /** Context cost of loading the package unfiltered. */
 export const BASELINE_TOKEN_COST = TOTAL_SKILL_COUNT * TOKENS_PER_SKILL;
@@ -42,7 +46,7 @@ export const PROFILES: readonly SkillProfile[] = [
     id: "core",
     label: "Core (recommended)",
     description:
-      "Stats, EDA, figures, dataframes, literature and writing — the dozen skills nearly every scientific user reaches for regardless of field.",
+      "Stats, EDA, figures, dataframes, literature and writing — the ten skills nearly every scientific user reaches for regardless of field.",
     skills: [
       "exploratory-data-analysis",
       "statistical-analysis",

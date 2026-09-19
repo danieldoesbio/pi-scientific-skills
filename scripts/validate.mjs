@@ -11,13 +11,17 @@
 //
 // Requires Node >= 22.18 (native TypeScript type stripping) to read the .ts
 // modules under extensions/. Deliberately does NOT require pi: this is the
-// pre-publish gate and must run anywhere, unlike the test suites.
+// pre-publish gate and must run anywhere, unlike the test suites. It will use
+// python3 + tiktoken for the token-estimate check if both happen to be on
+// PATH, but never requires either — see checkTokenEstimate's fallback.
 //
 // Usage: node scripts/validate.mjs  (or: npm run validate)
 // Exit codes: 0 = OK, 1 = hard failure, 2 = usage error.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, mkdtempSync, writeFileSync, openSync, closeSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(root, "skills");
@@ -55,8 +59,14 @@ function collectSkills(dir) {
 const nameRe = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const problems = { hard: [], warn: [] };
 let count = 0;
-/** Chars of name + description across all skills — the system-prompt index. */
-let indexChars = 0;
+/**
+ * The system-prompt index, as `"<name>: <description>"` per skill — the exact
+ * corpus shape `sci_find` builds at runtime (`search.ts`'s `loadCatalog`) and
+ * the one the token estimate is calibrated against. Skills with no
+ * description are absent here too: pi never prompts them, so they cost
+ * nothing to count.
+ */
+const corpus = [];
 /** Skills pi would hide from the prompt but still serve to `/skill:` (informational). */
 let modelInvocationDisabled = 0;
 
@@ -86,7 +96,7 @@ for (const skill of collectSkills(skillsDir)) {
     problems.warn.push(`${skill.name}: description ${fm.description.length} chars > 1024 (warning only)`);
   }
 
-  indexChars += (fm.name ?? skill.name).length + (fm.description?.length ?? 0);
+  if (fm.description) corpus.push(`${fm.name ?? skill.name}: ${fm.description}`);
 
   // Three invariants the /skill: input hook depends on. All content-dependent,
   // and sync-upstream.sh replaces content wholesale, so a release is exactly
@@ -292,25 +302,94 @@ async function validateAliases(onDisk) {
 // TOKENS_PER_SKILL ratchet
 // ---------------------------------------------------------------------------
 
-/** Chars per token in the original measurement (65,455 chars ≈ 17.7k tokens). */
-const CHARS_PER_TOKEN = 3.69;
+/**
+ * Chars per token, measured 2026-09-19 over the real catalogue's corpus (161
+ * skills, "<name>: <description>" each): 66,921 chars, 14,100 tokens under
+ * tiktoken's cl100k_base (4.75 chars/token) and 13,987 under o200k_base (4.79
+ * chars/token). Used only as a fallback, when python3 or tiktoken is
+ * unavailable — see checkTokenEstimate.
+ */
+const CHARS_PER_TOKEN = 4.75;
 /** Drift below this is noise in a hand-calibrated estimate; above it, /sci lies. */
 const DRIFT_TOLERANCE = 0.1;
 
 /**
+ * Real tiktoken count via python3, or undefined if python3 is missing,
+ * tiktoken is not importable, or it does not answer within TIKTOKEN_TIMEOUT_MS
+ * (a first-run encoding download can block on a sandboxed network — this must
+ * degrade to the fallback, never hang the validator).
+ *
+ * The corpus (~65KB) goes on stdin as JSON, never on argv — but as a
+ * file-backed descriptor, not a `spawnSync({ input })` pipe: that corpus
+ * exceeds the OS pipe buffer (64KB), and `spawnSync` writing it in chunks can
+ * wedge against a child that has not yet reached `sys.stdin.read()`, hanging
+ * both sides. A file has no buffer to fill, so the child gets EOF regardless
+ * of when it starts reading.
+ */
+const TIKTOKEN_TIMEOUT_MS = 10_000;
+
+function tiktokenTokenCount(corpus) {
+  const script =
+    "import json, sys\n" +
+    "import tiktoken\n" +
+    "corpus = json.load(sys.stdin)\n" +
+    'enc = tiktoken.get_encoding("cl100k_base")\n' +
+    "print(sum(len(enc.encode(s)) for s in corpus))\n";
+
+  const dir = mkdtempSync(join(tmpdir(), "pi-scientific-skills-tokens-"));
+  const corpusPath = join(dir, "corpus.json");
+  writeFileSync(corpusPath, JSON.stringify(corpus));
+
+  let result;
+  try {
+    const fd = openSync(corpusPath, "r");
+    try {
+      result = spawnSync("python3", ["-c", script], {
+        stdio: [fd, "pipe", "pipe"],
+        encoding: "utf8",
+        timeout: TIKTOKEN_TIMEOUT_MS,
+      });
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return undefined;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  if (!result || result.error || result.signal || result.status !== 0) return undefined;
+  const tokens = Number((result.stdout ?? "").trim());
+  return Number.isFinite(tokens) ? tokens : undefined;
+}
+
+/**
  * TOKENS_PER_SKILL has to stay a constant — the picker needs a cost for a
  * selection synchronously, before anything is on disk to measure. But upstream
- * rewrites descriptions, and every /sci token figure is derived from this one
+ * rewrites descriptions, and every /sci figure is derived from this one
  * number, so a silent 30% drift would turn honest guidance into confident
  * nonsense. Warn rather than fail: the number is an estimate by construction.
+ *
+ * Prefers a real count from python3 + tiktoken (cl100k_base); falls back to
+ * the hand-calibrated CHARS_PER_TOKEN ratio whenever tiktoken is not
+ * importable (no python3, or python3 without the package) — the common case
+ * on a machine that never installed it for this repo.
  */
-function checkTokenEstimate(profiles, skillCount) {
-  if (!profiles || skillCount === 0) return;
-  const measured = indexChars / skillCount / CHARS_PER_TOKEN;
+function checkTokenEstimate(profiles, promptCorpus) {
+  if (!profiles || promptCorpus.length === 0) return;
+
+  const chars = promptCorpus.reduce((sum, entry) => sum + entry.length, 0);
+  const tiktokenTokens = tiktokenTokenCount(promptCorpus);
+  const mode = tiktokenTokens !== undefined ? "tiktoken cl100k_base" : "chars-per-token fallback";
+  const measured =
+    tiktokenTokens !== undefined
+      ? tiktokenTokens / promptCorpus.length
+      : chars / promptCorpus.length / CHARS_PER_TOKEN;
+
   const drift = Math.abs(measured - profiles.TOKENS_PER_SKILL) / profiles.TOKENS_PER_SKILL;
   const summary =
-    `TOKENS_PER_SKILL is ${profiles.TOKENS_PER_SKILL}; skills/ now measures ` +
-    `${measured.toFixed(1)} (${(drift * 100).toFixed(1)}% drift)`;
+    `TOKENS_PER_SKILL is ${profiles.TOKENS_PER_SKILL}; skills/ now measures ${measured.toFixed(1)} ` +
+    `via ${mode} (${(drift * 100).toFixed(1)}% drift)`;
 
   if (drift > DRIFT_TOLERANCE) {
     problems.warn.push(`${summary} — update it in profiles.ts, or every /sci figure is off by that much`);
@@ -324,7 +403,7 @@ const profiles = await loadProfiles();
 if (profiles) validateProfiles(profiles, onDiskNames);
 await validateAliases(onDiskNames);
 await validatePackageInfo();
-checkTokenEstimate(profiles, count);
+checkTokenEstimate(profiles, corpus);
 
 console.log(`Validated ${count} skills in ${skillsDir}`);
 console.log(`  ${modelInvocationDisabled} declare disable-model-invocation (pi hides those from the prompt only)`);

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "_comment": [
     "Functional-test ledger. One entry per skill actually RUN in pi, not per skill validated.",
-    "Discovery/frontmatter coverage is all 157 and lives in scripts/validate.mjs; this file",
+    "Discovery/frontmatter coverage is all 161 and lives in scripts/validate.mjs; this file",
     "tracks the expensive half, which accumulates a few skills per release.",
     "",
     "verdict:  PASS    - pi offered the skill, the model loaded SKILL.md, and followed it.",
