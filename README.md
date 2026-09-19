@@ -150,10 +150,11 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   `/skill:../../etc/passwd` is not),
   487 byte-identity checks against pi's own `/skill:` expansion (every skill,
   three argument forms), 40 ranking checks against the real 161 descriptions,
-  and 7 checks that **pi itself** honours the filter through a real
-  `DefaultPackageManager`. The first-run offer is driven through **pi's real
-  TUI** over a pty. `npm run try` opens this package
-  in a throwaway pi; your own `~/.pi/agent` is never touched.
+  7 checks that **pi itself** honours the filter through a real
+  `DefaultPackageManager`, and 174 frontmatter parity checks against pi's own
+  parser (every skill plus synthetic edge cases). The first-run offer is
+  driven through **pi's real TUI** over a pty. `npm run try` opens this
+  package in a throwaway pi; your own `~/.pi/agent` is never touched.
 - **Search mode against a small model, 3 of 3.** With only Core loaded,
   `deepseek/deepseek-v4-flash` was asked three questions whose skills were not
   in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand).
