@@ -8,12 +8,35 @@
 // graph that never runs in production.
 //
 // Pi is discovered on PATH rather than depended on: this package declares those
-// as peerDependencies and has no node_modules of its own.
+// as peerDependencies and has no node_modules of its own. Under `npm run` that
+// PATH is not the user's shell PATH — see `shellPath()`.
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { existsSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..", "..");
+
+/**
+ * PATH with the `node_modules/.bin` entries npm injects for ancestor
+ * directories removed.
+ *
+ * `npm run` prepends `<dir>/node_modules/.bin` for the project directory AND
+ * every ancestor up to `/`. A stray install in a parent directory (say a
+ * `~/node_modules/@earendil-works/pi-coding-agent` left behind by an unrelated
+ * `npm install` in `$HOME`) then shadows the `pi` the user actually runs from
+ * their shell, and the suites silently test against the wrong version. Only
+ * this package's own `node_modules/.bin` keeps its entry.
+ */
+function shellPath() {
+  const ownBin = join(ROOT, "node_modules", ".bin");
+  const injected = join("node_modules", ".bin");
+  return (process.env.PATH ?? "")
+    .split(delimiter)
+    .filter((entry) => entry === ownBin || !entry.endsWith(injected))
+    .join(delimiter);
+}
 
 /** Absolute path to the installed pi's `dist/`, or undefined if pi isn't on PATH. */
 export function findPiDist() {
@@ -23,6 +46,7 @@ export function findPiDist() {
     // than via execFileSync's `shell` option (which concatenates unescaped).
     const bin = execFileSync("/bin/sh", ["-c", "command -v pi"], {
       encoding: "utf8",
+      env: { ...process.env, PATH: shellPath() },
     }).trim();
     if (!bin) return undefined;
     return unbundledDist(dirname(realpathSync(bin)));
@@ -87,6 +111,5 @@ export async function loadExtensionModule(relativePath) {
     alias: buildAliases(piDist),
   });
 
-  const root = resolve(dirname(new URL(import.meta.url).pathname), "..", "..");
-  return jiti.import(join(root, relativePath), {});
+  return jiti.import(join(ROOT, relativePath), {});
 }
