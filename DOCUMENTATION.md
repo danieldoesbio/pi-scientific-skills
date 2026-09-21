@@ -190,7 +190,13 @@ custom skill.
 ```
 package.json            # pi manifest: "pi": { "skills": [...], "extensions": [...] }, keyword "pi-package"
 skills/                 # 162 skill directories, each with SKILL.md (+ references/scripts/assets)
-extensions/index.ts     # the /sci command + sci_find tool — picker, search, settings.json writer
+extensions/index.ts     # the ONLY file that registers anything with pi (command, tool, hooks); onboarding notices
+extensions/types.ts     # shared constants + types (COMMAND_NAME, SUBCOMMANDS, UiContext, ...) — no imports
+extensions/paths.ts     # settings.json / config-file paths, and the report() output helper
+extensions/settings.ts  # reads/writes settings.json + this package's own config file; commitPlan
+extensions/catalog.ts   # token accounting, the skill catalogue, sci_find's search, /skill:<name> rebuild
+extensions/picker.ts    # the /sci profiles checkbox list (focused multiselect + select()-loop fallback)
+extensions/commands.ts  # /sci's subcommands and bare-menu dispatch (status, search, all/none/reset)
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 extensions/search.ts    # sci_find's catalogue + ranking, and skills/ root resolution
 extensions/aliases.ts   # curated query→skill aliases, each from an observed miss
@@ -223,6 +229,16 @@ test-artifacts/         # gitignored: output from local skill verification runs
 do reach anyone installing via `pi install git:github.com/...`, which ships the
 whole tree. `metrics/` reaches neither: it is gitignored, so the download ledger
 stays on the maintainer's disk.
+
+**One registrar.** pi's extension loader runs every file under `extensions/`
+(`dist/core/extensions/loader.js`, a glob over the directory), and it does not
+deduplicate: a second `registerCommand` for the same name is silently renamed
+(`sci:2`), and a second `registerTool` for the same name is silently dropped.
+So `extensions/index.ts` is the only file allowed to call `pi.registerCommand`,
+`pi.registerTool`, or `pi.on` — every other file above ends in the same inert
+`export default function noopExtension(): void {}`, and
+`scripts/test-extension.mjs` asserts that each one calls nothing on the
+`ExtensionAPI` it is handed.
 
 ## The `/sci` extension
 
@@ -634,10 +650,13 @@ no model ran. It separates "never ran" from "declined" for exactly that reason.
 4. Spot-check with pi: `pi -e .` then `-p` prompt asking the model to list
    available skills; verify a few names (e.g. `scanpy`,
    `pathogen-variant-surveillance`).
-5. Set `upstreamVersion` in `package.json` to the tag that was synced, and bump
-   our own `version` — minor for a new upstream snapshot, patch for an
-   extension-only fix. Never copy upstream's number into `version` (see
-   Provenance for why). Update the upstream-version mentions in README.
+5. Bump `version` in `package.json` and `PACKAGE_VERSION` in
+   `extensions/package-info.ts` to match — minor for a new upstream snapshot,
+   patch for an extension-only fix (`scripts/validate.mjs` enforces the two
+   agreeing; `upstreamVersion`, `upstreamCommit` and `licenseSha256` are
+   already written by `scripts/sync-upstream.sh` in step 1). Never copy
+   upstream's number into `version` (see Provenance for why). Update the
+   upstream-version mentions in README.
 6. Commit, push, `npm publish`, confirm with `npm view pi-scientific-skills version`,
    then tag `v<version>` (ours, e.g. `v1.1.0`) and push the tag. Publish before
    tagging: a failed publish must not leave a tag no registry has.
