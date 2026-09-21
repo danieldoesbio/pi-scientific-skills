@@ -1,6 +1,6 @@
 # pi-scientific-skills
 
-A pi package bundling **161 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
+A pi package bundling **162 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
 
 Use pi as an AI scientist: single-cell RNA-seq, drug discovery, protein design, medical imaging, clinical research, ML/AI, statistics, physics, geospatial analysis, scientific writing, grant proposals, and more — with curated, version-pinned documentation and, where useful, helper scripts.
 
@@ -18,7 +18,7 @@ Try without installing:
 pi -e npm:pi-scientific-skills
 ```
 
-After install, all 161 skills are offered to the model. When a task matches, pi
+After install, all 162 skills are offered to the model. When a task matches, pi
 loads the skill on demand; you can also force one:
 
 ```bash
@@ -28,26 +28,26 @@ loads the skill on demand; you can also force one:
 ```
 
 If you later narrow the set with `/sci` or `pi config`, `/skill:<name>` typed at
-the prompt still loads any of the 161, and `sci_find` reaches all of them either
+the prompt still loads any of the 162, and `sci_find` reaches all of them either
 way.
 
 List installed packages with `pi list`, and enable/disable individual skills with `pi config`.
 
 ## `/sci` — pick what you load
 
-All 161 skill descriptions sit in the system prompt at startup: pi's progressive
+All 162 skill descriptions sit in the system prompt at startup: pi's progressive
 disclosure keeps descriptions always in context and loads only the skill *bodies*
 on demand. Measured, that index costs **roughly 14k tokens**. That's a large
 share of a 32k context window, and more than an 8k window can hold at all. On a
 small local model it's the difference between usable and unusable.
 
 `pi config` can already toggle skills one at a time. `/sci` puts a curated
-profile layer on top so you don't have to do that 161 times:
+profile layer on top so you don't have to do that 162 times:
 
 ```bash
 /sci            # interactive menu
 /sci search     # recommended — load Core, reach the rest on demand
-/sci find <q>   # search all 161 by what you're trying to do
+/sci find <q>   # search all 162 by what you're trying to do
 /sci status     # what's active now, and what it costs
 /sci profiles   # jump straight to the picker
 /sci all        # re-enable everything
@@ -60,9 +60,9 @@ profile layer on top so you don't have to do that 161 times:
 Choosing a profile means betting on what you'll need before the work starts.
 When the bet is wrong, the skill you needed is simply invisible.
 
-`/sci search` removes the bet. It loads the ten Core skills — **~870 tokens
+`/sci search` removes the bet. It loads the ten Core skills — **~880 tokens
 instead of ~14k** — and the model reaches everything else through a `sci_find`
-tool that searches all 161 by description and returns the path to load:
+tool that searches all 162 by description and returns the path to load:
 
 ```
 > I have a sorted BAM and need to call variants from it
@@ -99,7 +99,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/161 skills, ~1.0k tokens, saves ~13.0k
+Scientific skills — 12/162 skills, ~1.1k tokens, saves ~13.2k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
@@ -130,13 +130,13 @@ not touched by an upgrade you didn't ask for.
 
 ## What's inside
 
-161 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
+162 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
 
 Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where useful, `references/` (on-demand docs), `scripts/` (helper code), and `assets/` (templates). Pi implements the Agent Skills standard, so discovery and on-demand loading work exactly as with Claude Code / Cursor / Codex.
 
 ## Tested in pi
 
-- **All 161 skills are offered to the model in pi** with the correct name and
+- **All 162 skills are offered to the model in pi** with the correct name and
   description, checked by the validator on every change and by a tarball smoke
   test on every release. Frontmatter passes a validator that reimplements pi's
   rules with 0 warnings and 0 hard issues.
@@ -152,10 +152,10 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   hand-written `!pattern` overrides; a seeded prior-version config leaves
   `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
   `/skill:../../etc/passwd` is not),
-  487 byte-identity checks against pi's own `/skill:` expansion (every skill,
-  three argument forms), 40 ranking checks against the real 161 descriptions,
+  490 byte-identity checks against pi's own `/skill:` expansion (every skill,
+  three argument forms), 42 ranking checks against the real 162 descriptions,
   7 checks that **pi itself** honours the filter through a real
-  `DefaultPackageManager`, and 174 frontmatter parity checks against pi's own
+  `DefaultPackageManager`, and 175 frontmatter parity checks against pi's own
   parser (every skill plus synthetic edge cases). The first-run offer is
   driven through **pi's real TUI** over a pty. `npm run try` opens this
   package in a throwaway pi; your own `~/.pi/agent` is never touched.
@@ -175,7 +175,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
 
 The skills here are a snapshot of upstream at **v2.69.0**. This package's own
 version is separate — it starts at 1.0.0 and tracks changes to *this*
-distribution, since the contents differ from upstream (161 skills, plus `/sci`)
+distribution, since the contents differ from upstream (162 skills, plus `/sci`)
 and upstream ships patch releases that would collide. The upstream tag a given
 release wraps is always recorded in `package.json` as `upstreamVersion`.
 
@@ -226,10 +226,10 @@ and seem worth sharing. If I do:
   a separate directory registered as its own root (pi's `skills` field accepts
   several), so you can tell them apart from the file tree.
 - Each one will name its author in its frontmatter, and I'll list them here.
-- The counts in this README will stay separate, so "161 skills from upstream"
-  doesn't quietly drift into "161 skills" of mixed origin.
+- The counts in this README will stay separate, so "162 skills from upstream"
+  doesn't quietly drift into "162 skills" of mixed origin.
 
-None exist yet. **All 161 skills shipped today are upstream's.**
+None exist yet. **All 162 skills shipped today are upstream's.**
 
 ## License & Credits
 
