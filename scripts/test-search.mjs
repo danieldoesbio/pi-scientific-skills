@@ -54,6 +54,8 @@ const QUERIES = [
   ["statistics", ["statistical-analysis"]],
   ["genome", ["genomic-coordinates"]],
   ["medical image segmentation", ["pydicom", "histolab"]],
+  ["predict the effect of a non-coding variant", ["alphagenome"]],
+  ["alphagenome", ["alphagenome"]],
 ];
 
 /**

@@ -433,7 +433,8 @@ function validateReadmeCounts(onDiskCount) {
 
 /**
  * Chars per token, measured 2026-09-19 over the real catalogue's corpus (161
- * skills, "<name>: <description>" each): 66,921 chars, 14,100 tokens under
+ * skills then, 162 at the 2026-09-21 sync — a dated record, not a live
+ * count), "<name>: <description>" each: 66,921 chars, 14,100 tokens under
  * tiktoken's cl100k_base (4.75 chars/token) and 13,987 under o200k_base (4.79
  * chars/token). Used only as a fallback, when python3 or tiktoken is
  * unavailable — see checkTokenEstimate.

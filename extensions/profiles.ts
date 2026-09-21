@@ -24,18 +24,18 @@ export interface UnassignedSkill {
 }
 
 /** Every skill shipped by the package. Used for the "vs. all skills" delta. */
-export const TOTAL_SKILL_COUNT = 161;
+export const TOTAL_SKILL_COUNT = 162;
 
 /**
  * Measured cost of one skill's name + description in the system prompt.
- * Recipe (2026-09-19): tiktoken over each skill's `"<name>: <description>"`
- * string, across the real 161-skill catalogue — 66,921 chars, 14,100 tokens
- * under cl100k_base (87.6/skill), 13,987 under o200k_base (86.9/skill).
+ * Recipe (2026-09-21): tiktoken over each skill's `"<name>: <description>"`
+ * string, across the real 162-skill catalogue — 67,968 chars, 14,363 tokens
+ * under cl100k_base (88.7/skill), 14,239 under o200k_base (87.9/skill).
  * TOKENS_PER_SKILL is the rounded average of the two. A model provider's own
  * tokenizer may count differently; this is an estimate, not a guarantee.
  * Descriptions stay in context permanently, so this is a per-session floor.
  */
-export const TOKENS_PER_SKILL = 87;
+export const TOKENS_PER_SKILL = 88;
 
 /** Context cost of loading the package unfiltered. */
 export const BASELINE_TOKEN_COST = TOTAL_SKILL_COUNT * TOKENS_PER_SKILL;
@@ -82,6 +82,7 @@ export const PROFILES: readonly SkillProfile[] = [
       "pathogen-variant-surveillance",
       "genomic-intelligence",
       "folklore-variant-evidence",
+      "alphagenome",
       "waypoint-bio",
       "onekgpd",
       "phylogenetics",
