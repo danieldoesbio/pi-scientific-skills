@@ -13,13 +13,15 @@
 //
 // Usage: node scripts/test-extension.mjs  (or: npm test)
 // Exit codes: 0 = OK, 1 = failures.
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
 import { createSuite } from "./lib/harness.mjs";
 
 const { check, failures, finish } = createSuite("behavioural checks");
+const EXTENSIONS_DIR = fileURLToPath(new URL("../extensions", import.meta.url));
 
 // --- harness ---------------------------------------------------------------
 
@@ -423,27 +425,21 @@ console.log("\n-- upgrade (patch release, same minor line) --");
   const paths = newAgentDir();
   const PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
   const [major, minor, patch] = PACKAGE_VERSION.split(".").map(Number);
-  // A same-minor neighbour one patch EARLIER needs patch > 0 — there is no
-  // "1.5.-1". When the running release is itself patch 0 (as it is today),
-  // going "one patch back" within its minor line lands one patch AHEAD
-  // instead, which is a same-minor DOWNGRADE, not an upgrade — and the
-  // downgrade notice, not the patch-release one, is what should fire. Both
-  // branches below are real: whichever runs depends only on the arithmetic,
-  // never on which the test author expected.
-  const prior = patch > 0 ? `${major}.${minor}.${patch - 1}` : `${major}.${minor}.${patch + 1}`;
-  writeFileSync(
-    paths.config,
-    JSON.stringify({ version: 1, onboardingSeen: true, lastSeenVersion: prior }, null, 2),
-  );
-
-  const harness = makeHarness({ mode: "tui" });
-  const hooks = register(harness);
-  await startup(hooks, harness);
-
-  const notice = harness.notes[0] ?? "";
-  const config = JSON.parse(readFileSync(paths.config, "utf8"));
 
   if (patch > 0) {
+    // A same-minor neighbour one patch earlier is a genuine patch-release
+    // upgrade — exercised through the real startup path.
+    const prior = `${major}.${minor}.${patch - 1}`;
+    writeFileSync(
+      paths.config,
+      JSON.stringify({ version: 1, onboardingSeen: true, lastSeenVersion: prior }, null, 2),
+    );
+
+    const harness = makeHarness({ mode: "tui" });
+    const hooks = register(harness);
+    await startup(hooks, harness);
+
+    const notice = harness.notes[0] ?? "";
     check(
       "a patch bump gets the one-line notice, not the last minor release's news",
       harness.notes.length === 1 &&
@@ -452,16 +448,64 @@ console.log("\n-- upgrade (patch release, same minor line) --");
         !/Upstream snapshot/.test(notice),
       notice,
     );
+    const config = JSON.parse(readFileSync(paths.config, "utf8"));
     check("and records the version", config.lastSeenVersion === PACKAGE_VERSION);
   } else {
+    // x.y.0 has no lower patch within its own minor line to derive — "one
+    // patch back" would land one patch AHEAD instead, a same-minor downgrade,
+    // and that path is already covered by the dedicated downgrade test below.
+    // Exercise the minor path through startup instead: a same-major neighbour
+    // one minor earlier is a genuine upgrade, and must print the full
+    // upstream-snapshot text. The patch path stays covered too — as a pure
+    // function, with a fixed pair, in the section right after this one.
+    const prior = `${major}.${minor - 1}.0`;
+    writeFileSync(
+      paths.config,
+      JSON.stringify({ version: 1, onboardingSeen: true, lastSeenVersion: prior }, null, 2),
+    );
+
+    const harness = makeHarness({ mode: "tui" });
+    const hooks = register(harness);
+    await startup(hooks, harness);
+
+    const notice = harness.notes[0] ?? "";
     check(
-      "one patch back, same minor line, is a downgrade — the honest one-liner, not patch-release news",
-      harness.notes.length === 1 &&
-        notice === `pi-scientific-skills: running ${PACKAGE_VERSION} after ${prior}; your selection is unchanged.`,
+      "at patch 0, a minor bump gets the full snapshot text through the real startup path",
+      harness.notes.length === 1 && /updated to/.test(notice) && /Upstream snapshot/.test(notice),
       notice,
     );
-    check("a downgrade does not record the newer version it already saw", config.lastSeenVersion === prior);
+    const config = JSON.parse(readFileSync(paths.config, "utf8"));
+    check("and records the version", config.lastSeenVersion === PACKAGE_VERSION);
   }
+}
+
+console.log("\n-- upgradeNotice / compareVersions: pure functions, fixed version pairs --");
+{
+  // Fixed pairs, independent of whatever PACKAGE_VERSION this release actually
+  // carries — this is what keeps all three notice paths (patch, minor,
+  // downgrade) tested at any version, including an x.y.0 release with no
+  // lower patch of its own to exercise through startup.
+  const { compareVersions, upgradeNotice } = extension;
+
+  check("compareVersions: patch pair orders as an upgrade", compareVersions("1.5.3", "1.5.4") < 0);
+  check("compareVersions: minor pair orders as an upgrade", compareVersions("1.5.0", "1.6.0") < 0);
+  check("compareVersions: downgrade pair orders as a downgrade", compareVersions("1.6.1", "1.6.0") > 0);
+
+  const patchNotice = upgradeNotice("1.5.3", "1.5.4");
+  check(
+    "patch pair (1.5.3→1.5.4): one-line notice, not the full snapshot",
+    /updated to 1\.5\.4 \(from 1\.5\.3\)/.test(patchNotice) &&
+      /Patch release/.test(patchNotice) &&
+      !/Upstream snapshot/.test(patchNotice),
+    patchNotice,
+  );
+
+  const minorNotice = upgradeNotice("1.5.0", "1.6.0");
+  check(
+    "minor pair (1.5.0→1.6.0): full upstream-snapshot text",
+    /updated to 1\.6\.0 \(from 1\.5\.0\)/.test(minorNotice) && /Upstream snapshot/.test(minorNotice),
+    minorNotice,
+  );
 }
 
 console.log("\n-- downgrade (older release running after a newer one was seen) --");
@@ -776,6 +820,40 @@ console.log("\n-- malformed settings --");
   check("refuses rather than guessing", readFileSync(paths.settings, "utf8") === broken);
   check("explains why", harness.notes.some((note) => /settings/i.test(note)), harness.notes.join(" | "));
   check("does not reload", harness.reloadCount() === 0);
+}
+
+// --- sibling modules register nothing ---------------------------------------
+
+// pi's extension loader runs every file under extensions/ (dist/core/extensions/
+// loader.js: a glob over the directory), so exactly one of them may register a
+// command, tool, or hook — a duplicate command is silently renamed ("sci:2") and
+// a duplicate tool is silently dropped. Every file but index.ts must therefore be
+// the inert `export default function noopExtension(): void {}`.
+console.log("\n-- sibling modules register nothing --");
+{
+  const files = readdirSync(EXTENSIONS_DIR)
+    .filter((name) => name.endsWith(".ts") && name !== "index.ts")
+    .sort();
+
+  for (const file of files) {
+    const mod = await loadExtensionModule(`extensions/${file}`);
+    const calls = [];
+    const proxy = new Proxy(
+      {},
+      {
+        get(_target, key) {
+          calls.push(String(key));
+          return () => {};
+        },
+      },
+    );
+    mod.default(proxy);
+    check(
+      `${file}: default export is a no-op and calls nothing on the ExtensionAPI`,
+      typeof mod.default === "function" && calls.length === 0,
+      calls.length > 0 ? `called: ${calls.join(", ")}` : `typeof default: ${typeof mod.default}`,
+    );
+  }
 }
 
 // --- cleanup ---------------------------------------------------------------
