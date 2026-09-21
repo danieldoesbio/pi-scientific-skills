@@ -13,7 +13,7 @@
 // Usage: node scripts/test-search.mjs  (or: npm test)
 // Exit codes: 0 = OK, 1 = failures.
 import { loadExtensionModule } from "./lib/load-extension.mjs";
-import { documentedCount } from "./doc-count.mjs";
+import { createSuite } from "./lib/harness.mjs";
 
 const TOP_N = 8;
 
@@ -86,7 +86,8 @@ const NEGATIVES = [
   "furniture",
 ];
 
-const failures = [];
+const suite = createSuite("ranking checks");
+const { failures, finish } = suite;
 const note = (message) => console.log(message);
 
 const search = await loadExtensionModule("extensions/search.ts");
@@ -115,15 +116,12 @@ for (const entry of catalog) {
   }
 }
 
-let checks = 0;
-
 note("\n-- queries --");
 for (const [query, want] of QUERIES) {
-  checks++;
   const names = search.search(catalog, query, TOP_N).map((hit) => hit.entry.name);
   const rank = names.findIndex((name) => want.includes(name));
+  suite.record(rank !== -1, `"${query}" did not surface any of [${want.join(", ")}] in top ${TOP_N}`);
   if (rank === -1) {
-    failures.push(`"${query}" did not surface any of [${want.join(", ")}] in top ${TOP_N}`);
     note(`  FAIL  ${query}\n        want one of [${want.join(", ")}], got [${names.join(", ") || "none"}]`);
   } else {
     note(`  ok #${rank + 1}  ${query} → ${names[rank]}`);
@@ -132,11 +130,10 @@ for (const [query, want] of QUERIES) {
 
 note("\n-- must return nothing --");
 for (const query of NEGATIVES) {
-  checks++;
   const hits = search.search(catalog, query, TOP_N);
+  const shown = hits.map((hit) => `${hit.entry.name}:${hit.score}`).join(", ");
+  suite.record(hits.length === 0, `"${query}" should have matched nothing, got [${shown}]`);
   if (hits.length > 0) {
-    const shown = hits.map((hit) => `${hit.entry.name}:${hit.score}`).join(", ");
-    failures.push(`"${query}" should have matched nothing, got [${shown}]`);
     note(`  FAIL  ${query} → ${shown}`);
   } else {
     note(`  ok      ${query}`);
@@ -145,10 +142,12 @@ for (const query of NEGATIVES) {
 
 note("\n-- must rank first --");
 for (const [query, mustBeFirst] of RANKED) {
-  checks++;
   const names = search.search(catalog, query, TOP_N).map((hit) => hit.entry.name);
+  suite.record(
+    names[0] === mustBeFirst,
+    `"${query}" must rank "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`,
+  );
   if (names[0] !== mustBeFirst) {
-    failures.push(`"${query}" must rank "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`);
     note(`  FAIL  ${query}\n        want "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`);
   } else {
     note(`  ok      ${query} → ${mustBeFirst}`);
@@ -167,8 +166,4 @@ for (const alias of aliases.ALIASES) {
 }
 note(`  checked ${aliasSkills} alias targets across ${aliases.ALIASES.length} rules`);
 
-failures.push(...documentedCount("ranking checks", checks));
-
-console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
-for (const failure of failures) console.log(`  [FAIL] ${failure}`);
-process.exit(failures.length > 0 ? 1 : 0);
+finish();

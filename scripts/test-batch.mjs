@@ -167,6 +167,12 @@ function distill(rawText, home, user) {
       .split(privateTmp).join("$TMPDIR")
       .split(tmp).join("$TMPDIR")
       .split(user).join("$USER")
+      // Generic backstop, same reasoning as the /var/folders one below: the
+      // splits above only know THIS run's own home directory. A model that
+      // types someone else's — a CI runner's account, a path copied from
+      // elsewhere — walks straight through them, so match the shape too.
+      .replace(/\/Users\/[^/\s"']+/g, () => "$HOME")
+      .replace(/\/home\/[^/\s"']+/g, () => "$HOME")
       // The splits above match this run's tmpdir exactly. A model that types a
       // *near-miss* path — one character off, or left over from another run —
       // walks straight through them, which is how a per-user /var/folders hash

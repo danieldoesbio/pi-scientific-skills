@@ -102,7 +102,11 @@ interface UiContext {
   readonly cwd: string;
   readonly ui: {
     notify(message: string, level: "info" | "warning" | "error"): void;
-    select(prompt: string, options: string[]): Promise<string | undefined>;
+    select(
+      prompt: string,
+      options: string[],
+      dialogOptions?: { timeout?: number },
+    ): Promise<string | undefined>;
     confirm(title: string, message: string): Promise<boolean>;
     /**
      * Renders a focused custom component. Interactive mode only: RPC mode's
@@ -945,12 +949,37 @@ const commitPlan = async (
 /** Anything minimatch would expand — a pattern we cannot resolve to a count. */
 const GLOB_CHARS = /[*?[\]{}]/;
 
+/** A `*`/`?` glob pattern as a regex; every other character matches literally. */
+const globToRegExp = (pattern: string): RegExp => {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp(`^${escaped}$`);
+};
+
 /**
- * Describe a `skills` filter honestly. The array holds *patterns*, not names, so
- * counting its length reports one skill's worth of tokens for a one-line
- * `pi config` exclusion that in fact leaves every skill but one loaded —
- * wrong by two orders of magnitude, in the reassuring direction.
+ * How many real catalogue skills a set of patterns actually names — a plain
+ * name counts as itself, a glob is expanded against the catalogue. Counting
+ * `patterns.length` instead (what this replaces) reports one skill's worth of
+ * tokens for a one-line `pi config` exclusion that in fact leaves every skill
+ * but one loaded, wrong by two orders of magnitude in the reassuring direction.
  */
+const matchedSkillNames = (patterns: readonly string[]): ReadonlySet<string> => {
+  const names = catalog().map((entry) => entry.name);
+  const matched = new Set<string>();
+  for (const pattern of patterns) {
+    if (GLOB_CHARS.test(pattern)) {
+      const re = globToRegExp(pattern);
+      for (const name of names) if (re.test(name)) matched.add(name);
+    } else {
+      matched.add(pattern);
+    }
+  }
+  return matched;
+};
+
+/** Describe a `skills` filter honestly, expanding any glob pattern first. */
 const describeSkillsFilter = (skills: readonly unknown[]): string => {
   if (skills.some((value) => typeof value !== "string")) {
     return 'packages entry has a malformed "skills" value';
@@ -961,27 +990,28 @@ const describeSkillsFilter = (skills: readonly unknown[]): string => {
 
   const overrides = patterns.filter(isOverridePattern);
   const includes = patterns.filter((pattern) => !isOverridePattern(pattern));
-
-  if (includes.some((pattern) => GLOB_CHARS.test(pattern))) {
-    return (
-      `custom filter in settings.json (${patterns.length} pattern(s)) — ` +
-      `/${COMMAND_NAME} profiles will replace it`
-    );
-  }
+  // "≈" marks every count below derived from expanding at least one glob:
+  // pi resolves patterns against a live directory, so the true count can
+  // still shift between this read and the next `pi install`/sync.
+  const approx = (isGlob: boolean, text: string): string => (isGlob ? `≈${text}` : text);
 
   if (includes.length === 0) {
     // No plain includes: pi starts from every skill and subtracts, so this is
     // "all of them, minus whatever was switched off in `pi config`".
-    const removed = overrides.filter(
-      (pattern) => pattern.startsWith("!") || pattern.startsWith("-"),
-    ).length;
+    const excludes = overrides
+      .filter((pattern) => pattern.startsWith("!") || pattern.startsWith("-"))
+      .map((pattern) => pattern.slice(1));
+    const removed = matchedSkillNames(excludes).size;
     const active = Math.max(TOTAL_SKILL_COUNT - removed, 0);
-    return `${describeCost(active)} (all skills minus ${removed} disabled elsewhere)`;
+    const isGlob = excludes.some((pattern) => GLOB_CHARS.test(pattern));
+    return approx(isGlob, `${describeCost(active)} (all skills minus ${removed} disabled elsewhere)`);
   }
 
+  const isGlob = includes.some((pattern) => GLOB_CHARS.test(pattern));
+  const matched = matchedSkillNames(includes).size;
   const note =
     overrides.length > 0 ? ` (plus ${overrides.length} override(s) from \`pi config\`)` : "";
-  return `${describeCost(includes.length)}${note}`;
+  return approx(isGlob, `${describeCost(matched)}${note}`);
 };
 
 /** Whether the user's packages entry carries a `skills` filter of any shape. */
@@ -1479,6 +1509,28 @@ const offerTitle = (): string => {
 const sameMinorLine = (from: string | undefined, current: string): boolean =>
   from !== undefined && from.split(".").slice(0, 2).join(".") === current.split(".").slice(0, 2).join(".");
 
+/**
+ * -1 / 0 / 1, comparing dot-separated numeric segments left to right. A
+ * shorter version is padded with zeros, so "1.5" equals "1.5.0".
+ */
+const compareVersions = (a: string, b: string): number => {
+  const left = a.split(".").map(Number);
+  const right = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    const diff = (left[i] ?? 0) - (right[i] ?? 0);
+    if (diff !== 0) return Math.sign(diff);
+  }
+  return 0;
+};
+
+/**
+ * An older release running after a newer one was already seen — a rollback,
+ * or a saved config carried onto a machine with an older install. Owed one
+ * honest line, not the newer release's own feature notes.
+ */
+const downgradeNotice = (from: string): string =>
+  `${PACKAGE_NAME}: running ${PACKAGE_VERSION} after ${from}; your selection is unchanged.`;
+
 const upgradeNotice = (from: string | undefined): string => {
   const head = [
     `${PACKAGE_NAME} updated to ${PACKAGE_VERSION}${from ? ` (from ${from})` : ""}.`,
@@ -1542,6 +1594,20 @@ const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> =>
 
     if (isExistingUser) {
       if (config.lastSeenVersion === PACKAGE_VERSION) return;
+
+      if (
+        config.lastSeenVersion !== undefined &&
+        compareVersions(config.lastSeenVersion, PACKAGE_VERSION) > 0
+      ) {
+        report(ctx, downgradeNotice(config.lastSeenVersion), "info");
+        // Deliberately NOT recorded: lastSeenVersion stays at the newer
+        // version this user already saw notes for. Overwriting it with the
+        // older one now running would make the real upgrade notice fire
+        // again — a second time — the next time they reinstall the newer
+        // release they have already been told about.
+        return;
+      }
+
       report(ctx, upgradeNotice(config.lastSeenVersion), "info");
       await writeConfig({ ...config, lastSeenVersion: PACKAGE_VERSION });
       return;

@@ -565,6 +565,22 @@ is therefore a hard prerequisite for `npm test`.
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
 
+`npm run typecheck` (`scripts/typecheck.mjs`) is a sixth check, kept separate
+from `npm test`: it runs real `tsc` against `extensions/*.ts`, using pi's own
+shipped `.d.ts` files as the types for `@earendil-works/pi-coding-agent` and
+`typebox` — the same declarations an installed pi actually exposes, not a
+hand-written stub. Node's own loader only strips TypeScript syntax; it never
+checks it, so a call like `ctx.ui.select(..., { timeout })` with one argument
+too many for the local `UiContext` interface loads and runs regardless, and
+only `tsc` catches it. The tsconfig is generated at runtime (`findPiDist()`
+locates pi; `typeRoots` pins `@types/node` to pi's own copy, since a stray
+`~/node_modules/@types/node` must not be picked up instead) and written to a
+`mkdtempSync` directory that is removed afterward. TypeScript is not a
+dependency of this package — there is no lockfile or `node_modules` to put it
+in — so this script shells out to `npx --yes -p typescript@5 tsc`, which
+downloads it into npm's cache on first run. That download is why it is its
+own script and its own CI step rather than folded into `npm test`.
+
 Two things are worth knowing before changing these:
 
 - `resolve()` returns *all* resources with an `enabled` flag, so `.length` does
@@ -622,20 +638,46 @@ Pi does not require the name to match its parent directory.
 
 ## Sync script details
 
-`scripts/sync-upstream.sh [tag|main]`:
+`scripts/sync-upstream.sh [tag|main|<40-hex-commit-sha>]`:
 
 - Resolves the ref: the argument if given, else the latest upstream tag by
   semver, else `main`.
-- Shallow git-clones that ref from upstream to a temp dir.
-- Strips four excluded skills (`docx`, `pdf`, `pptx`, `xlsx` — vendored from
-  anthropics/skills under a licence that forbids redistribution) from the
-  clone's skill list before comparing or copying.
-- Replaces `skills/` wholesale (`rm -rf` then copy), then deletes the four
-  excluded skills from the copy.
+- Fetches that ref from upstream to a temp dir. A tag or `main` gets a shallow
+  `git clone --depth 1 --branch`; a raw 40-hex commit SHA cannot be named that
+  way (a shallow clone-by-branch does not accept one), so that case instead
+  does `git init` + `git remote add` + `git fetch --depth 1 origin <sha>` +
+  `git checkout -q FETCH_HEAD`.
+- Aborts before touching `skills/` if the checkout has no `skills/` directory
+  at all — a malformed ref or an upstream layout change must not `rm -rf` the
+  real thing on the strength of an empty clone.
+- Strips the skills listed in `scripts/excluded-skills.txt` (one name per
+  line, `#` comments and blanks ignored — today `docx`, `pdf`, `pptx`, `xlsx`,
+  vendored upstream from anthropics/skills under a licence that forbids
+  redistribution) from the clone's skill list before comparing or copying.
+- Replaces `skills/` wholesale (`rm -rf` then copy), then deletes the excluded
+  skills from the copy.
+- Copies `LICENSE.md` byte-identical from the upstream checkout (no
+  reformatting), and records its sha256 in `package.json`'s `licenseSha256` —
+  `validate.mjs` hard-fails if the two ever disagree.
+- Writes `upstreamVersion` (the tag this snapshot belongs to — resolved from
+  the live tag list even when the ref given was a raw SHA) and `upstreamCommit`
+  (the exact 40-hex commit SHA actually cloned, via `git rev-parse HEAD`) into
+  `package.json`, via a `node -e` one-liner that reads the file, spreads it,
+  and writes it back with two-space indent and a trailing newline — never
+  `sed -i`, which cannot round-trip JSON safely.
+- When the ref is a tag (not `main`, not a raw SHA), also fetches `main` to
+  depth 50 and warns — never acts — if it is ahead: names the commit count and
+  lists the commits with `git log --oneline`, or says "more than 50 commits
+  ahead" when the merge base falls outside that shallow window. This is what
+  caught upstream's `main` sitting 9 commits past `v2.69.0` while
+  `plugin.json` still read `2.69.0` — a tag-based sync would have been a
+  silent no-op with a new skill and two rewrites sitting on `main` unsynced.
 - Prints how many skills were added and removed (by directory name) and lists
   them, for the changelog.
-- Does **not** commit, bump `package.json`, or record `upstreamVersion` — it
-  prints those as a manual next-steps reminder.
+- Does **not** commit or bump `package.json`'s own `version` — it prints those
+  as a manual next-steps reminder, along with a prompt to check any drift
+  warning above before deciding whether to sync the tag as-is or move to a SHA
+  on `main` instead.
 
 ## Validation script details
 
@@ -658,6 +700,17 @@ Pi does not require the name to match its parent directory.
 - Hard-fails when `extensions/package-info.ts` disagrees with `package.json`. A
   stale `PACKAGE_VERSION` silently suppresses the upgrade notice for every user,
   which is the one promise a release makes; it must not be possible to ship that.
+- Hard-fails when `package.json`'s `upstreamCommit` is not a 40-hex-char
+  commit SHA, when its `licenseSha256` disagrees with `LICENSE.md`'s actual
+  hash, or when any name in `scripts/excluded-skills.txt` exists as a
+  directory under `skills/` — the sync script's own `rm -rf` is not the only
+  way skills land there, and a manual `cp` from an upstream checkout bypasses
+  it entirely.
+- Hard-fails when README.md's own prose numbers disagree with reality: every
+  "N skills" claim (except "N skills have been run") against the real
+  catalogue size, and "N skills have been run" against the unique `PASS`
+  count in `testing/ledger.json`. Neither number is hardcoded in the
+  validator — both are read from the same files the suites already trust.
 - Warns when `TOKENS_PER_SKILL` drifts more than 10% from what `skills/` now
   measures. It stays a constant because the picker needs a cost synchronously,
   before anything is on disk to measure — but every `/sci` figure derives from
@@ -920,6 +973,10 @@ claims about adoption and coverage have something behind them.
       (`npm run test:extension` asserts this; re-read the wording by hand)
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
       the synced tag; README's `v<upstream>` mentions agree with it
+- [ ] Checked `sync-upstream.sh`'s drift warning (if it printed one) before
+      deciding whether to sync the tag as-is or re-run against a SHA on `main`
+      instead — a tag can sit behind `main` for weeks without its own version
+      bump, and the warning is the only thing that says so
 - [ ] git commit + push, PR merged to `main` (GitHub)
 - [ ] `npm publish` from `main` (requires npm login) → gallery auto-lists via
       `pi-package` keyword; confirm with `npm view pi-scientific-skills version`

@@ -26,7 +26,7 @@ Usage:
 
 Exit codes: 0 = every path behaved, 1 = at least one did not.
 """
-import json, os, pty, re, select, shutil, subprocess, sys, tempfile, time
+import argparse, json, os, pty, re, select, shutil, subprocess, tempfile, time
 from pathlib import Path
 
 # Rows the offer writes, and what each must leave behind.
@@ -146,11 +146,19 @@ def _drive(mode: str, scratch: Path, agent: Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    modes = sys.argv[1:] or list(EXPECT)
-    for mode in modes:
-        if mode not in EXPECT:
-            print(f"error: unknown path {mode!r}; expected one of {', '.join(EXPECT)}")
-            raise SystemExit(2)
+    parser = argparse.ArgumentParser(description="Drive pi's real TUI through a pty and check the first-run offer.")
+    # No `default=`: argparse validates a nargs="*" default against `choices`
+    # as one value, not element-by-element, so a full-list default trips its
+    # own choices check. Falling back after parsing sidesteps that entirely.
+    parser.add_argument(
+        "modes",
+        nargs="*",
+        choices=list(EXPECT),
+        help="Paths to test (default: all three).",
+    )
+    args = parser.parse_args()
+    modes = args.modes or list(EXPECT)
+
     if not shutil.which("pi"):
         print("FAIL: pi is not on PATH — its TUI cannot be driven.")
         raise SystemExit(1)

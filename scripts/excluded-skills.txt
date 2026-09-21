@@ -1,0 +1,14 @@
+# Skills deliberately not redistributed by sync-upstream.sh.
+#
+# Upstream vendors these four from anthropics/skills; their LICENSE.txt
+# reserves all rights and expressly forbids retaining copies outside
+# Anthropic's Services, reproducing them, and distributing them to any third
+# party — which is exactly what publishing this package does. They are
+# stripped after every sync so they cannot creep back in.
+#
+# Exact names, not prefixes: "pptx" must not match the K-Dense-authored
+# "pptx-posters", which we do ship.
+docx
+pdf
+pptx
+xlsx
