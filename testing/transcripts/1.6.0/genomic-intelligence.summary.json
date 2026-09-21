@@ -1,0 +1,55 @@
+{
+  "skill": "genomic-intelligence",
+  "packageVersion": "1.6.0",
+  "model": "deepseek/deepseek-v4-flash",
+  "elapsedSeconds": 21,
+  "outcome": "completed",
+  "toolCalls": [
+    {
+      "tool": "read",
+      "args": "{\"path\":\"$TMPDIR/pi-skill-test-1.6.0/stage/package/skills/genomic-intelligence/SKILL.md\"}",
+      "isError": false,
+      "result": "---\nname: genomic-intelligence\ndescription: \"Predict regulatory features, gene structure, and expression directly from DNA sequence using Genomic Intelligence's hosted transformer DNA language models — no local GPU or model weights. Six tasks over a REST API and a hosted MCP server (keyless public demo): promoter regions, splice donor/acceptor sites, enhancer activity, chromatin state, sequence-to-expression (log TPM), and de-novo gene annotation, plus a composite find-genes-then-predict-expression workflow. Use when the user has a gene symbol, a genomic region, or a DNA/FASTA sequence and wan… [+20621 chars]"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"test -n \\\"$GI_API_KEY\\\" && echo \\\"GI_API_KEY set\\\" || echo \\\"GI_API_KEY not set\\\"; python3 --version\"}",
+      "isError": false,
+      "result": "GI_API_KEY not set\nPython 3.12.9\n"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"curl -sS -o /tmp/gi_mcp_body.json -w \\\"HTTP %{http_code}\\\\n\\\" \\\\\\n  -X POST https://mcp.genomicintelligence.ai/mcp \\\\\\n  -H 'Content-Type: application/json' \\\\\\n  -H 'Accept: application/json, text/event-stream' \\\\\\n  -d '{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"initialize\\\",\\\"params\\\":{\\\"protocolVersion\\\":\\\"2025-03-26\\\",\\\"capabilities\\\":{},\\\"clientInfo\\\":{\\\"name\\\":\\\"pi-step\\\",\\\"vers… [+110 chars]",
+      "isError": false,
+      "result": "HTTP 200\n---body---\nevent: message\r\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{\"experimental\":{},\"prompts\":{\"listChanged\":false},\"resources\":{\"listChanged\":false,\"subscribe\":false},\"tools\":{\"listChanged\":false}},\"instructions\":\"Genomic Intelligence DNA analysis over MCP.\\n\\nSix inference tasks (promoter, splice, enhancer, chromatin, expression,\\nannotation), plus a composite annotation→expression workflow. Research and\\ndevelopment use. Not for clinical or diagnostic decisions. For high-volume or\\nlatency-sensitive use, contact $EMAIL to provision a\\nproduction-shaped deployment.\\… [+194 chars]"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"curl -sS -X POST https://mcp.genomicintelligence.ai/mcp \\\\\\n  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \\\\\\n  -d '{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"method\\\":\\\"notifications/initialized\\\"}' >/dev/null 2>&1\\ncurl -sS -X POST https://mcp.genomicintelligence.ai/mcp \\\\\\n  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \\\\\\… [+109 chars]",
+      "isError": false,
+      "result": "(no output)"
+    },
+    {
+      "tool": "bash",
+      "args": "{\"command\":\"SID=$(curl -sS -D /tmp/gi_hdr.txt -X POST https://mcp.genomicintelligence.ai/mcp \\\\\\n  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \\\\\\n  -d '{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"initialize\\\",\\\"params\\\":{\\\"protocolVersion\\\":\\\"2025-03-26\\\",\\\"capabilities\\\":{},\\\"clientInfo\\\":{\\\"name\\\":\\\"pi-step\\\",\\\"version\\\":\\\"0.1.0\\\"}}}' >/dev/null 2>&1; gre… [+682 chars]",
+      "isError": false,
+      "result": "session: d2fc3024eddb412ca66a8556600b61b8\n\"name\":\"list_models\"\n\"name\":\"fetch_ensembl_sequence\"\n\"name\":\"fetch_region\"\n\"name\":\"fetch_gene_for_expression\"\n\"name\":\"load_demo_sequence\"\n\"name\":\"store_inline_sequence\"\n\"name\":\"predict_promoter\"\n\"name\":\"predict_splice\"\n\"name\":\"predict_enhancer\"\n\"name\":\"predict_chromatin\"\n\"name\":\"predict_expression\"\n\"name\":\"find_genes\"\n\"name\":\"find_genes_and_predict_expression\"\n\"name\":\"get_job\"\n\"name\":\"list_jobs\"\n"
+    }
+  ],
+  "finalText": "The tool list matches SKILL.md exactly — the acquisition tools (`load_demo_sequence`, `fetch_ensembl_sequence`, `fetch_region`, `fetch_gene_for_expression`, `store_inline_sequence`), the six predict tools (`predict_promoter/splice/enhancer/chromatin/expression` + `find_genes` for annotation), the composite (`find_genes_and_predict_expression`), and `get_job`/`list_jobs`/`list_models`.\n\nI loaded the `genomic-intelligence` skill and, following its SKILL.md, took one small step: since no `GI_API_KEY` is set (so the REST path we cannot use), I connected to the skill's recommended **keyless** hosted MCP demo at `mcp.genomicintelligence.ai/mcp`, completed the Streamable HTTP handshake, and confirmed the server exposes exactly the acquisition/predict/composite tool set that SKILL.md documents — proving the keyless path is live and following it.\n\nVERDICT: DONE — I loaded the skill and followed it by connecting keyless to the hosted Genomic Intelligence MCP demo and verifying its tool set matches SKILL.md.",
+  "usage": {
+    "input": 1290,
+    "output": 422,
+    "cacheRead": 9216,
+    "cacheWrite": 0,
+    "reasoning": 166,
+    "totalTokens": 10928,
+    "cost": {
+      "input": 0.0001025808,
+      "output": 0.00006711488,
+      "cacheRead": 0.00014657126400000002,
+      "cacheWrite": 0,
+      "total": 0.000316266944
+    }
+  }
+}
