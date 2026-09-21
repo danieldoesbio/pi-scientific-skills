@@ -2,17 +2,18 @@
  * The catalogue and ranking behind `sci_find`.
  *
  * Why this exists: pi keeps every skill's name + description in the system
- * prompt for the whole session and defers only the bodies. Across 157 skills
- * that index is ~17k tokens — over half a 32k context. `/sci` lets a *human*
- * narrow it ahead of time; this lets the *model* reach the rest on demand, so
- * narrowing the index no longer means making skills unreachable.
+ * prompt for the whole session and defers only the bodies. Across the
+ * catalogue that index is roughly 14k tokens — a large share of a 32k
+ * context. `/sci` lets a *human* narrow it ahead of time; this lets the
+ * *model* reach the rest on demand, so narrowing the index no longer means
+ * making skills unreachable.
  *
  * Two rules shape the ranking, both from principle rather than taste:
  *
  * 1. Recall beats precision. `sci_find` does not have to pick the right skill,
  *    only get it into a list of eight with its full description attached. The
  *    calling model — even a small one — discriminates well between eight
- *    labelled options and badly between 157 in a system prompt.
+ *    labelled options and badly among the whole catalogue in a system prompt.
  * 2. Never a confident wrong answer. Below `MIN_SCORE` nothing is returned at
  *    all. Handing a plausible-but-wrong skill to someone designing an
  *    experiment is worse than handing them nothing.
@@ -93,7 +94,7 @@ const looksLikeSkillsDir = (path: string): boolean => {
 /**
  * Read every skill's name and description from disk.
  *
- * Measured at ~18ms for 157 skills, so this is called lazily on first use and
+ * Measured at ~18ms for the catalogue, so this is called lazily on first use and
  * cached for the session: an installed package's `skills/` cannot change while
  * pi is running, so there is nothing to invalidate.
  *
@@ -290,10 +291,10 @@ const EXACT_NAME_BONUS = 10;
 /**
  * Anything scoring below the floor is withheld entirely.
  *
- * Normally two points: one weak description hit (score 1) is noise — with 157
- * skills and common words like "data", something always scores 1. Two points
- * means either a name hit or two independent description hits, which is the
- * floor for saying anything at all.
+ * Normally two points: one weak description hit (score 1) is noise — with a
+ * catalogue this size and common words like "data", something always scores
+ * 1. Two points means either a name hit or two independent description hits,
+ * which is the floor for saying anything at all.
  *
  * Exception: a single un-aliased term ("statistics") can earn at most one
  * description point even on a perfect match, so a floor of two would always

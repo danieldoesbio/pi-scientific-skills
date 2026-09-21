@@ -24,10 +24,11 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 - **Our version is independent of upstream's.** This package uses its own semver
   line starting at 1.0.0. It deliberately does *not* mirror the upstream number:
   the two artifacts differ (161 skills vs upstream's 165, plus the `/sci`
-  extension), and upstream ships patch releases — 16 of their 99 tags have a
-  non-zero patch, e.g. `v2.37.2`. Mirroring would mean an extension-only fix has
-  to burn a number like `2.63.1` that upstream may later claim for itself, and
-  npm versions can never be reused. `upstreamVersion` carries the snapshot
+  extension), and upstream ships patch releases — 16 of 106 tags at v2.69.0
+  have a non-zero patch, e.g. `v2.37.2`. Mirroring would mean an
+  extension-only fix has to burn a number like `2.63.1` that upstream may
+  later claim for itself, and npm versions can never be reused.
+  `upstreamVersion` carries the snapshot
   identity instead, so bump `version` for *our* changes and `upstreamVersion`
   for *theirs*.
 - **Source snapshot:** `scripts/sync-upstream.sh <tag>` shallow-clones the
@@ -110,9 +111,10 @@ Reasons, so this isn't reopened on every sync:
   `name: scientific-agent-skills`, `version: 2.63.0`, and upstream's repository
   URL. None of those describe this package.
 - **Rewriting it would overclaim.** A manifest under our name asserts Agent
-  Plugins conformance for hosts this package has never been run against. Ten
-  skills have been functionally exercised, all in pi, none in Cursor/Codex/
-  Copilot. Advertising those clients on that basis is unsupported.
+  Plugins conformance for hosts this package has never been run against. 37
+  skills have been functionally exercised (see [Functional
+  testing](#functional-testing)), all in pi, none in Cursor/Codex/Copilot.
+  Advertising those clients on that basis is unsupported.
 - **It contradicts the independent-versioning decision above.** Upstream's
   `AGENTS.md` requires `plugin.json` `version` to track `pyproject.toml`. This
   package versions independently and has no `pyproject.toml`.
@@ -213,11 +215,12 @@ stays on the maintainer's disk.
 ### Why it exists
 
 Pi injects every skill's name and description into the system prompt at startup;
-only skill *bodies* are deferred. Measured across this collection: 65,455
-description characters ≈ **17,700 tokens**, ≈113 tokens per skill. That is 54% of
-a 32k context and more than an 8k context can hold. Pi is frequently run with
-small local models, so the index cost — not the skill content — is the binding
-constraint.
+only skill *bodies* are deferred. Measured across this collection: about 67k
+description characters ≈ **14k tokens**, about 87 tokens per skill (recipe and
+both tokenizers in `profiles.ts`'s `TOKENS_PER_SKILL` comment).
+That is a large share of a 32k context and more than an 8k context can hold. Pi
+is frequently run with small local models, so the index cost — not the skill
+content — is the binding constraint.
 
 Two distinct problems follow, and the profile design addresses both: the context
 budget, and selection accuracy (a small model discriminates poorly among 161
@@ -264,14 +267,14 @@ absolute `SKILL.md` path for the model to `read`. That is mechanically identical
 to how pi loads a skill natively, one level further down: descriptions deferred
 rather than bodies.
 
-`/sci search` applies Core (10 skills, ~1.1k tokens) through the same
+`/sci search` applies Core (10 skills, ~870 tokens) through the same
 `commitPlan` path everything else uses — deliberately **no second write path**,
 so the empty-array footgun handling below stays single-sourced.
 
 **Design decisions worth not re-deriving:**
 
 - **The tool is registered unconditionally**, not behind a mode flag. ~150 tokens
-  of tool definition against a ~18k index is not a trade worth a config toggle,
+  of tool definition against a ~14k index is not a trade worth a config toggle,
   and someone running all 161 still benefits from looking a skill up by need
   rather than by name. `/sci status` says so.
 - **Recall beats precision.** `sci_find` does not have to pick the right skill,
@@ -619,12 +622,20 @@ Pi does not require the name to match its parent directory.
 
 ## Sync script details
 
-`scripts/sync-upstream.sh`:
+`scripts/sync-upstream.sh [tag|main]`:
 
-- Downloads the upstream tarball (latest release, else `main`) to a temp dir.
-- Replaces `skills/` in this repo with the upstream `skills/`.
-- Prints a diff summary (added/removed/changed skill names) for the changelog.
-- Does **not** commit — review the diff and commit deliberately.
+- Resolves the ref: the argument if given, else the latest upstream tag by
+  semver, else `main`.
+- Shallow git-clones that ref from upstream to a temp dir.
+- Strips four excluded skills (`docx`, `pdf`, `pptx`, `xlsx` — vendored from
+  anthropics/skills under a licence that forbids redistribution) from the
+  clone's skill list before comparing or copying.
+- Replaces `skills/` wholesale (`rm -rf` then copy), then deletes the four
+  excluded skills from the copy.
+- Prints how many skills were added and removed (by directory name) and lists
+  them, for the changelog.
+- Does **not** commit, bump `package.json`, or record `upstreamVersion` — it
+  prints those as a manual next-steps reminder.
 
 ## Validation script details
 
@@ -651,7 +662,11 @@ Pi does not require the name to match its parent directory.
   measures. It stays a constant because the picker needs a cost synchronously,
   before anything is on disk to measure — but every `/sci` figure derives from
   it, so silent drift turns honest guidance into confident nonsense. A warning,
-  not a failure: the number is an estimate by construction.
+  not a failure: the number is an estimate by construction. The measurement
+  itself prefers a real tiktoken count via `python3` (`cl100k_base`, corpus
+  fed in on a file descriptor, not `argv`) and falls back to the calibrated
+  `CHARS_PER_TOKEN` ratio when `python3` or `tiktoken` is unavailable; either
+  way it prints which mode ran.
 
 The parser is **not** defined here. It lives in `extensions/frontmatter.ts` and
 is shared with `search.ts`, which parses the same files at runtime to build the
@@ -689,6 +704,16 @@ After any sync or test run, confirm cleanliness:
 diff -rq /path/to/upstream/skills skills   # must report no differences
 npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
 ```
+
+npm never packs dotfiles by default, so the installed package lacks
+`skills/autoskill/.gitignore`. Harmless, and known.
+
+### Uninstalling
+
+Run `/sci reset` first, so the package's filter is cleared before you remove
+it. After removing the package, two files under `~/.pi/agent/` can be deleted
+by hand if you want them gone: the state file `pi-scientific-skills.json`, and
+the one-time backup `settings.json.pi-scientific-skills.bak`.
 
 ## Functional testing
 
