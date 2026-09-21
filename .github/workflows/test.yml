@@ -17,7 +17,7 @@ jobs:
           node-version: "22.18.0"
 
       - name: Install pi
-        run: npm install -g @earendil-works/pi-coding-agent@0.84.3
+        run: npm install -g @earendil-works/pi-coding-agent@0.87.0
 
       - name: Locate pi's dist, pin PI_DIST
         run: |
