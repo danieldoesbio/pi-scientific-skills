@@ -847,7 +847,7 @@ console.log("\n-- sibling modules register nothing --");
         },
       },
     );
-    mod.default(proxy);
+    await mod.default(proxy);
     check(
       `${file}: default export is a no-op and calls nothing on the ExtensionAPI`,
       typeof mod.default === "function" && calls.length === 0,

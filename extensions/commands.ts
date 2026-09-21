@@ -199,7 +199,7 @@ const resetAll = (ctx: CommandContext): Promise<void> =>
  *
  * This is the recommended shape: the everyday statistics/EDA/figures/writing
  * skills stay in the system prompt where the model will simply use them, and
- * the remaining 147 stay reachable through search instead of being invisible.
+ * the rest stay reachable through search instead of being invisible.
  */
 const enableSearchMode = async (ctx: CommandContext): Promise<void> => {
   const core = TOGGLES.find((toggle) => toggle.id === DEFAULT_PROFILE_ID);

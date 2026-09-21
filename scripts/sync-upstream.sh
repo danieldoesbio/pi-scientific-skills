@@ -53,6 +53,14 @@ cd upstream
   echo "upstream checkout has no skills/ — aborting before touching $REPO_ROOT/skills" >&2
   exit 1
 }
+# A checkout that exists but is thin (interrupted clone, restructured upstream)
+# would otherwise pass the directory test and wipe the local set below.
+NEW_SKILL_COUNT="$(find skills -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+OLD_SKILL_COUNT="$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+if (( NEW_SKILL_COUNT * 2 < OLD_SKILL_COUNT )); then
+  echo "upstream checkout has $NEW_SKILL_COUNT skills, fewer than half of the $OLD_SKILL_COUNT here — aborting before touching $REPO_ROOT/skills" >&2
+  exit 1
+fi
 
 UPSTREAM_COMMIT="$(git rev-parse HEAD)"
 if is_sha "$REF"; then
@@ -66,15 +74,21 @@ fi
 
 # Warn, never act, when a tag has drifted from main: a maintainer decides
 # whether to sync the tag as-is or move to a SHA on main instead.
+# The shallow fetch caps what rev-list can count: at DRIFT_WINDOW the true
+# distance is unknown, so say "at least", and say separately when main could
+# not be fetched at all rather than guessing at a distance.
+DRIFT_WINDOW=50
 if [[ "$REF" != "main" ]] && ! is_sha "$REF"; then
-  git fetch --depth=50 origin main -q || true
-  if AHEAD="$(git rev-list --count HEAD..FETCH_HEAD 2>/dev/null)"; then
-    if [[ "$AHEAD" -gt 0 ]]; then
+  if git fetch --depth="$DRIFT_WINDOW" origin main -q && AHEAD="$(git rev-list --count HEAD..FETCH_HEAD 2>/dev/null)"; then
+    if (( AHEAD >= DRIFT_WINDOW )); then
+      echo "::warning:: upstream main is at least $DRIFT_WINDOW commits ahead of $REF (the shallow fetch window); the first $DRIFT_WINDOW:"
+      git log --oneline HEAD..FETCH_HEAD
+    elif (( AHEAD > 0 )); then
       echo "::warning:: upstream main is $AHEAD commit(s) ahead of $REF:"
       git log --oneline HEAD..FETCH_HEAD
     fi
   else
-    echo "::warning:: upstream main is more than 50 commits ahead of $REF (outside the shallow fetch window)"
+    echo "::warning:: could not compare $REF against upstream main (fetch failed or no merge base within $DRIFT_WINDOW commits)"
   fi
 fi
 
