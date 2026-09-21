@@ -27,15 +27,24 @@ export interface UnassignedSkill {
 export const TOTAL_SKILL_COUNT = 162;
 
 /**
- * Measured cost of one skill's name + description in the system prompt.
- * Recipe (2026-09-21): tiktoken over each skill's `"<name>: <description>"`
- * string, across the real 162-skill catalogue — 67,968 chars, 14,363 tokens
- * under cl100k_base (88.7/skill), 14,239 under o200k_base (87.9/skill).
- * TOKENS_PER_SKILL is the rounded average of the two. A model provider's own
+ * Measured cost of one skill in the system prompt, as pi renders it: an
+ * indented, XML-escaped `<skill>` block with the name, the description, and
+ * the absolute path of the skill's SKILL.md (`formatSkillsForPrompt` in pi's
+ * `core/skills.js`). The tags and the path are most of the difference from a
+ * bare description count (about 88 tokens per skill): the model pays for them
+ * every session all the same.
+ * Recipe (2026-09-21): tiktoken over each skill's rendered block, with the
+ * location set to the default npm install path under a generic home
+ * (`/home/user/.pi/agent/npm/node_modules/pi-scientific-skills/skills/<name>/SKILL.md`),
+ * across the real 162-skill catalogue — 99,296 chars, 23,282 tokens under
+ * cl100k_base (143.7/skill), 23,194 under o200k_base (143.2/skill).
+ * TOKENS_PER_SKILL is the rounded average of the two. A longer home directory
+ * or a git install adds a few tokens per skill, and a model provider's own
  * tokenizer may count differently; this is an estimate, not a guarantee.
  * Descriptions stay in context permanently, so this is a per-session floor.
+ * `scripts/validate.mjs` re-measures the same corpus on every run.
  */
-export const TOKENS_PER_SKILL = 88;
+export const TOKENS_PER_SKILL = 143;
 
 /** Context cost of loading the package unfiltered. */
 export const BASELINE_TOKEN_COST = TOTAL_SKILL_COUNT * TOKENS_PER_SKILL;

@@ -61,13 +61,35 @@ const nameRe = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const problems = { hard: [], warn: [] };
 let count = 0;
 /**
- * The system-prompt index, as `"<name>: <description>"` per skill — the exact
- * corpus shape `sci_find` builds at runtime (`search.ts`'s `loadCatalog`) and
- * the one the token estimate is calibrated against. Skills with no
+ * The system-prompt index, rendered the way pi renders it. `formatSkillsForPrompt`
+ * in pi's `dist/core/skills.js` wraps each skill in an indented `<skill>` block
+ * holding its name, its description, and the absolute path of its SKILL.md, all
+ * XML-escaped. The path is real cost the model pays every session, so the
+ * corpus includes one: the default npm install path under a generic home. A
+ * longer home directory or a git install adds a few tokens per skill. This is
+ * the corpus `TOKENS_PER_SKILL` is calibrated against. Skills with no
  * description are absent here too: pi never prompts them, so they cost
  * nothing to count.
  */
 const corpus = [];
+const PROMPT_LOCATION_ROOT = "/home/user/.pi/agent/npm/node_modules/pi-scientific-skills/skills";
+const escapeXml = (value) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+/** One skill's block exactly as pi emits it, plus the newline that joins it to the next. */
+const renderPromptBlock = (name, description) =>
+  [
+    "  <skill>",
+    `    <name>${escapeXml(name)}</name>`,
+    `    <description>${escapeXml(description)}</description>`,
+    `    <location>${escapeXml(`${PROMPT_LOCATION_ROOT}/${name}/SKILL.md`)}</location>`,
+    "  </skill>",
+    "",
+  ].join("\n");
 /** Skills pi would hide from the prompt but still serve to `/skill:` (informational). */
 let modelInvocationDisabled = 0;
 
@@ -97,7 +119,7 @@ for (const skill of collectSkills(skillsDir)) {
     problems.warn.push(`${skill.name}: description ${fm.description.length} chars > 1024 (warning only)`);
   }
 
-  if (fm.description) corpus.push(`${fm.name ?? skill.name}: ${fm.description}`);
+  if (fm.description) corpus.push(renderPromptBlock(fm.name ?? skill.name, fm.description));
 
   // Three invariants the /skill: input hook depends on. All content-dependent,
   // and sync-upstream.sh replaces content wholesale, so a release is exactly
@@ -396,8 +418,9 @@ function validateReadmeCounts(onDiskCount) {
     const claimed = Number(match[1]);
     if (claimed !== onDiskCount) {
       problems.hard.push(
-        `README.md claims "${claimed} skills" but skills/ holds ${onDiskCount} — ` +
-          `re-run \`npm run sync:upstream\` notes or fix the prose`,
+        `README.md says "${match[0]}" but skills/ holds ${onDiskCount} — every "N skills" in ` +
+          `README.md is read as a catalogue-size claim (only "N skills have been run" is ` +
+          `exempt); fix the number or reword the sentence`,
       );
     }
   }
@@ -432,14 +455,16 @@ function validateReadmeCounts(onDiskCount) {
 // ---------------------------------------------------------------------------
 
 /**
- * Chars per token, measured 2026-09-19 over the real catalogue's corpus (161
- * skills then, 162 at the 2026-09-21 sync — a dated record, not a live
- * count), "<name>: <description>" each: 66,921 chars, 14,100 tokens under
- * tiktoken's cl100k_base (4.75 chars/token) and 13,987 under o200k_base (4.79
- * chars/token). Used only as a fallback, when python3 or tiktoken is
- * unavailable — see checkTokenEstimate.
+ * Chars per token, measured 2026-09-21 over the real catalogue's corpus (162
+ * skills — a dated record, not a live count), one rendered `<skill>` block
+ * each as `renderPromptBlock` builds it: 99,296 chars, 23,282 tokens under
+ * tiktoken's cl100k_base (4.27 chars/token) and 23,194 under o200k_base
+ * (4.28 chars/token). XML tags and the file path tokenize worse than prose,
+ * so this is lower than the 4.75 a bare "name: description" corpus gives. Used
+ * only as a fallback, when python3 or tiktoken is unavailable — see
+ * checkTokenEstimate.
  */
-const CHARS_PER_TOKEN = 4.75;
+const CHARS_PER_TOKEN = 4.27;
 /** Drift below this is noise in a hand-calibrated estimate; above it, /sci lies. */
 const DRIFT_TOLERANCE = 0.1;
 
@@ -449,7 +474,7 @@ const DRIFT_TOLERANCE = 0.1;
  * (a first-run encoding download can block on a sandboxed network — this must
  * degrade to the fallback, never hang the validator).
  *
- * The corpus (~65KB) goes on stdin as JSON, never on argv — but as a
+ * The corpus (~100KB) goes on stdin as JSON, never on argv — but as a
  * file-backed descriptor, not a `spawnSync({ input })` pipe: that corpus
  * exceeds the OS pipe buffer (64KB), and `spawnSync` writing it in chunks can
  * wedge against a child that has not yet reached `sys.stdin.read()`, hanging
@@ -466,12 +491,14 @@ function tiktokenTokenCount(corpus) {
     'enc = tiktoken.get_encoding("cl100k_base")\n' +
     "print(sum(len(enc.encode(s)) for s in corpus))\n";
 
-  const dir = mkdtempSync(join(tmpdir(), "pi-scientific-skills-tokens-"));
-  const corpusPath = join(dir, "corpus.json");
-  writeFileSync(corpusPath, JSON.stringify(corpus));
-
+  // Everything that can throw — an unwritable TMPDIR included — stays inside
+  // the try: this check is warn-only and must never fail the validator.
+  let dir;
   let result;
   try {
+    dir = mkdtempSync(join(tmpdir(), "pi-scientific-skills-tokens-"));
+    const corpusPath = join(dir, "corpus.json");
+    writeFileSync(corpusPath, JSON.stringify(corpus));
     const fd = openSync(corpusPath, "r");
     try {
       result = spawnSync("python3", ["-c", script], {
@@ -485,7 +512,7 @@ function tiktokenTokenCount(corpus) {
   } catch {
     return undefined;
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    if (dir) rmSync(dir, { recursive: true, force: true });
   }
 
   if (!result || result.error || result.signal || result.status !== 0) return undefined;

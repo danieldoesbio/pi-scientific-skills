@@ -147,16 +147,20 @@ def _drive(mode: str, scratch: Path, agent: Path) -> list[str]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Drive pi's real TUI through a pty and check the first-run offer.")
-    # No `default=`: argparse validates a nargs="*" default against `choices`
-    # as one value, not element-by-element, so a full-list default trips its
-    # own choices check. Falling back after parsing sidesteps that entirely.
+    # No `choices=`: before Python 3.12, argparse checks an empty nargs="*"
+    # result against `choices` as a single value and rejects `[]`, so the
+    # no-argument form `npm run test:tui` would exit 2 under the macOS system
+    # python3 (3.9). Validate by hand after parsing instead.
     parser.add_argument(
         "modes",
         nargs="*",
-        choices=list(EXPECT),
-        help="Paths to test (default: all three).",
+        metavar="MODE",
+        help=f"Paths to test, any of: {', '.join(EXPECT)} (default: all three).",
     )
     args = parser.parse_args()
+    unknown = [mode for mode in args.modes if mode not in EXPECT]
+    if unknown:
+        parser.error(f"unknown mode(s): {', '.join(unknown)} — choose from {', '.join(EXPECT)}")
     modes = args.modes or list(EXPECT)
 
     if not shutil.which("pi"):

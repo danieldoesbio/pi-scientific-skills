@@ -56,6 +56,15 @@ const QUERIES = [
   ["medical image segmentation", ["pydicom", "histolab"]],
   ["predict the effect of a non-coding variant", ["alphagenome"]],
   ["alphagenome", ["alphagenome"]],
+  // Plural and underscore forms of the short alias triggers. These have no
+  // route but the whole-word match (triggers under MIN_COMPACT_LENGTH never
+  // get the compacted fallback), so without singular/plural surface forms
+  // "SNPs" and "BAMs" returned nothing and "DEGs" returned confident noise.
+  ["call SNPs from a VCF", ["pysam", "onekgpd"]],
+  ["sort my BAMs", ["pysam", "deeptools"]],
+  ["sort my bam_file", ["pysam", "deeptools"]],
+  ["make plots of my results", ["matplotlib", "scientific-visualization", "seaborn"]],
+  ["find DEGs between two conditions", ["pydeseq2", "bulk-rnaseq", "scanpy"]],
 ];
 
 /**
@@ -77,9 +86,11 @@ const NEGATIVES = [
   "book a flight to paris",
   "asdfghjkl",
   "remind me to call my mother",
-  // Whole-word alias matching (matchesPhrase): these caught real substring
-  // false positives before the fix ("bam" inside "bamboo", "gen"/"deg"-style
-  // fragments inside unrelated words).
+  // Whole-word alias matching (matchesPhrase): the first two caught real
+  // substring false positives before the fix ("bam" inside "bamboo", "deg"
+  // inside "degradation"). The other four already returned nothing under the
+  // old matcher; they guard the single-word floor, which must not turn an
+  // unrelated word into a confident answer.
   "bamboo growth",
   "protein degradation",
   "lunch",

@@ -2,7 +2,7 @@
  * /sci — curate which of the catalogue's scientific skills pi loads.
  *
  * Every skill's name + description is injected into the system prompt at startup
- * and stays there for the whole session (roughly 14k tokens for the full set).
+ * and stays there for the whole session (roughly 23k tokens for the full set).
  * Small or local models pay that twice: once in context budget, and again in
  * selection accuracy, because discriminating between many similar
  * descriptions is hard.
@@ -296,7 +296,7 @@ export default function (pi: ExtensionAPI): void {
 
   // The model-facing half of progressive disclosure. Registered unconditionally
   // when the catalogue is locatable: ~150 tokens of tool definition against a
-  // ~14k index is not a trade worth a configuration flag, and a user running
+  // ~23k index is not a trade worth a configuration flag, and a user running
   // the full set still benefits from being able to look a skill up by need
   // rather than by name.
   if (SKILLS_DIR) {
@@ -323,7 +323,7 @@ export default function (pi: ExtensionAPI): void {
           Type.Integer({
             minimum: 1,
             maximum: MAX_LIMIT,
-            description: `Maximum results (default ${DEFAULT_LIMIT}). Capped at ${MAX_LIMIT}.`,
+            description: `Maximum results (default ${DEFAULT_LIMIT}), 1 to ${MAX_LIMIT}.`,
           }),
         ),
       }),

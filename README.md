@@ -37,8 +37,9 @@ List installed packages with `pi list`, and enable/disable individual skills wit
 
 All 162 skill descriptions sit in the system prompt at startup: pi's progressive
 disclosure keeps descriptions always in context and loads only the skill *bodies*
-on demand. Measured, that index costs **roughly 14k tokens**. That's a large
-share of a 32k context window, and more than an 8k window can hold at all. On a
+on demand. Measured as pi renders it (name, description, and the absolute
+`SKILL.md` path for each skill), that index costs **roughly 23k tokens**. That's
+most of a 32k context window, and more than a 16k window can hold at all. On a
 small local model it's the difference between usable and unusable.
 
 `pi config` can already toggle skills one at a time. `/sci` puts a curated
@@ -60,8 +61,8 @@ profile layer on top so you don't have to do that 162 times:
 Choosing a profile means betting on what you'll need before the work starts.
 When the bet is wrong, the skill you needed is simply invisible.
 
-`/sci search` removes the bet. It loads the ten Core skills — **~880 tokens
-instead of ~14k** — and the model reaches everything else through a `sci_find`
+`/sci search` removes the bet. It loads the ten Core skills — **~1.4k tokens
+instead of ~23k** — and the model reaches everything else through a `sci_find`
 tool that searches all 162 by description and returns the path to load:
 
 ```
@@ -99,7 +100,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/162 skills, ~1.1k tokens, saves ~13.2k
+Scientific skills — 12/162 skills, ~1.7k tokens, saves ~21.4k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
@@ -153,7 +154,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
   `/skill:../../etc/passwd` is not),
   490 byte-identity checks against pi's own `/skill:` expansion (every skill,
-  three argument forms), 42 ranking checks against the real 162 descriptions,
+  three argument forms), 47 ranking checks against the real 162 descriptions,
   7 checks that **pi itself** honours the filter through a real
   `DefaultPackageManager`, and 175 frontmatter parity checks against pi's own
   parser (every skill plus synthetic edge cases). The first-run offer is

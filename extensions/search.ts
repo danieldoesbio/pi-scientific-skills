@@ -3,7 +3,7 @@
  *
  * Why this exists: pi keeps every skill's name + description in the system
  * prompt for the whole session and defers only the bodies. Across the
- * catalogue that index is roughly 14k tokens — a large share of a 32k
+ * catalogue that index is roughly 23k tokens — most of a 32k
  * context. `/sci` lets a *human* narrow it ahead of time; this lets the
  * *model* reach the rest on demand, so narrowing the index no longer means
  * making skills unreachable.
@@ -238,20 +238,29 @@ interface Expansion {
  * Whether a curated alias trigger phrase fires against a raw query.
  *
  * Matches as whole words, not raw substrings — "bam" must not fire on
- * "bamboo". Built against the RAW lowercased query, never `normalizeTerms`:
- * trigger phrases like "tree of life" and "dock a ligand" contain stopwords
- * `normalizeTerms` strips, which would break the match entirely. A short
- * compacted fallback still lets punctuation-insensitive forms match
- * ("rnaseq" for the "rna-seq" trigger).
+ * "bamboo". Each word accepts the same naive singular/plural pair as
+ * `matchesWord`, so "SNPs", "BAMs" and "plots" still reach the "snp", "bam"
+ * and "plot" triggers, which have no other route: triggers shorter than
+ * `MIN_COMPACT_LENGTH` never get the compacted fallback. Underscores count as
+ * separators ("bam_file"), as they do in `normalizeTerms`. Built against the
+ * RAW lowercased query, never `normalizeTerms`: trigger phrases like "tree of
+ * life" and "dock a ligand" contain stopwords `normalizeTerms` strips, which
+ * would break the match entirely. The compacted fallback still lets
+ * punctuation-insensitive forms match ("rnaseq" for the "rna-seq" trigger).
  */
 const matchesPhrase = (query: string, phrase: string): boolean => {
-  const words = phrase.split(/[\s-]+/).filter(Boolean).map(escapeRegex);
-  const pattern = new RegExp(`\\b${words.join("[\\s-]+")}\\b`, "i");
-  if (pattern.test(query.toLowerCase())) return true;
+  const haystack = query.toLowerCase().replace(/_/g, " ");
+  const words = phrase
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map((word) => `(?:${surfaceForms(word).map(escapeRegex).join("|")})`);
+  const pattern = new RegExp(`\\b${words.join("[\\s-]+")}\\b`);
+  if (pattern.test(haystack)) return true;
 
   const phraseCompact = compact(phrase.toLowerCase());
   if (phraseCompact.length < MIN_COMPACT_LENGTH) return false;
-  return compact(query.toLowerCase()).includes(phraseCompact);
+  return compact(haystack).includes(phraseCompact);
 };
 
 /**

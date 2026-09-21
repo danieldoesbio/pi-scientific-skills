@@ -244,11 +244,14 @@ So `extensions/index.ts` is the only file allowed to call `pi.registerCommand`,
 
 ### Why it exists
 
-Pi injects every skill's name and description into the system prompt at startup;
-only skill *bodies* are deferred. Measured across this collection: about 68k
-description characters ≈ **14k tokens**, about 88 tokens per skill (recipe and
-both tokenizers in `profiles.ts`'s `TOKENS_PER_SKILL` comment).
-That is a large share of a 32k context and more than an 8k context can hold. Pi
+Pi injects every skill's name, description, and absolute `SKILL.md` path into
+the system prompt at startup, one XML-escaped `<skill>` block each
+(`formatSkillsForPrompt` in pi's `core/skills.js`); only skill *bodies* are
+deferred. Measured across this collection as pi renders it: about 99k
+characters ≈ **23k tokens**, about 143 tokens per skill, of which the bare
+description is roughly 88 (recipe and both tokenizers in `profiles.ts`'s
+`TOKENS_PER_SKILL` comment).
+That is most of a 32k context and more than a 16k context can hold. Pi
 is frequently run with small local models, so the index cost — not the skill
 content — is the binding constraint.
 
@@ -297,14 +300,14 @@ absolute `SKILL.md` path for the model to `read`. That is mechanically identical
 to how pi loads a skill natively, one level further down: descriptions deferred
 rather than bodies.
 
-`/sci search` applies Core (10 skills, ~880 tokens) through the same
+`/sci search` applies Core (10 skills, ~1.4k tokens) through the same
 `commitPlan` path everything else uses — deliberately **no second write path**,
 so the empty-array footgun handling below stays single-sourced.
 
 **Design decisions worth not re-deriving:**
 
 - **The tool is registered unconditionally**, not behind a mode flag. ~150 tokens
-  of tool definition against a ~14k index is not a trade worth a config toggle,
+  of tool definition against a ~23k index is not a trade worth a config toggle,
   and someone running all 162 still benefits from looking a skill up by need
   rather than by name. `/sci status` says so.
 - **Recall beats precision.** `sci_find` does not have to pick the right skill,
@@ -687,8 +690,9 @@ Pi does not require the name to match its parent directory.
   does `git init` + `git remote add` + `git fetch --depth 1 origin <sha>` +
   `git checkout -q FETCH_HEAD`.
 - Aborts before touching `skills/` if the checkout has no `skills/` directory
-  at all — a malformed ref or an upstream layout change must not `rm -rf` the
-  real thing on the strength of an empty clone.
+  at all, or holds fewer than half as many skills as the current tree — a
+  malformed ref, an interrupted clone, or an upstream layout change must not
+  `rm -rf` the real thing on the strength of an empty or thin checkout.
 - Strips the skills listed in `scripts/excluded-skills.txt` (one name per
   line, `#` comments and blanks ignored — today `docx`, `pdf`, `pptx`, `xlsx`,
   vendored upstream from anthropics/skills under a licence that forbids
@@ -706,8 +710,9 @@ Pi does not require the name to match its parent directory.
   `sed -i`, which cannot round-trip JSON safely.
 - When the ref is a tag (not `main`, not a raw SHA), also fetches `main` to
   depth 50 and warns — never acts — if it is ahead: names the commit count and
-  lists the commits with `git log --oneline`, or says "more than 50 commits
-  ahead" when the merge base falls outside that shallow window. This is what
+  lists the commits with `git log --oneline`, says "at least 50 commits ahead"
+  when the count reaches the edge of that shallow window, and reports a failed
+  fetch of `main` separately instead of guessing at a distance. This is what
   caught upstream's `main` sitting 9 commits past `v2.69.0` while
   `plugin.json` still read `2.69.0` — a tag-based sync would have been a
   silent no-op with a new skill and two rewrites sitting on `main` unsynced.
@@ -797,8 +802,10 @@ diff -rq /path/to/upstream/skills skills   # must report no differences
 npm pack --dry-run | grep -iE 'pycache|\.pyc'   # must be empty
 ```
 
-npm never packs dotfiles by default, so the installed package lacks
-`skills/autoskill/.gitignore`. Harmless, and known.
+npm strips `.gitignore` files from a package (and reads each one as ignore
+rules for its directory), so the installed package lacks
+`skills/autoskill/.gitignore`. Its three rules (`__pycache__/`, `*.pyc`,
+`.pytest_cache/`) exclude nothing that ships. Harmless, and known.
 
 ### Uninstalling
 
