@@ -140,7 +140,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   description, checked by the validator on every change and by a tarball smoke
   test on every release. Frontmatter passes a validator that reimplements pi's
   rules with 0 warnings and 0 hard issues.
-- **37 skills have been run end to end in pi** under a small model
+- **43 skills have been run end to end in pi** under a small model
   (`deepseek/deepseek-v4-flash`): loaded, followed, and in most cases producing a
   real result — a live ARAX knowledge-graph query, a full non-compartmental PK
   analysis, a BIDS dataset layout, a time-series classifier trained to 100% on

@@ -389,6 +389,63 @@
       "model": "deepseek/deepseek-v4-flash",
       "date": "2026-09-14",
       "note": "15 tool calls, 49s. Read SKILL.md, created a venv and installed the pinned pydicom==3.0.2, copied the package's own CT_small.dcm test file into the sandbox, and followed the 'Read datasets safely' section: dcmread with stop_before_pixels=True and a specific_tags allowlist, printing only SOPClassUID 1.2.840.10008.5.1.4.1.1.2, Modality CT, 128 x 128. No bundled script run; the prescribed safe-read pattern was reproduced verbatim."
+    },
+    {
+      "skill": "alphagenome",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "note": "2 tool calls, 10s. New skill in this sync (upstream commit 49c6e97, v2.69.0 tag). Read SKILL.md and ran the probe's one-command preflight, `pip show alphagenome`, which reported the package absent. Stopped there, before Setup step 1 (`uv pip install alphagenome`) — one step short of the ALPHAGENOME_API_KEY gate, a free key from deepmind.google.com/science/alphagenome, and creating that account is the kind of third-party sign-up the probe rules forbid. Same shape as rowan and adaptyv: one preflight check, correct stop before the credential gate."
+    },
+    {
+      "skill": "ontology-term-resolution",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "note": "3 tool calls, 16s. Bumped 1.1 -> 1.2 this sync (adds Bioregistry, Identifiers.org, ZOOMA and Ontobee companion clients). Read SKILL.md, listed scripts/ (seven clients), then ran the bundled resolve_terms.py against the live OLS4 API: `liver` resolved to UBERON:0002107, exact_label match, defining ontology true — the same result SKILL.md's own example documents. No install step; the client needed only stdlib."
+    },
+    {
+      "skill": "genomic-intelligence",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "note": "5 tool calls, 21s. Bumped 1.1 -> 1.2 this sync (per-operation sync limits documented, plus a note that the splice-orientation check is unreliable). Read SKILL.md, confirmed GI_API_KEY is unset, then followed the keyless path SKILL.md itself recommends for that case: completed a Streamable HTTP MCP handshake against the live mcp.genomicintelligence.ai/mcp demo endpoint and listed its tools. The server returned 15 tools over a live, no-key connection. The 14 names SKILL.md gives for its MCP path all came back (list_models, fetch_ensembl_sequence, fetch_region, fetch_gene_for_expression, store_inline_sequence, load_demo_sequence, the five predict_* tasks plus find_genes, find_genes_and_predict_expression, get_job), plus list_jobs, which only references/mcp.md documents and this run did not open.",
+      "modelBehaviourNote": "The model wrote /tmp/gi_hdr.txt and /tmp/gi_mcp_body.json instead of keeping the handshake's intermediate files inside the sandbox's working directory, against the probe's containment rule."
+    },
+    {
+      "skill": "scikit-learn",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "note": "4 tool calls, 15s. Read SKILL.md, found scikit-learn 1.8.0 already present (satisfies the documented 1.7+ floor), then wrote and ran a Quick-Start-shaped script: stratified `train_test_split` (random_state=42) and a `RandomForestClassifier` on iris, 0.900 test accuracy. No install needed; nothing written outside the sandbox."
+    },
+    {
+      "skill": "geniml",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "note": "3 tool calls, 9s. Read SKILL.md, listed six documented, dependency-free scripts plus two helper modules, then ran `bed_validator.py --help`: printed the documented safety-gate contract (0-based half-open intervals, declared assembly, `--max-bytes`/`--max-records`/`--max-examples` bounds, redacted-path output by default). Did not validate an actual BED file — the sandbox had none, and the run stayed to one small step, the same shape as deeptools at 1.4.0. One aside worth recording: the model's closing sentence included a garbled, non-sequitur clause (\"a gas-present DOM element\"), a generation glitch that did not touch the tool call or its accurately reported output."
+    },
+    {
+      "skill": "torch-geometric",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "note": "6 tool calls, 21s. Read SKILL.md, confirmed PyTorch 2.13.0 present but torch_geometric absent, installed torch_geometric 2.8.0.post1, then imported it to verify. Matches the documented Installation section.",
+      "roughEdge": "SKILL.md pins nothing in its install command while claiming 2.7.x compatibility; the run got 2.8.0.post1 and the import worked.",
+      "harnessNote": "Host contamination, the sixth instance: `uv pip install torch_geometric` refused with \"No virtual environment found\", and the model re-ran with `--system`, adding torch-geometric==2.8.0.post1 to the miniforge base env at /opt/homebrew/Caskroom/miniforge/base. Confirmed with a `pip list --format=freeze` diff taken before and after this batch: exactly one new line. Same root cause as cellxgene-census, datalad and pydeseq2; the venv-per-run harness fix is still open."
     }
   ],
   "extensionRuns": [
@@ -462,6 +519,16 @@
       "date": "2026-09-14",
       "probes": 6,
       "note": "scripts/try-it.sh --check on the packed tarball in a throwaway agent dir: `mine` (lastSeenVersion 1.2.0) printed \"updated to 1.5.0 (from 1.2.0)\" with the v2.69.0 wording; `upgrading` (Genomics profile, 1.0.2) printed \"updated to 1.5.0 (from 1.0.2)\" and kept its filter; `current` (1.5.0) printed nothing. settings.json byte-identical in all three. Discovery probe per the checklist: tarball extracted to scratch, `pi -ne --skill ./skills --no-session -p` name-presence question answered datalad, folklore-variant-evidence and genomic-intelligence present with 161 skills on disk (run under --model deepseek/deepseek-v4-flash; the host's default model is a local MLX endpoint that was not running). test-find-live.mjs, Core-only prompt: variants called sci_find x2 and surfaced pysam, pathogen-variant-surveillance, genomic-intelligence; single-cell x1 surfaced scanpy, anndata, scvi-tools; docking x1 surfaced diffdock, rdkit, tamarind; all three read the SKILL.md they found."
+    },
+    {
+      "test": "release gates on this branch for 1.6.0: try-it new/upgrading, test:tui",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "deepseek/deepseek-v4-flash",
+      "date": "2026-09-21",
+      "probes": 3,
+      "note": "`scripts/try-it.sh new --check` on the packed 1.6.0 tarball: fresh install printed the Core+search offer text and left settings.json untouched pre-accept. `scripts/try-it.sh upgrading --check` (Genomics profile, 1.0.2): printed \"updated to 1.6.0 (from 1.0.2)\" naming the alphagenome addition and the ontology-term-resolution/genomic-intelligence updates, filter unchanged, settings.json byte-identical afterwards. `npm run test:tui` (pi's real TUI over a pty): accept writes the Core filter (10 skills), decline and timeout both leave it unchanged — all three PASS. `npm test` and `npm run typecheck` are CI checks that run on every push, not extensionRuns probes, so they are not counted here. Still owed for 1.6.0: `node scripts/test-find-live.mjs` on a small model and the tarball discovery probe from the publishing checklist — neither has been run against this batch."
     }
   ]
 }

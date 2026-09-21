@@ -125,7 +125,7 @@ Reasons, so this isn't reopened on every sync:
   `name: scientific-agent-skills`, `version: 2.63.0`, and upstream's repository
   URL. None of those describe this package.
 - **Rewriting it would overclaim.** A manifest under our name asserts Agent
-  Plugins conformance for hosts this package has never been run against. 37
+  Plugins conformance for hosts this package has never been run against. 43
   skills have been functionally exercised (see [Functional
   testing](#functional-testing)), all in pi, none in Cursor/Codex/Copilot.
   Advertising those clients on that basis is unsupported.
@@ -938,7 +938,32 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   status line now states what `/skill:<name>` does instead of listing where
   pi's own paths still forward literal text; those stay under "Residual
   limits".
-- The other 124 have not been exercised here; they ship as upstream ships them.
+- **1.6.0 (6), including the one skill new in the main@49c6e97 sync and the
+  two it updated:** `alphagenome` (new; read SKILL.md, ran the probe's
+  one-command preflight, `pip show alphagenome`, package absent, then
+  correctly stopped before the install step, one step short of the
+  `ALPHAGENOME_API_KEY` gate — a free DeepMind key nobody has here, and
+  getting one means creating a third-party account, which the probe rules
+  forbid), `ontology-term-resolution` (bumped to 1.2; the bundled
+  `resolve_terms.py` resolved "liver" to `UBERON:0002107` against the live
+  OLS4 API, matching SKILL.md's own example), `genomic-intelligence` (bumped
+  to 1.2; no `GI_API_KEY` set, so the model followed SKILL.md's keyless path
+  and completed a live MCP handshake against the hosted demo; the server
+  returned 15 tools, the 14 names SKILL.md gives for its MCP path plus
+  `list_jobs`, which only `references/mcp.md` documents), `scikit-learn` (Quick Start's stratified split plus a
+  `RandomForestClassifier` on iris, 0.900 test accuracy), `geniml` (ran the
+  bundled, dependency-free `bed_validator.py --help` and got back the
+  documented safety-gate contract; no real BED file in the sandbox to
+  validate), and `torch-geometric` (installed 2.8.0.post1 against the
+  existing PyTorch 2.13.0 and imported it; this run installed into the
+  host's miniforge base env with `uv pip install --system`, a sixth
+  `harnessNote`). alphagenome is graded PASS, not BLOCKED: SKILL.md's own
+  Setup was followed as far as it goes before the credential gate, the same
+  bar `rowan`, `adaptyv`, `scanpy`, `literature-review`, `dnanexus-integration`
+  and `deeptools` were held to; nothing here claims the AlphaGenome Atlas
+  itself was queried, only that pi loaded and followed the skill up to the
+  key it does not have.
+- The other 119 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
 
