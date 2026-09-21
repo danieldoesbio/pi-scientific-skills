@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
-import { documentedCount } from "./doc-count.mjs";
+import { createSuite } from "./lib/harness.mjs";
 
 // Not a skip: without pi there is no oracle, and a green run that compared
 // nothing would be the worst possible outcome for a byte-fidelity check.
@@ -35,15 +35,11 @@ const { AgentSession, parseSkillBlock } = await import(dist("agent-session.js"))
 const { loadSkillsFromDir } = await import(dist("skills.js"));
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const failures = [];
-let checks = 0;
-const check = (label, condition, detail = "") => {
-  checks++;
-  if (!condition) {
-    failures.push(`${label}${detail ? ` — ${detail}` : ""}`);
-    console.log(`  FAIL    ${label}${detail ? `\n          ${detail}` : ""}`);
-  }
-};
+const suite = createSuite("byte-identity checks against pi's own `/skill:` expansion");
+const { failures, finish } = suite;
+// Quiet: this suite reports "N/M identical" itself rather than an "ok" per
+// skill, so the shared check() only ever needs to print a FAIL.
+const check = (label, condition, detail = "") => suite.check(label, condition, detail, { quiet: true });
 
 // --- pi's side --------------------------------------------------------------
 
@@ -136,11 +132,7 @@ for (const text of ["/skill:not-a-real-skill", `/skill:${skills[0].name}\nsecond
 
 rmSync(agentDir, { recursive: true, force: true });
 
-failures.push(...documentedCount("byte-identity checks against pi's own `/skill:` expansion", checks));
-
-console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
-for (const failure of failures) console.log(`  [FAIL] ${failure}`);
-process.exit(failures.length > 0 ? 1 : 0);
+finish();
 
 /** First differing offset, so a failure says where rather than dumping two 30KB strings. */
 function diffHint(expected, actual) {

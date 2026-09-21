@@ -22,6 +22,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(root, "skills");
@@ -227,6 +228,76 @@ async function validatePackageInfo() {
         `/sci looks the package up in settings.json by this name and would find nothing`,
     );
   }
+
+  if (!/^[0-9a-f]{40}$/.test(manifest.upstreamCommit ?? "")) {
+    problems.hard.push(
+      `package.json "upstreamCommit" is "${manifest.upstreamCommit}", not a 40-hex-char commit SHA — ` +
+        `re-run \`npm run sync:upstream\``,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LICENSE.md vs. package.json's recorded hash
+// ---------------------------------------------------------------------------
+
+/**
+ * sync-upstream.sh copies LICENSE.md byte-identical from upstream and records
+ * its sha256 in package.json. A hand-edit to either file — reformatting the
+ * license, or a stale hash left over from before a re-sync — is exactly the
+ * kind of drift nothing else here would notice.
+ */
+function validateLicenseSha256() {
+  const licensePath = join(root, "LICENSE.md");
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+
+  let actual;
+  try {
+    actual = createHash("sha256").update(readFileSync(licensePath)).digest("hex");
+  } catch (error) {
+    problems.hard.push(`could not read ${licensePath} to check its recorded hash (${error?.message ?? error})`);
+    return;
+  }
+
+  if (manifest.licenseSha256 !== actual) {
+    problems.hard.push(
+      `package.json "licenseSha256" is "${manifest.licenseSha256}" but LICENSE.md actually hashes to ` +
+        `"${actual}" — re-run \`npm run sync:upstream\` or restore the recorded LICENSE.md`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Excluded skills must never reappear under skills/
+// ---------------------------------------------------------------------------
+
+/**
+ * sync-upstream.sh strips these names after every sync, but that is the only
+ * protection today — a manual `cp` from an upstream checkout bypasses it
+ * entirely. See scripts/excluded-skills.txt for why they are excluded.
+ */
+function validateExcludedSkills(onDisk) {
+  const excludedPath = join(root, "scripts", "excluded-skills.txt");
+  let excluded;
+  try {
+    excluded = readFileSync(excludedPath, "utf8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"));
+  } catch (error) {
+    problems.hard.push(`could not read ${excludedPath} (${error?.message ?? error})`);
+    return;
+  }
+
+  const onDiskSet = new Set(onDisk);
+  for (const skill of excluded) {
+    if (onDiskSet.has(skill)) {
+      problems.hard.push(
+        `skills/${skill} exists but is listed in scripts/excluded-skills.txt — ` +
+          `it must not be redistributed (see that file for why)`,
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -296,6 +367,64 @@ async function validateAliases(onDisk) {
   }
 
   console.log(`Validated aliases.ts: ${mod.ALIASES.length} rules, ${targets} skill targets`);
+}
+
+// ---------------------------------------------------------------------------
+// README's own numbers vs. what is actually true
+// ---------------------------------------------------------------------------
+
+/**
+ * README.md quotes the skill count and the run-record count in prose. Neither
+ * is derived at render time, so each is exactly the kind of number that a
+ * `skills/` sync or a new ledger run makes stale without anything else
+ * noticing — same failure mode `doc-count.mjs` guards for the test suites,
+ * applied to the two catalogue-level claims that live here instead.
+ *
+ * "37 skills have been run" is excluded from the general count (it is not a
+ * claim about the catalogue size) and checked on its own, against
+ * `testing/ledger.json`'s unique PASS skills.
+ */
+function validateReadmeCounts(onDiskCount) {
+  const readmePath = join(root, "README.md");
+  const readme = readFileSync(readmePath, "utf8");
+
+  const catalogueMatches = [...readme.matchAll(/(\d+) skills\b(?! have been run)/g)];
+  if (catalogueMatches.length === 0) {
+    problems.hard.push(`README.md no longer says "N skills" anywhere — the catalogue-size claim has gone missing`);
+  }
+  for (const match of catalogueMatches) {
+    const claimed = Number(match[1]);
+    if (claimed !== onDiskCount) {
+      problems.hard.push(
+        `README.md claims "${claimed} skills" but skills/ holds ${onDiskCount} — ` +
+          `re-run \`npm run sync:upstream\` notes or fix the prose`,
+      );
+    }
+  }
+
+  const ranMatch = readme.match(/(\d+) skills have been run/);
+  if (!ranMatch) {
+    problems.hard.push(`README.md no longer says "N skills have been run" — the run-record claim has gone missing`);
+  } else {
+    const ledgerPath = join(root, "testing", "ledger.json");
+    let uniquePass;
+    try {
+      const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
+      uniquePass = new Set(
+        ledger.runs.filter((run) => run.verdict === "PASS").map((run) => run.skill),
+      ).size;
+    } catch (error) {
+      problems.hard.push(`could not read ${ledgerPath} to check the run-record claim (${error?.message ?? error})`);
+      return;
+    }
+    const claimed = Number(ranMatch[1]);
+    if (claimed !== uniquePass) {
+      problems.hard.push(
+        `README.md claims "${claimed} skills have been run" but testing/ledger.json has ` +
+          `${uniquePass} unique PASS skills`,
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -403,7 +532,10 @@ const profiles = await loadProfiles();
 if (profiles) validateProfiles(profiles, onDiskNames);
 await validateAliases(onDiskNames);
 await validatePackageInfo();
+validateLicenseSha256();
+validateExcludedSkills(onDiskNames);
 checkTokenEstimate(profiles, corpus);
+validateReadmeCounts(onDiskNames.length);
 
 console.log(`Validated ${count} skills in ${skillsDir}`);
 console.log(`  ${modelInvocationDisabled} declare disable-model-invocation (pi hides those from the prompt only)`);

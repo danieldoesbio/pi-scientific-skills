@@ -17,19 +17,9 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
-import { documentedCount } from "./doc-count.mjs";
+import { createSuite } from "./lib/harness.mjs";
 
-const failures = [];
-let checks = 0;
-const check = (label, condition, detail = "") => {
-  checks++;
-  if (condition) {
-    console.log(`  ok      ${label}`);
-  } else {
-    failures.push(`${label}${detail ? ` — ${detail}` : ""}`);
-    console.log(`  FAIL    ${label}${detail ? `\n          ${detail}` : ""}`);
-  }
-};
+const { check, failures, finish } = createSuite("behavioural checks");
 
 // --- harness ---------------------------------------------------------------
 
@@ -169,6 +159,16 @@ console.log("-- sci_find tool --");
 
   const miss = (await tool.execute("id", { query: "book a flight to paris" })).content[0].text;
   check("honest about no match", /No skill matched/.test(miss), miss.slice(0, 80));
+
+  // A skill profiles.ts holds out of every profile (UNASSIGNED) is still a
+  // real hit — but the model should be told it is reaching for something no
+  // curated profile ever surfaces.
+  const heldOut = (await tool.execute("id", { query: "usfiscaldata" })).content[0].text;
+  check(
+    "a held-out skill's heading discloses it is not in any profile",
+    /^## usfiscaldata — not in any profile: /m.test(heldOut),
+    heldOut.slice(0, 160),
+  );
 }
 
 // --- /sci search -----------------------------------------------------------
@@ -192,6 +192,127 @@ console.log("\n-- /sci search --");
   check("does not load everything", entry.skills.length < 30, `got ${entry?.skills?.length}`);
   check("preserves hand-written overrides", entry.skills.includes("!autoskill"));
   check("reloads so it takes effect now", harness.reloadCount() === 1);
+}
+
+// --- /sci all / none / reset, and the bare menu -----------------------------
+
+/** A settings entry with one plain include and one hand-written override. */
+const withOverride = () =>
+  JSON.stringify(
+    { packages: [{ source: "pi-scientific-skills", skills: ["scanpy", "!pysam"] }] },
+    null,
+    2,
+  );
+
+const packageEntry = (written) =>
+  written.packages.find((p) => (typeof p === "string" ? p : p.source) === "pi-scientific-skills");
+
+console.log("\n-- /sci all --");
+{
+  const paths = newAgentDir();
+  writeFileSync(paths.settings, withOverride());
+  const harness = makeHarness();
+  const hooks = register(harness);
+
+  await hooks.commandHandler("all", harness.ctx);
+
+  const entry = packageEntry(JSON.parse(readFileSync(paths.settings, "utf8")));
+  check(
+    "hand-written overrides survive /sci all",
+    Array.isArray(entry?.skills) && entry.skills.includes("!pysam"),
+    JSON.stringify(entry),
+  );
+  check("the plain include is gone — nothing stays filtered", !entry.skills.includes("scanpy"));
+  check("reloads so it takes effect now", harness.reloadCount() === 1);
+}
+
+console.log("\n-- /sci none --");
+{
+  const paths = newAgentDir();
+  writeFileSync(paths.settings, withOverride());
+  const harness = makeHarness();
+  const hooks = register(harness);
+
+  await hooks.commandHandler("none", harness.ctx);
+
+  const entry = packageEntry(JSON.parse(readFileSync(paths.settings, "utf8")));
+  check(
+    "unlike /sci all, /sci none cannot carry hand-written overrides",
+    Array.isArray(entry?.skills) && entry.skills.length === 0,
+    JSON.stringify(entry?.skills),
+  );
+  check("reloads so it takes effect now", harness.reloadCount() === 1);
+}
+
+console.log("\n-- /sci reset --");
+{
+  const paths = newAgentDir();
+  writeFileSync(
+    paths.settings,
+    JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills: ["scanpy", "pysam"] }] }, null, 2),
+  );
+  writeFileSync(
+    paths.config,
+    JSON.stringify({ version: 1, onboardingSeen: true, profiles: ["single-cell-omics"] }, null, 2),
+  );
+  const harness = makeHarness();
+  const hooks = register(harness);
+
+  await hooks.commandHandler("reset", harness.ctx);
+
+  const entry = packageEntry(JSON.parse(readFileSync(paths.settings, "utf8")));
+  check(
+    "the package entry's filter is removed — no plain includes, nothing to keep it as an object",
+    typeof entry === "string" || entry.skills === undefined,
+    JSON.stringify(entry),
+  );
+  const config = JSON.parse(readFileSync(paths.config, "utf8"));
+  check("the saved profile selection is forgotten", config.profiles === undefined, JSON.stringify(config));
+  check("reloads so it takes effect now", harness.reloadCount() === 1);
+}
+
+// Unnumbered rows, reproduced from index.ts's MAIN_MENU — not exported, since
+// nothing outside the module needs to name them until PR 5 splits ui.ts out.
+const MENU_ENABLE_ALL = `Enable all ${TOTAL_SKILL_COUNT} skills`;
+const MENU_ROWS = [
+  ["Show status", { writes: false }],
+  [MENU_ENABLE_ALL, { writes: true }],
+  ["Disable all skills", { writes: true }],
+  ["Reset (forget profiles, enable all)", { writes: true }],
+  ["Cancel", { writes: false }],
+];
+
+console.log("\n-- bare /sci menu --");
+for (const [row, { writes }] of MENU_ROWS) {
+  const paths = newAgentDir();
+  writeFileSync(
+    paths.settings,
+    JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills: ["scanpy"] }] }, null, 2),
+  );
+  const harness = makeHarness({ mode: "tui", selectAnswer: () => row });
+  const hooks = register(harness);
+
+  await hooks.commandHandler("", harness.ctx);
+
+  check(`"${row}" reloads exactly when it changes something`, harness.reloadCount() === (writes ? 1 : 0));
+}
+
+console.log("\n-- bare /sci menu → Choose profiles… --");
+{
+  const paths = newAgentDir();
+  let asked = 0;
+  // First select() answers the main menu; the second is runPicker's own
+  // fallback loop (no ctx.ui.custom in this harness) — undefined cancels it.
+  const harness = makeHarness({
+    mode: "tui",
+    selectAnswer: () => (asked++ === 0 ? "Choose profiles…" : undefined),
+  });
+  const hooks = register(harness);
+
+  await hooks.commandHandler("", harness.ctx);
+
+  check("the row hands off into the picker, not straight to a plan", harness.selects.length === 2);
+  check("cancelling the picker changes nothing", harness.reloadCount() === 0 && !existsSync(paths.settings));
 }
 
 // --- first run: new user ---------------------------------------------------
@@ -302,7 +423,14 @@ console.log("\n-- upgrade (patch release, same minor line) --");
   const paths = newAgentDir();
   const PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
   const [major, minor, patch] = PACKAGE_VERSION.split(".").map(Number);
-  const prior = `${major}.${minor}.${patch > 0 ? patch - 1 : patch + 1}`;
+  // A same-minor neighbour one patch EARLIER needs patch > 0 — there is no
+  // "1.5.-1". When the running release is itself patch 0 (as it is today),
+  // going "one patch back" within its minor line lands one patch AHEAD
+  // instead, which is a same-minor DOWNGRADE, not an upgrade — and the
+  // downgrade notice, not the patch-release one, is what should fire. Both
+  // branches below are real: whichever runs depends only on the arithmetic,
+  // never on which the test author expected.
+  const prior = patch > 0 ? `${major}.${minor}.${patch - 1}` : `${major}.${minor}.${patch + 1}`;
   writeFileSync(
     paths.config,
     JSON.stringify({ version: 1, onboardingSeen: true, lastSeenVersion: prior }, null, 2),
@@ -313,13 +441,67 @@ console.log("\n-- upgrade (patch release, same minor line) --");
   await startup(hooks, harness);
 
   const notice = harness.notes[0] ?? "";
+  const config = JSON.parse(readFileSync(paths.config, "utf8"));
+
+  if (patch > 0) {
+    check(
+      "a patch bump gets the one-line notice, not the last minor release's news",
+      harness.notes.length === 1 &&
+        /updated to/.test(notice) &&
+        /Patch release/.test(notice) &&
+        !/Upstream snapshot/.test(notice),
+      notice,
+    );
+    check("and records the version", config.lastSeenVersion === PACKAGE_VERSION);
+  } else {
+    check(
+      "one patch back, same minor line, is a downgrade — the honest one-liner, not patch-release news",
+      harness.notes.length === 1 &&
+        notice === `pi-scientific-skills: running ${PACKAGE_VERSION} after ${prior}; your selection is unchanged.`,
+      notice,
+    );
+    check("a downgrade does not record the newer version it already saw", config.lastSeenVersion === prior);
+  }
+}
+
+console.log("\n-- downgrade (older release running after a newer one was seen) --");
+{
+  const paths = newAgentDir();
+  const PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+  // Unambiguous in either direction pi's version ever moves: no real release
+  // will reach 99.0.0, so this is a downgrade regardless of the running
+  // version's own major/minor/patch digits.
+  const newerSeen = "99.0.0";
+  writeFileSync(
+    paths.config,
+    JSON.stringify({ version: 1, onboardingSeen: true, lastSeenVersion: newerSeen }, null, 2),
+  );
+
+  const harness = makeHarness({ mode: "tui" });
+  const hooks = register(harness);
+  await startup(hooks, harness);
+
+  check("is told, not asked", harness.selects.length === 0 && harness.notes.length === 1);
+  const notice = harness.notes[0] ?? "";
   check(
-    "a patch bump gets the one-line notice, not the last minor release's news",
-    harness.notes.length === 1 && /updated to/.test(notice) && /Patch release/.test(notice) && !/Upstream snapshot/.test(notice),
+    "the one-liner names both versions, not the newer release's feature notes",
+    notice === `pi-scientific-skills: running ${PACKAGE_VERSION} after ${newerSeen}; your selection is unchanged.`,
     notice,
   );
+  check("no action taken on their behalf", harness.sendUserMessage.length === 0);
+
   const config = JSON.parse(readFileSync(paths.config, "utf8"));
-  check("and records the version", config.lastSeenVersion === PACKAGE_VERSION);
+  check(
+    "does not overwrite the newer version already seen — or the real upgrade notice would fire again next time",
+    config.lastSeenVersion === newerSeen,
+    JSON.stringify(config),
+  );
+
+  // A second startup while still downgraded must say it again, not go silent —
+  // unlike an upgrade, nothing was recorded to make it a one-time notice.
+  const second = makeHarness({ mode: "tui" });
+  await startup(register(second), second);
+  check("says it again next time, since nothing was recorded", second.notes.length === 1);
 }
 
 console.log("\n-- first run (already hand-filtered) --");
@@ -427,6 +609,36 @@ console.log("\n-- /sci status --");
   const output = harness.notes.join("\n");
 
   check("no filter → no /skill: line", !/\/skill:<name>/.test(output), output.slice(0, 200));
+}
+
+{
+  // An override-only glob that matches NOTHING real. Before the glob-aware
+  // fix, `removed` counted the PATTERN ("1 disabled"); a glob is not a
+  // skill, so the honest count is however many catalogue names it actually
+  // matches — here, zero, since every real skill is spelled "genomic-…",
+  // never "genomics-…".
+  const paths = newAgentDir();
+  writeFileSync(
+    paths.settings,
+    JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills: ["!genomics-*"] }] }, null, 2),
+  );
+  const harness = makeHarness();
+  const hooks = register(harness);
+
+  await hooks.commandHandler("status", harness.ctx);
+  const output = harness.notes.join("\n");
+
+  check("a glob override is marked approximate", /≈\d+\/\d+ skills/.test(output), output.slice(0, 200));
+  check(
+    "a pattern matching no real skill removes zero, not one",
+    /\(all skills minus 0 disabled elsewhere\)/.test(output),
+    output.slice(0, 200),
+  );
+  check(
+    `all ${TOTAL_SKILL_COUNT} skills stay active — the pattern named nothing real`,
+    new RegExp(`≈${TOTAL_SKILL_COUNT}/${TOTAL_SKILL_COUNT} skills`).test(output),
+    output.slice(0, 200),
+  );
 }
 
 // --- /skill:<name> under a filter -------------------------------------------
@@ -570,8 +782,4 @@ console.log("\n-- malformed settings --");
 
 for (const dir of created) rmSync(dir, { recursive: true, force: true });
 
-failures.push(...documentedCount("behavioural checks", checks));
-
-console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
-for (const failure of failures) console.log(`  [FAIL] ${failure}`);
-process.exit(failures.length > 0 ? 1 : 0);
+finish();

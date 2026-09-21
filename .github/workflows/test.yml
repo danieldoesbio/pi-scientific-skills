@@ -1,0 +1,35 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Keep this in sync with "engines.node" in package.json.
+          node-version: "22.18.0"
+
+      - name: Install pi
+        run: npm install -g @earendil-works/pi-coding-agent@0.84.3
+
+      - name: Locate pi's dist, pin PI_DIST
+        run: |
+          PI_DIST="$(npm root -g)/@earendil-works/pi-coding-agent/dist"
+          if [ ! -f "$PI_DIST/core/agent-session.js" ]; then
+            echo "::error::pi's dist layout changed — expected $PI_DIST/core/agent-session.js"
+            exit 1
+          fi
+          echo "PI_DIST=$PI_DIST" >> "$GITHUB_ENV"
+
+      # No `npm ci`/`npm install` for this repo: no dependencies, no lockfile —
+      # every module comes from the globally installed pi above.
+      - run: npm test
+
+      - run: npm run typecheck

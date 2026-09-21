@@ -22,7 +22,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
-import { documentedCount } from "./doc-count.mjs";
+import { createSuite } from "./lib/harness.mjs";
 
 // Not a skip: every suite in this package loads the extension through pi's own
 // jiti, so an installed pi is a hard prerequisite for `npm test` and pretending
@@ -39,17 +39,21 @@ const { DefaultPackageManager } = await import(
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
 const scratch = [];
-const failures = [];
+const suite = createSuite("checks that **pi itself** honours the filter");
+const { failures, finish } = suite;
 
-let checks = 0;
+// This suite's own wrapper: (label, actual, expected) rather than a bare
+// condition, printing the enabled count either way. Delegates counting and
+// the failure message to the shared suite so `finish()` still guards the
+// README phrase above.
 const check = (label, actual, expected) => {
-  checks++;
-  if (actual === expected) {
-    console.log(`  ok      ${label} → ${actual} enabled`);
-  } else {
-    failures.push(`${label}: expected ${expected} enabled, got ${actual}`);
-    console.log(`  FAIL    ${label} → ${actual} enabled, expected ${expected}`);
-  }
+  const ok = actual === expected;
+  suite.record(ok, `${label}: expected ${expected} enabled, got ${actual}`);
+  console.log(
+    ok
+      ? `  ok      ${label} → ${actual} enabled`
+      : `  FAIL    ${label} → ${actual} enabled, expected ${expected}`,
+  );
 };
 
 /**
@@ -121,18 +125,14 @@ check("overrides alone — inverts to 'everything minus'", await enabledCount(["
 // Patterns are globs, so counting the array is not counting the skills. This is
 // why `/sci status` refuses to report a number for a hand-written filter.
 const globbed = await enabledCount(["sc*"]);
-checks++;
-if (globbed > 1) {
-  console.log(`  ok      one glob pattern is not one skill → ${globbed} enabled`);
-} else {
-  failures.push(`glob "sc*" enabled ${globbed} skills; expected more than 1`);
-  console.log(`  FAIL    one glob pattern is not one skill → ${globbed} enabled`);
-}
+const globOk = globbed > 1;
+suite.record(globOk, `glob "sc*" enabled ${globbed} skills; expected more than 1`);
+console.log(
+  globOk
+    ? `  ok      one glob pattern is not one skill → ${globbed} enabled`
+    : `  FAIL    one glob pattern is not one skill → ${globbed} enabled`,
+);
 
 for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
 
-failures.push(...documentedCount("checks that **pi itself** honours the filter", checks));
-
-console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
-for (const failure of failures) console.log(`  [FAIL] ${failure}`);
-process.exit(failures.length > 0 ? 1 : 0);
+finish();

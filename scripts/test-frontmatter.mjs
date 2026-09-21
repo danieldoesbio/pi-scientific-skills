@@ -37,7 +37,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
-import { documentedCount } from "./doc-count.mjs";
+import { createSuite } from "./lib/harness.mjs";
 
 // Not a skip: without pi there is no oracle, and a green run that compared
 // nothing would be the worst possible outcome for a parity check.
@@ -55,15 +55,11 @@ const { parseFrontmatter: localParse } = await loadExtensionModule("extensions/f
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
 const SKILLS_DIR = join(ROOT, "skills");
 
-const failures = [];
-let checks = 0;
-const check = (label, condition, detail = "") => {
-  checks++;
-  if (!condition) {
-    failures.push(`${label}${detail ? ` — ${detail}` : ""}`);
-    console.log(`  FAIL    ${label}${detail ? `\n          ${detail}` : ""}`);
-  }
-};
+const suite = createSuite("frontmatter parity checks");
+const { failures, finish } = suite;
+// Quiet: this suite reports "N/M parse like pi's parser" itself rather than
+// an "ok" per document, so the shared check() only ever needs to print a FAIL.
+const check = (label, condition, detail = "") => suite.check(label, condition, detail, { quiet: true });
 
 // --- "has frontmatter", derived from pi's own behaviour ---------------------
 
@@ -171,10 +167,6 @@ for (const [label, text] of Object.entries(SYNTHETIC)) {
   runDocument(label, text);
 }
 
-console.log(`\n  ${checks - failures.length}/${checks} documents parse like pi's parser`);
+console.log(`\n  ${suite.checks - failures.length}/${suite.checks} documents parse like pi's parser`);
 
-failures.push(...documentedCount("frontmatter parity checks", checks));
-
-console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} problem(s)`);
-for (const failure of failures) console.log(`  [FAIL] ${failure}`);
-process.exit(failures.length > 0 ? 1 : 0);
+finish();

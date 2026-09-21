@@ -199,6 +199,26 @@ const packageDir = stageTarball(scratch);
 const agentDir = seedAgentDir(scratch, packageDir, [...core.skills]);
 console.log(`agent dir: ${agentDir} (Core only — ${core.skills.length} skills in the prompt)\n`);
 
+// The agent dir holds a copy of the real API key (seedAgentDir's auth.json
+// copy). A kill mid-run — Ctrl-C, a CI job timeout's SIGTERM — must not let
+// that copy outlive the process, so clean up on every exit path, not only the
+// successful one at the bottom of the script.
+let agentDirCleaned = false;
+const cleanupAgentDir = () => {
+  if (agentDirCleaned) return;
+  agentDirCleaned = true;
+  rmSync(agentDir, { recursive: true, force: true });
+};
+process.on("exit", cleanupAgentDir);
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    cleanupAgentDir();
+    // Re-raise the conventional 128+signum code (130 / 143) instead of this
+    // script's own 0/1/2, so whatever killed it sees "killed", not a verdict.
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  });
+}
+
 const failures = [];
 /** Setup problems — reported separately so they can never read as a verdict. */
 const errors = [];
@@ -293,8 +313,8 @@ for (const [index, probe] of PROBES.entries()) {
   }
 }
 
-// The agent dir holds a copy of the real API key, so it goes regardless of --keep.
-rmSync(agentDir, { recursive: true, force: true });
+// Goes regardless of --keep — only the transcripts are worth keeping.
+cleanupAgentDir();
 if (opts.keep) {
   console.log(`\ntranscripts: ${outDir}`);
 } else {
