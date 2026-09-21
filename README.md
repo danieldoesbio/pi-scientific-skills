@@ -149,7 +149,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
   `/skill:../../etc/passwd` is not),
   487 byte-identity checks against pi's own `/skill:` expansion (every skill,
-  three argument forms), 29 ranking checks against the real 161 descriptions,
+  three argument forms), 40 ranking checks against the real 161 descriptions,
   and 7 checks that **pi itself** honours the filter through a real
   `DefaultPackageManager`. The first-run offer is driven through **pi's real
   TUI** over a pty. `npm run try` opens this package

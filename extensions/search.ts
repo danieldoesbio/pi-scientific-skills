@@ -212,7 +212,9 @@ const matchesWord = (haystack: string, term: string): boolean =>
 
 /**
  * Length floor for punctuation-insensitive matching ("rnaseq" ↔ "rna-seq").
- * Below this, compacted substrings produce far more noise than signal.
+ * Below this, compacted substrings produce far more noise than signal. A bare
+ * five-letter word can still substring-match inside a longer word ("taxes"
+ * inside "syntaxes"); accepted.
  */
 const MIN_COMPACT_LENGTH = 5;
 
@@ -232,19 +234,39 @@ interface Expansion {
 }
 
 /**
+ * Whether a curated alias trigger phrase fires against a raw query.
+ *
+ * Matches as whole words, not raw substrings — "bam" must not fire on
+ * "bamboo". Built against the RAW lowercased query, never `normalizeTerms`:
+ * trigger phrases like "tree of life" and "dock a ligand" contain stopwords
+ * `normalizeTerms` strips, which would break the match entirely. A short
+ * compacted fallback still lets punctuation-insensitive forms match
+ * ("rnaseq" for the "rna-seq" trigger).
+ */
+const matchesPhrase = (query: string, phrase: string): boolean => {
+  const words = phrase.split(/[\s-]+/).filter(Boolean).map(escapeRegex);
+  const pattern = new RegExp(`\\b${words.join("[\\s-]+")}\\b`, "i");
+  if (pattern.test(query.toLowerCase())) return true;
+
+  const phraseCompact = compact(phrase.toLowerCase());
+  if (phraseCompact.length < MIN_COMPACT_LENGTH) return false;
+  return compact(query.toLowerCase()).includes(phraseCompact);
+};
+
+/**
  * Apply the curated alias rules to a raw query.
  *
- * Rules trigger on phrases matched against the whole normalized query string,
- * so multi-word triggers ("survival analysis") work and single words still hit.
+ * Rules trigger on phrases matched against the raw query as whole words, so
+ * multi-word triggers ("survival analysis") require the words together, in
+ * order, and single words still hit — but "book" can never fire "bam".
  */
 export const expandQuery = (query: string): Expansion => {
   const typed = normalizeTerms(query);
-  const haystack = ` ${compact(query.toLowerCase())} `;
   const extra: string[] = [];
   const boosted = new Set<string>();
 
   for (const alias of ALIASES) {
-    const hit = alias.match.some((phrase) => haystack.includes(compact(phrase.toLowerCase())));
+    const hit = alias.match.some((phrase) => matchesPhrase(query, phrase));
     if (!hit) continue;
     for (const term of alias.terms ?? []) extra.push(...normalizeTerms(term));
     for (const skill of alias.skills ?? []) boosted.add(skill);
@@ -266,16 +288,24 @@ const ALIAS_BOOST = 4;
 const EXACT_NAME_BONUS = 10;
 
 /**
- * Anything scoring below this is withheld entirely.
+ * Anything scoring below the floor is withheld entirely.
  *
- * One weak description hit (score 1) is noise — with 157 skills and common
- * words like "data", something always scores 1. Two points means either a name
- * hit or two independent description hits, which is the floor for saying
- * anything at all.
+ * Normally two points: one weak description hit (score 1) is noise — with 157
+ * skills and common words like "data", something always scores 1. Two points
+ * means either a name hit or two independent description hits, which is the
+ * floor for saying anything at all.
+ *
+ * Exception: a single un-aliased term ("statistics") can earn at most one
+ * description point even on a perfect match, so a floor of two would always
+ * return nothing for that exact query shape. The floor drops to one only when
+ * there is exactly one typed term and no alias boosted anything — a query
+ * with two terms, or one an alias recognizes, still needs two.
  */
 const MIN_SCORE = 2;
 
 export const DEFAULT_LIMIT = 8;
+/** Caller-supplied ceiling for `limit` — index.ts clamps to this. */
+export const MAX_LIMIT = 20;
 
 /**
  * Rank the catalogue against a query.
@@ -291,6 +321,7 @@ export const search = (
   const { terms, boosted } = expandQuery(query);
   if (terms.length === 0 && boosted.size === 0) return [];
 
+  const floor = terms.length === 1 && boosted.size === 0 ? DESCRIPTION_WEIGHT : MIN_SCORE;
   const wholeQuery = compact(query.toLowerCase());
   const hits: SearchHit[] = [];
 
@@ -315,7 +346,7 @@ export const search = (
     if (boosted.has(entry.name)) score += ALIAS_BOOST;
     if (wholeQuery.length >= 3 && nameCompact === wholeQuery) score += EXACT_NAME_BONUS;
 
-    if (score >= MIN_SCORE) hits.push({ entry, score });
+    if (score >= floor) hits.push({ entry, score });
   }
 
   // Ties break by name so results are deterministic across runs — a flapping

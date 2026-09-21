@@ -44,7 +44,23 @@ const QUERIES = [
   ["query clinical trials for a condition", ["clinical-decision-support", "database-lookup"]],
   ["train a graph neural network on molecules", ["torch-geometric", "torchdrug", "deepchem"]],
   ["geospatial raster analysis", ["geopandas", "geomaster"]],
+  // Single-word queries: the MIN_SCORE floor drops to one description point
+  // for this exact shape (one un-aliased term, nothing boosted), so a plain
+  // word that matches a description now surfaces something instead of
+  // nothing. The corpus spells it "statistical" (adjective), never
+  // "statistics" (noun), so the noun reaches statistical-analysis only
+  // through its alias trigger; the adjective reaches it through the floor.
+  ["statistical", ["statistical-analysis"]],
+  ["statistics", ["statistical-analysis"]],
+  ["genome", ["genomic-coordinates"]],
+  ["medical image segmentation", ["pydicom", "histolab"]],
 ];
+
+/**
+ * Queries that must rank a specific skill FIRST, not merely present.
+ * `mustBeFirst` is checked against `names[0]`.
+ */
+const RANKED = [["variant calling from a bam file", "pysam"]];
 
 /**
  * Queries that must return nothing at all.
@@ -59,6 +75,15 @@ const NEGATIVES = [
   "book a flight to paris",
   "asdfghjkl",
   "remind me to call my mother",
+  // Whole-word alias matching (matchesPhrase): these caught real substring
+  // false positives before the fix ("bam" inside "bamboo", "gen"/"deg"-style
+  // fragments inside unrelated words).
+  "bamboo growth",
+  "protein degradation",
+  "lunch",
+  "plumbing",
+  "gossip",
+  "furniture",
 ];
 
 const failures = [];
@@ -115,6 +140,18 @@ for (const query of NEGATIVES) {
     note(`  FAIL  ${query} → ${shown}`);
   } else {
     note(`  ok      ${query}`);
+  }
+}
+
+note("\n-- must rank first --");
+for (const [query, mustBeFirst] of RANKED) {
+  checks++;
+  const names = search.search(catalog, query, TOP_N).map((hit) => hit.entry.name);
+  if (names[0] !== mustBeFirst) {
+    failures.push(`"${query}" must rank "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`);
+    note(`  FAIL  ${query}\n        want "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`);
+  } else {
+    note(`  ok      ${query} → ${mustBeFirst}`);
   }
 }
 
