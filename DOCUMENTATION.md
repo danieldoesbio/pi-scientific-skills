@@ -634,7 +634,10 @@ Pi does not require the name to match its parent directory.
 - Parses YAML frontmatter with a line-based parser covering the constructs this
   collection actually uses: plain scalars, quoted scalars, and block scalars
   (`>`/`|` with chomping and indent indicators). Nested mappings (`metadata:`)
-  are consumed and skipped — none are validated.
+  are consumed and skipped — none are validated. The fence-finding step copies
+  pi's own algorithm (BOM strip, newline normalization, fence required at
+  offset 0) rather than a permissive regex, and is checked field by field
+  against pi's real parser by `scripts/test-frontmatter.mjs`.
 - Reports violations of the table above; exits non-zero when a skill is missing
   its `description` (pi would refuse to load it) or when `extensions/profiles.ts`
   disagrees with `skills/`.
