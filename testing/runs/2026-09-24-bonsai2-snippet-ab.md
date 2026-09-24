@@ -1,7 +1,9 @@
 # Run notebook: `sci_find` prompt snippet, A/B pilot (Bonsai 2 27B)
 
-**Status: planned. Predictions and the decision rule are written before any
-model call.**
+**Status: stopped early (2026-09-24 10:13 to 11:14), 15 of 20 probes on both
+arms plus `paper-lookup` on the treatment arm. Predictions and the decision rule
+were written before any model call. Stopped by decision: the control arm was at
+the ceiling, and a larger run was planned instead (see "Next").**
 
 ## Question
 
@@ -66,6 +68,20 @@ One probe per arm. Pass conditions:
 If the control arm loads the treatment code, or the reverse, stop: the pilot
 would measure nothing.
 
+**Smoke check result (2026-09-24, before the pilot): pass.**
+
+- Each arm's own loader and pi's own `buildSystemPrompt` (pi 0.84.3), with no
+  skills: the control has no snippet and no guideline, and "- sci_find:" is
+  not in its prompt. The treatment prompt has both. It is 272 characters
+  longer, and the tool description is 109 characters longer. Neither prompt
+  has an `<available_skills>` block.
+- Live, probe `scanpy` (not a pilot probe), one attempt per arm. First
+  request (pi usage, input + cache read): control 1,862 tokens, treatment
+  1,951 tokens, **+89**. Inside the predicted 60 to 110. Both reached `scanpy`
+  through `sci_find` in response 1.
+- pi's session record does not hold the system prompt, so the live check
+  rests on the token difference, not on the request text.
+
 ## Outcomes
 
 - **Primary:** of the 12 no-search probes, how many call `sci_find` in
@@ -110,4 +126,41 @@ If rule 2 fails, look at the transcript before any decision.
 
 ## Results
 
-(Not run yet.)
+Stopped after probe 15 (`matplotlib`). Not run: `scientific-critical-thinking`,
+`scientific-visualization`, `scientific-writing`, `statistical-analysis`, and
+`paper-lookup` on the control arm. One attempt per probe per arm.
+
+| | Control (1.6.0) | Treatment (1.7.0) |
+|---|---|---|
+| No-search 12: `sci_find` in response 1 | 11/12 | 11/12 |
+| No-search 12: reached | 11/12 | 11/12 |
+| Core probes run: reached | 3/3 | 4/4 |
+| Timeouts (1200 s) | 1 of 15 | 1 of 16 |
+| First request, tokens (range) | 1,835–1,857 | 1,925–1,948 |
+
+- **The misses differ.** Control: `pytorch-lightning`, bash only, no
+  `sci_find`, timeout. Treatment: `parallel-web`, timeout. In the treatment
+  miss the model listed its tools in its thinking, with `sci_find` as
+  "searching scientific skills", then treated a web-search task as outside
+  that scope and wrote its own page-watch script for 1200 s. The snippet made
+  the tool visible; its word "scientific" may have made it look off-topic.
+  One case at temperature 1.0: this can be chance.
+- **Rule 1 fails** (treatment − control = 0, not ≥ 3). **Rule 2 holds** on the
+  Core probes that ran (no Core probe that the control reached was missed).
+  By the pre-set rule, keep the change and record that the pilot showed no
+  effect on search rate.
+- **Why no effect could show:** the control arm searched in response 1 on 11
+  of 12 probes that each had a no-search attempt on 2026-09-23. This is the
+  regression to the mean stated under "Limits": the selection was a miss at
+  temperature 1.0, not a stable property of the probe.
+- **Cost:** the 1.7.0 prompt text adds about 90 tokens to the first request.
+- Raw results and transcripts: scratch only, not archived in git.
+
+## Next
+
+- Widen the wording from "scientific" to scientific, research and analysis
+  work, without naming web search (that would fit `parallel-web` directly).
+- A larger overnight run: 1.6.0 default (Core listed) against 1.7.0 default
+  (nothing listed), and 1.7.0 against all 162 skills listed without
+  `sci_find`. Endpoint: the model reads the target's `SKILL.md`. Speed and
+  context are measured, not only the reach rate.
