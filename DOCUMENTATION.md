@@ -648,7 +648,14 @@ a fake `HOME`, `TMPDIR`, working directory and session file), the staged
 package read-only, and for a loopback provider the network limited to that one
 port. pi gets an allowlisted environment, not the caller's: the model can run
 `printenv`, and a shell environment carries tokens and paths into the real home.
-`--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
+The profile also denies programs that act through another process, outside the
+sandbox: `launchctl` (launchd starts a loaded job unsandboxed), `open`,
+`osascript`, `automator` and `shortcuts`, and it blocks Apple events. A model
+asked for "a recurring check" tried `launchctl load` (parallel-web,
+2026-09-23); it failed only on a wrong path. Limits that remain: the model
+can reach its own inference server on the allowed port (one model sent itself
+chat completions with `curl`), and it can see host process names (`pgrep`,
+`lsof`). `--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
 so no attempt can read another's.
 
 With `--probes testing/find-probes.json` it runs one supervised probe per skill

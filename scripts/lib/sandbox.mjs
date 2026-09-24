@@ -16,6 +16,14 @@ export const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 /** Trees no probe needs: the real home, other volumes, and the shared temp dirs. */
 const PRIVATE_ROOTS = ["/Users", "/Volumes", "/private/var/folders", "/private/tmp"];
 
+/**
+ * Programs that act through another process, outside this sandbox: launchd
+ * starts a loaded job unsandboxed, `open` asks LaunchServices to start an app
+ * or a URL, and Apple events drive running apps. A model asked for "a
+ * recurring check" tried `launchctl load` (parallel-web, 2026-09-23).
+ */
+const HOST_CONTROL = ["/bin/launchctl", "/usr/bin/open", "/usr/bin/osascript", "/usr/bin/automator", "/usr/bin/shortcuts"];
+
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 export function sandboxAvailable() {
@@ -63,6 +71,8 @@ export function sandboxProfile({ readWrite, readOnly, network }) {
     ...PRIVATE_ROOTS.map((path) => `(deny file-read* file-write* (subpath "${path}"))`),
     '(deny file-write* (subpath "/"))',
     '(allow file-write* (subpath "/dev"))',
+    `(deny process-exec ${HOST_CONTROL.map((path) => `(literal "${path}")`).join(" ")})`,
+    "(deny appleevent-send)",
     ...parents.map((path) => `(allow file-read-metadata (literal ${JSON.stringify(path)}))`),
     ...ro.map((path) => `(allow file-read* (subpath ${JSON.stringify(path)}))`),
     ...rw.map((path) => `(allow file-read* file-write* (subpath ${JSON.stringify(path)}))`),
