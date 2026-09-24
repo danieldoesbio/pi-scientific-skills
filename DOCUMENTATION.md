@@ -635,6 +635,88 @@ the test. It copies `auth.json` into the throwaway dir (deleted at exit,
 including under `--keep`): without that, every probe fails with "No API key
 found" and the run reports a model that declined to call the tool when in fact
 no model ran. It separates "never ran" from "declined" for exactly that reason.
+It copies `models.json` too, so a local provider (Ollama, MLX) resolves; a
+model served on loopback gets no copy of `auth.json` at all.
+
+The model keeps pi's default tools: restricting them to `read,sci_find` leaves
+it little else to do but search, which inflates the score. Some probe tasks
+invite real action ("review my screen activity"), and with bash a model will
+try — an unsandboxed run once searched the whole home directory. So every pi
+run happens under a macOS `sandbox-exec` profile (`scripts/lib/sandbox.mjs`):
+reads and writes only inside that attempt's own directory (its agent-dir copy,
+a fake `HOME`, `TMPDIR`, working directory and session file), the staged
+package read-only, and for a loopback provider the network limited to that one
+port. pi gets an allowlisted environment, not the caller's: the model can run
+`printenv`, and a shell environment carries tokens and paths into the real home.
+`--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
+so no attempt can read another's.
+
+With `--probes testing/find-probes.json` it runs one supervised probe per skill
+instead of the three built-in ones (`scripts/lib/converse.mjs`): 162
+first-person tasks that never name their skill, each with a `target` and an
+optional `accept` list of siblings that also fit. A probe is up to
+`--attempts` (3) fresh conversations of up to `--responses` (5) model
+responses. Between responses a blind persona (`scripts/lib/supervisor.mjs`,
+`claude-opus-5-5` at low effort via the `claude` CLI) plays the scientist: it
+answers follow-up questions and ends the conversation when the request is
+answered. It sees only the task and the assistant's visible text — never the
+target, the tool calls or `sci_find` output. The target *reaches* the model
+when a `sci_find` result lists it, a bash command's output points at it, or a
+file inside it is read; a result naming more than 20 skills is a catalogue dump
+and counts for none. An attempt that ends without a reach is wiped and the
+probe starts again. Grade: reached in attempt 1 = `success`, 2 =
+`partial-success`, 3 = `functional`, never = `fail`, reported for the target
+alone and for target-or-accepted. The harness polls the session while the
+model works and stops the response the moment the target is reached
+(`stoppedEarly`); nothing after that changes the grade. A response past
+`--timeout` ends its attempt and the attempt counts. The limit is a budget per
+response, not a loop detector — a slow local model can spend it on real work —
+so each timeout is flagged and the summary counts the grades a timeout
+touched. `no-run` and `supervisor-error` are harness
+failures and never a grade. Persona replies that name a skill the assistant
+never said, or nudge toward search, are flagged for review. `--results`
+appends one JSON line per probe as it finishes and `--resume` skips graded
+ones, so a long local-model batch survives a restart. `--offline` spends
+nothing: it ranks each task's full text through `sci_find`'s own search, to
+tell a vague probe or a search gap apart from a model that did not search.
+`--prompt-skills none` empties the skills filter, so no skill is listed in
+the system prompt and `sci_find` is the only way in; the default, `core`,
+lists the Core profile, where a listed skill can stand in for a search. Each
+result line records which one ran. Two summary lines show recovery: the
+response in which the target was reached, and every attempt split by when it
+first called `sci_find` (response 1, later, never) with how many of each
+reached the target. A late first search that still reaches is recovery inside
+a conversation; a grade below `success` is recovery by a fresh attempt.
+
+A fail can mean the probe, not the model, is wrong: the model answered the
+request well without the skill. `scripts/lib/probe-check.mjs` checks each
+graded probe, whatever its final grade, in which the persona ended an attempt
+satisfied before any wanted skill reached the model. A judge (`--judge-model`, default
+`claude-fable-5-1`, via the `claude` CLI) sees the task, the target's
+SKILL.md and that attempt's conversation. It answers two questions: (a) did
+the first request go unserved while the target could have served it in the
+sandbox (drift the model caused), and (b) would the target have materially
+improved the model's answer? Being on topic is not enough, and a yes must
+name the concrete gap the target fills; an unnamed benefit counts as no. When
+every judged attempt is no on both, the line gets `probeCheck.invalid`. It
+keeps its raw grade, but the summary counts it as `probe-invalid`, leaves it
+out of the grades and the recovery lines, and lists it with the judge's
+reason as a probe to rewrite. A probe reached in its first attempt is never
+audited, so a probe that did not need its skill but was searched at once
+keeps its success: the summary therefore also prints the raw target line,
+with each probe-invalid at its raw grade, and a report quotes both.
+`scripts/check-probes.mjs <results.jsonl> --transcripts <dir> -o <file>`
+runs the check again on a finished run from its kept transcripts (for a run
+made before the check or its current rule, or with another judge), and
+writes the latest line per probe with a fresh `probeCheck`. A judge failure is `check-error`: the grade stands and the
+run goes on. Rewrites must make the skill necessary and must not name it.
+Probes the model failed where the skill was needed are never rewritten, so
+the score cannot drift upward through prompt edits. Each line records its
+`task` text: `--resume` and the summary count a line only for the probe's
+current wording, so a rewritten probe runs fresh. A probe with `untestable`
+set (a skill that runs only on local state the sandbox cannot supply) loads
+but never runs. Each run names it at the start, and `--only` refuses it.
+`testing/README.md` records the criterion and each case.
 
 ## Port process (how a new upstream version lands)
 
