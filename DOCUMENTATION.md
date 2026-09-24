@@ -652,7 +652,7 @@ The profile also denies programs that act through another process, outside the
 sandbox: `launchctl` (launchd starts a loaded job unsandboxed), `open`,
 `osascript`, `automator` and `shortcuts`, and it blocks Apple events. A model
 asked for "a recurring check" tried `launchctl load` (parallel-web,
-2026-09-23); it failed only on a wrong path. Limits that remain: the model
+2026-09-23); it failed, probably on a wrong path. Limits that remain: the model
 can reach its own inference server on the allowed port (one model sent itself
 chat completions with `curl`), and it can see host process names (`pgrep`,
 `lsof`). `--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
