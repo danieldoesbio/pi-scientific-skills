@@ -4,6 +4,13 @@ This file records which skills the live search test cannot cover, and why.
 The harness itself (`scripts/test-find-live.mjs`, the supervised probes in
 `find-probes.json`) is described in `DOCUMENTATION.md`.
 
+Results of the live search test:
+
+- [`report.md`](report.md): what was tested, how, and the results.
+- [`analysis.md`](analysis.md): what the results mean for `sci_find`, the
+  changes tested offline, and the proposed next experiment.
+- [`runs/`](runs/): one notebook per run, the full lab record.
+
 ## Untestable skills
 
 The supervised live test cannot test a skill when both of these are true:
