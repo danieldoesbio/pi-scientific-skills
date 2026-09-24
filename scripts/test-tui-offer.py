@@ -2,8 +2,9 @@
 """Drive pi's real TUI through a pty and check the first-run offer.
 
 Plan item 6 called this "manual", but the load-bearing half is mechanical and
-so is checked here instead of trusted: does *accepting* actually write the Core
-filter, and do *declining* and *timing out* really write nothing?
+so is checked here instead of trusted: does *accepting* actually write the
+search-mode filter (an empty list), and do *declining* and *timing out* really
+write nothing?
 
 That path was silently broken until `expandPromptTemplates: true` landed —
 `pi.sendUserMessage` defaults it to false, so the accepted offer was delivered
@@ -30,8 +31,10 @@ import argparse, json, os, pty, re, select, shutil, subprocess, tempfile, time
 from pathlib import Path
 
 # Rows the offer writes, and what each must leave behind.
+# Only the accept row has "search mode:" with a colon; it paints last.
+MARKER = "search mode:"
 EXPECT = {
-    "accept": {"filtered": True, "profiles": ["core"]},
+    "accept": {"filtered": True, "profiles": []},
     "decline": {"filtered": False, "profiles": None},
     "timeout": {"filtered": False, "profiles": None},
 }
@@ -88,7 +91,7 @@ def _drive(mode: str, scratch: Path, agent: Path) -> list[str]:
                     break
                 out += chunk
             text = out.decode("utf8", "replace")
-            if not sent and "load Core" in text:
+            if not sent and MARKER in text:
                 time.sleep(1.2)                       # let the list finish painting
                 if mode == "accept":
                     os.write(fd, b"\r")               # first row is the recommended one
@@ -120,13 +123,13 @@ def _drive(mode: str, scratch: Path, agent: Path) -> list[str]:
 
     problems = []
     want = EXPECT[mode]
-    if "load Core" not in clean:
+    if MARKER not in clean:
         problems.append(f"{mode}: the offer never rendered — nothing was tested")
     elif want["filtered"]:
         if skills is None:
             problems.append(f"{mode}: accepted, but no skills filter was written")
-        elif len(skills) != 10:
-            problems.append(f"{mode}: expected Core's 10 skills, got {len(skills)}")
+        elif len(skills) != 0:
+            problems.append(f"{mode}: expected search mode's empty filter, got {len(skills)} skills")
     elif skills is not None:
         problems.append(f"{mode}: wrote a {len(skills)}-skill filter for someone who did not consent")
 

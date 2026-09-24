@@ -38,6 +38,14 @@ export const describeCost = (skillCount: number): string => {
   return `${skillCount}/${TOTAL_SKILL_COUNT} skills, ~${formatTokens(cost)} tokens${savings}`;
 };
 
+/**
+ * An empty `skills` filter is search mode, not "off": no skill is in the
+ * system prompt, and `sci_find` still reaches every one. Callers add the
+ * "Search mode:" prefix in the case their sentence needs.
+ */
+export const describeSearchMode = (): string =>
+  `no skills in the system prompt (${describeCost(0)}); ${TOOL_NAME} finds all ${TOTAL_SKILL_COUNT} on demand`;
+
 /** Union of every toggled group's skills — profiles overlap heavily by design. */
 export const skillsForSelection = (selected: ReadonlySet<string>): string[] => {
   const skills = new Set<string>();

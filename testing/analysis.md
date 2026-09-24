@@ -150,7 +150,9 @@ In order of evidence:
    the 12 valid probes with a no-search attempt: `dask`,
    `exploratory-data-analysis`, `fluidsim`, `genomic-intelligence`, `matlab`,
    `modal`, `open-notebook`, `parallel-web`, `polars`, `pysam`,
-   `pytorch-lightning`, `qutip`.
+   `pytorch-lightning`, `qutip`. **Implemented in 1.7.0** (snippet, one
+   guideline, one more scope sentence in the description), together with
+   search mode that loads no skills. The A/B pilot is pending.
 5. **Open hypotheses for offline tests:** IDF weighting; a `profile` value
    that is not a profile falling back to the query (the model confused the
    two once in 183 calls).

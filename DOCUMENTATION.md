@@ -300,14 +300,41 @@ absolute `SKILL.md` path for the model to `read`. That is mechanically identical
 to how pi loads a skill natively, one level further down: descriptions deferred
 rather than bodies.
 
-`/sci search` applies Core (10 skills, ~1.4k tokens) through the same
-`commitPlan` path everything else uses — deliberately **no second write path**,
-so the empty-array footgun handling below stays single-sourced.
+`/sci search` writes an empty `skills` filter — no skill in the system prompt,
+~0 tokens — through the same `commitPlan` path everything else uses —
+deliberately **no second write path**, so the empty-array footgun handling
+below stays single-sourced. `/sci none` is an alias: while `sci_find` is
+registered, an empty filter is search mode, not "off".
+
+**Why no skills, since 1.7.0.** Before 1.7.0, search mode loaded the ten Core
+skills (~1.4k tokens). The 2026-09-23 live test
+([`testing/report.md`](testing/report.md)) ran a 27B local model with no skill
+in its prompt: it reached all ten Core targets through `sci_find` (8 on the
+first attempt), and 143 of 157 valid targets overall. The risk, stated: the two
+Core probes below first-attempt success (`exploratory-data-analysis`, `polars`)
+were attempts that never searched. With Core in the prompt, those skills would
+have been listed. The `promptSnippet` below exists to cover that, and a live
+A/B pilot measures it (`testing/runs/`). Profiles still put a field's skills in
+the prompt for anyone who wants them there. Existing users keep their filter;
+the 1.7.0 upgrade notice tells them how to switch.
+
+**`sci_find` in the system prompt, since 1.7.0.** pi lists a custom tool under
+"Available tools" only when it has a `promptSnippet` (`system-prompt.js`
+filters on it); until 1.7.0 the model saw `sci_find` only in the tool schema.
+In the 2026-09-23 test, 15 of the 19 misses on valid probes were attempts that
+never called it. The tool now carries a one-line snippet and one guideline:
+use `sci_find` before writing code, installing a package or setting up a
+service for a scientific, data or research task. pi appends guidelines flat to
+its own list, so the guideline names the tool. `test-extension.mjs` renders
+both through pi's own `buildSystemPrompt`. Known trade-off: "data" lets the
+guideline fire in ordinary data-coding sessions, which costs one tool call. The
+live tests cannot measure that, because every probe has a target.
 
 **Design decisions worth not re-deriving:**
 
-- **The tool is registered unconditionally**, not behind a mode flag. ~150 tokens
-  of tool definition against a ~23k index is not a trade worth a config toggle,
+- **The tool is registered unconditionally**, not behind a mode flag. About 200
+  tokens of tool definition, snippet and guideline against a ~23k index is not
+  a trade worth a config toggle,
   and someone running all 162 still benefits from looking a skill up by need
   rather than by name. `/sci status` says so.
 - **Recall beats precision.** `sci_find` does not have to pick the right skill,
@@ -594,7 +621,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
-| `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes Core, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
+| `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
 
@@ -628,8 +655,8 @@ Two things are worth knowing before changing these:
 
 `scripts/test-find-live.mjs` is the release gate and is **not** in `npm test`
 because it spends tokens. It installs the packed tarball into a throwaway agent
-dir filtered to Core and asks a small model three questions whose skills are not
-loaded, then checks the transcript for a `sci_find` call. If a weak model does
+dir in search mode (no skill in the prompt) and asks a small model three
+questions whose skills are not loaded, then checks the transcript for a `sci_find` call. If a weak model does
 not reach for the tool, the tool description and `aliases.ts` are the fix — not
 the test. It copies `auth.json` into the throwaway dir (deleted at exit,
 including under `--keep`): without that, every probe fails with "No API key
@@ -686,10 +713,12 @@ appends one JSON line per probe as it finishes and `--resume` skips graded
 ones, so a long local-model batch survives a restart. `--offline` spends
 nothing: it ranks each task's full text through `sci_find`'s own search, to
 tell a vague probe or a search gap apart from a model that did not search.
-`--prompt-skills none` empties the skills filter, so no skill is listed in
-the system prompt and `sci_find` is the only way in; the default, `core`,
-lists the Core profile, where a listed skill can stand in for a search. Each
-result line records which one ran. Two summary lines show recovery: the
+`--prompt-skills none` (the default since 1.7.0, matching `/sci search`)
+empties the skills filter, so no skill is listed in the system prompt and
+`sci_find` is the only way in; `core` lists the Core profile, what
+`/sci search` wrote before 1.7.0, where a listed skill can stand in for a
+search. Each result line records which one ran; a line from before the option
+existed counts as `core`. Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it
 first called `sci_find` (response 1, later, never) with how many of each
 reached the target. A late first search that still reaches is recovery inside

@@ -13,9 +13,6 @@ const TOOL_NAME = "sci_find";
 /** pi's own prefix for forcing a skill (agent-session.js:957). */
 const SKILL_COMMAND_PREFIX = "/skill:";
 
-/** The profile applied by `/sci search` — the everyday-work baseline. */
-const DEFAULT_PROFILE_ID = "core";
-
 const SUBCOMMANDS = ["status", "profiles", "search", "find", "all", "none", "reset"] as const;
 type Subcommand = (typeof SUBCOMMANDS)[number];
 
@@ -24,7 +21,6 @@ export {
   CONFIG_VERSION,
   TOOL_NAME,
   SKILL_COMMAND_PREFIX,
-  DEFAULT_PROFILE_ID,
   SUBCOMMANDS,
 };
 export type { Subcommand };

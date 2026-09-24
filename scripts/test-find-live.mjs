@@ -43,10 +43,12 @@
 //                      (scripts/lib/converse.mjs).
 //   --attempts <n>     Default 3.
 //   --responses <n>    Default 5.
-//   --prompt-skills <core|none>  Which skills the system prompt lists. core
-//                      (default): the Core profile, as a fresh install ships.
-//                      none: an empty filter, so sci_find is the only way to
-//                      any skill. Recorded on every result line.
+//   --prompt-skills <none|core>  Which skills the system prompt lists. none
+//                      (default): an empty filter, the configuration
+//                      `/sci search` writes since 1.7.0, so sci_find is the
+//                      only way to any skill. core: the Core profile, what
+//                      `/sci search` wrote before 1.7.0. Recorded on every
+//                      result line.
 //   --supervisor-model <id>  Persona model for the claude CLI, default claude-opus-5-5.
 //   --judge-model <id> Probe-check judge for the claude CLI, default
 //                      claude-fable-5-1. It runs only on a probe that failed
@@ -137,7 +139,7 @@ function parseArgs(argv) {
     sandbox: true,
     attempts: 3,
     responses: 5,
-    promptSkills: "core",
+    promptSkills: "none",
     supervisorModel: "claude-opus-5-5",
     judgeModel: "claude-fable-5-1",
   };
@@ -265,8 +267,9 @@ function stageTarball(scratch) {
 
 /**
  * An agent dir holding nothing but this package, its skills filter set to
- * `promptSkills`: the Core profile (the configuration `/sci search` produces,
- * so the run tests the shipped default) or empty (sci_find the only way in).
+ * `promptSkills`: empty (the configuration `/sci search` writes since 1.7.0,
+ * so the run tests the shipped default; sci_find the only way in) or the Core
+ * profile (what `/sci search` wrote before 1.7.0).
  *
  * Credentials and the model catalogue are copied in because isolating the agent
  * dir also isolates them: without this, every probe fails with "No API key

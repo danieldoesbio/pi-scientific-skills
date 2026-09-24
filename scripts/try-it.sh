@@ -136,7 +136,7 @@ BANNER
 
 case "$scenario" in
   mine)      echo "  expect: the upgrade notice — \"updated to $(node -p "require('$root/package.json').version") … your current selection is unchanged\"" ;;
-  new)       echo "  expect: a dialog offering Core + search. Enter accepts, arrow-down + Enter declines," ;
+  new)       echo "  expect: a dialog offering search mode. Enter accepts, arrow-down + Enter declines," ;
              echo "          Esc or 20s of silence declines too. Only accepting may write anything." ;;
   upgrading) echo "  expect: the upgrade notice, and the saved profile still filtered afterwards" ;;
   filtered)  echo "  expect: \"your 'skills' filter is unchanged and /sci has not touched it\"" ;;

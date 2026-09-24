@@ -3,7 +3,7 @@
  * or RPC mode, and the real focused checkbox list for everything else.
  */
 
-import { describeCost, skillsForSelection } from "./catalog";
+import { describeCost, describeSearchMode, skillsForSelection } from "./catalog";
 import { TOGGLES } from "./profiles";
 import { commitPlan, findPackageEntry, isOverridePattern, readConfig, readSettings } from "./settings";
 import { report, settingsPath } from "./paths";
@@ -236,7 +236,7 @@ export const runPicker = async (ctx: CommandContext): Promise<void> => {
   const skills = skillsForSelection(chosen);
   const summary =
     skills.length === 0
-      ? "All scientific skills disabled."
+      ? `No profile chosen. Search mode: ${describeSearchMode()}.`
       : `Active: ${describeCost(skills.length)}.`;
   await commitPlan(ctx, { kind: "filter", skills }, { kind: "set", ids: [...chosen] }, summary);
 };

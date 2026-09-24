@@ -16,8 +16,8 @@
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { loadExtensionModule } from "./lib/load-extension.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
 import { createSuite } from "./lib/harness.mjs";
 
 const { check, failures, finish } = createSuite("behavioural checks");
@@ -171,6 +171,59 @@ console.log("-- sci_find tool --");
     /^## usfiscaldata — not in any profile: /m.test(heldOut),
     heldOut.slice(0, 160),
   );
+
+  // pi lists a custom tool under "Available tools" only when it has a
+  // promptSnippet. Without one, the 2026-09-23 live test's model saw sci_find
+  // only in the tool schema, and 15 of 19 misses never called it.
+  const snippet = tool?.promptSnippet ?? "";
+  check(
+    "has a one-line promptSnippet that says it searches scientific skills",
+    snippet.length > 0 && !/\n/.test(snippet) && /scientific skills/.test(snippet),
+    snippet,
+  );
+  const guidelines = tool?.promptGuidelines ?? [];
+  // pi appends guidelines flat to its own list, with no tool heading, so
+  // "this tool" would name nothing.
+  check(
+    "every prompt guideline names sci_find",
+    guidelines.length > 0 && guidelines.every((line) => line.includes("sci_find")),
+    JSON.stringify(guidelines),
+  );
+}
+
+console.log("\n-- sci_find in pi's real system prompt --");
+{
+  // Not the snippet as this file sees it, but as pi renders it: pi's own
+  // normalizer (agent-session.js) and buildSystemPrompt (system-prompt.js).
+  // A pi release that renames either fails here, loudly, not silently.
+  const piDist = findPiDist();
+  const { buildSystemPrompt } = await import(pathToFileURL(join(piDist, "core", "system-prompt.js")).href);
+  const { AgentSession } = await import(pathToFileURL(join(piDist, "core", "agent-session.js")).href);
+  const normalizeSnippet = AgentSession.prototype._normalizePromptSnippet;
+  const normalizeGuidelines = AgentSession.prototype._normalizePromptGuidelines;
+
+  newAgentDir();
+  const { tool } = register(makeHarness());
+  const snippet = normalizeSnippet.call(null, tool.promptSnippet);
+  const guidelines = normalizeGuidelines.call(null, tool.promptGuidelines);
+  const prompt = buildSystemPrompt({
+    selectedTools: ["read", "bash", "edit", "write", "sci_find"],
+    toolSnippets: { sci_find: snippet },
+    promptGuidelines: guidelines,
+    cwd: tmpdir(),
+    skills: [],
+  });
+  const section = (heading) => prompt.split(`${heading}:\n`)[1]?.split("\n\n")[0] ?? "";
+  check(
+    'listed under "Available tools"',
+    section("Available tools").split("\n").includes(`- sci_find: ${snippet}`),
+    section("Available tools"),
+  );
+  check(
+    'its guideline is under "Guidelines"',
+    guidelines.every((line) => section("Guidelines").split("\n").includes(`- ${line}`)),
+    section("Guidelines"),
+  );
 }
 
 // --- /sci search -----------------------------------------------------------
@@ -189,10 +242,18 @@ console.log("\n-- /sci search --");
 
   const written = JSON.parse(readFileSync(paths.settings, "utf8"));
   const entry = written.packages.find((p) => p.source === "pi-scientific-skills");
-  check("writes a skills filter", Array.isArray(entry?.skills));
-  check("applies the Core profile", entry.skills.includes("statistical-analysis"));
-  check("does not load everything", entry.skills.length < 30, `got ${entry?.skills?.length}`);
-  check("preserves hand-written overrides", entry.skills.includes("!autoskill"));
+  check(
+    "writes an empty skills filter: no skill in the system prompt",
+    Array.isArray(entry?.skills) && entry.skills.length === 0,
+    JSON.stringify(entry?.skills),
+  );
+  const config = JSON.parse(readFileSync(paths.config, "utf8"));
+  check("saves no profile", Array.isArray(config.profiles) && config.profiles.length === 0, JSON.stringify(config));
+  check(
+    "says sci_find still reaches every skill",
+    /Search mode/.test(harness.notes.at(-1) ?? "") && /sci_find finds all/.test(harness.notes.at(-1) ?? ""),
+    harness.notes.at(-1),
+  );
   check("reloads so it takes effect now", harness.reloadCount() === 1);
 }
 
@@ -243,6 +304,11 @@ console.log("\n-- /sci none --");
     Array.isArray(entry?.skills) && entry.skills.length === 0,
     JSON.stringify(entry?.skills),
   );
+  check(
+    "is an alias of /sci search, not an \"off\" switch",
+    /Search mode/.test(harness.notes.at(-1) ?? ""),
+    harness.notes.at(-1),
+  );
   check("reloads so it takes effect now", harness.reloadCount() === 1);
 }
 
@@ -279,7 +345,7 @@ const MENU_ENABLE_ALL = `Enable all ${TOTAL_SKILL_COUNT} skills`;
 const MENU_ROWS = [
   ["Show status", { writes: false }],
   [MENU_ENABLE_ALL, { writes: true }],
-  ["Disable all skills", { writes: true }],
+  ["Search only (no skills in the prompt)", { writes: true }],
   ["Reset (forget profiles, enable all)", { writes: true }],
   ["Cancel", { writes: false }],
 ];
@@ -329,9 +395,10 @@ console.log("\n-- first run (new user, TUI) --");
 
   check("asks rather than assuming", harness.selects.length === 1);
   check(
-    "offer states both costs",
+    "offer states the cost and names search mode",
     new RegExp(String(TOTAL_SKILL_COUNT)).test(harness.selects[0]?.title ?? "") &&
-      /Core/.test(harness.selects[0]?.title ?? ""),
+      /search mode/.test(harness.selects[0]?.title ?? ""),
+    harness.selects[0]?.title,
   );
   const queued = harness.sendUserMessage[0];
   check("accepting queues the command", queued?.content === "/sci search", JSON.stringify(queued));
@@ -455,9 +522,10 @@ console.log("\n-- upgrade (patch release, same minor line) --");
     // patch back" would land one patch AHEAD instead, a same-minor downgrade,
     // and that path is already covered by the dedicated downgrade test below.
     // Exercise the minor path through startup instead: a same-major neighbour
-    // one minor earlier is a genuine upgrade, and must print the full
-    // upstream-snapshot text. The patch path stays covered too — as a pure
-    // function, with a fixed pair, in the section right after this one.
+    // one minor earlier is a genuine upgrade, and must print the release's
+    // news, not the patch line. The news itself, and the patch path, stay
+    // covered as pure functions with fixed pairs in the section right after
+    // this one.
     const prior = `${major}.${minor - 1}.0`;
     writeFileSync(
       paths.config,
@@ -470,8 +538,11 @@ console.log("\n-- upgrade (patch release, same minor line) --");
 
     const notice = harness.notes[0] ?? "";
     check(
-      "at patch 0, a minor bump gets the full snapshot text through the real startup path",
-      harness.notes.length === 1 && /updated to/.test(notice) && /Upstream snapshot/.test(notice),
+      "at patch 0, a minor bump gets the release news through the real startup path",
+      harness.notes.length === 1 &&
+        /updated to/.test(notice) &&
+        !/Patch release/.test(notice) &&
+        /Run "\/sci search"/.test(notice),
       notice,
     );
     const config = JSON.parse(readFileSync(paths.config, "utf8"));
@@ -500,11 +571,21 @@ console.log("\n-- upgradeNotice / compareVersions: pure functions, fixed version
     patchNotice,
   );
 
-  const minorNotice = upgradeNotice("1.5.0", "1.6.0");
+  const minorNotice = upgradeNotice("1.6.0", "1.7.0");
   check(
-    "minor pair (1.5.0→1.6.0): full upstream-snapshot text",
-    /updated to 1\.6\.0 \(from 1\.5\.0\)/.test(minorNotice) && /Upstream snapshot/.test(minorNotice),
+    "minor pair (1.6.0→1.7.0): the search-mode news, not the snapshot they already saw",
+    /updated to 1\.7\.0 \(from 1\.6\.0\)/.test(minorNotice) &&
+      /Search mode/.test(minorNotice) &&
+      /sci_find is now listed/.test(minorNotice) &&
+      !/Upstream snapshot/.test(minorNotice),
     minorNotice,
+  );
+
+  const skippedNotice = upgradeNotice("1.5.0", "1.7.0");
+  check(
+    "skipped minor (1.5.0→1.7.0): also the snapshot news they missed",
+    /Search mode/.test(skippedNotice) && /Upstream snapshot v2\.69\.0/.test(skippedNotice),
+    skippedNotice,
   );
 }
 

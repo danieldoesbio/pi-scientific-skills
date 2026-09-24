@@ -30,24 +30,21 @@
 import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
-  describeCost,
   expandFilteredSkill,
   formatTokens,
   parseSkillCommand,
   runToolSearch,
-  skillsForSelection,
   SKILLS_DIR,
   type ToolParams,
 } from "./catalog";
 import { dispatch, hasSkillsFilter } from "./commands";
 import { PACKAGE_NAME, PACKAGE_VERSION } from "./package-info";
 import { describeError, report, settingsPath } from "./paths";
-import { BASELINE_TOKEN_COST, TOGGLES, TOTAL_SKILL_COUNT } from "./profiles";
+import { BASELINE_TOKEN_COST, TOTAL_SKILL_COUNT } from "./profiles";
 import { DEFAULT_LIMIT, MAX_LIMIT } from "./search";
 import { findPackageEntry, readConfig, readSettings, writeConfig } from "./settings";
 import {
   COMMAND_NAME,
-  DEFAULT_PROFILE_ID,
   SUBCOMMANDS,
   TOOL_NAME,
   type CommandContext,
@@ -73,18 +70,14 @@ import {
 /** How long the first-run question waits before giving up and doing nothing. */
 const OFFER_TIMEOUT_MS = 20_000;
 
-const OFFER_ACCEPT = `Yes — load Core + ${TOOL_NAME} (recommended)`;
+const OFFER_ACCEPT = `Yes — search mode: ${TOOL_NAME} finds skills as needed (recommended)`;
 const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded`;
 
-const offerTitle = (): string => {
-  const core = TOGGLES.find((toggle) => toggle.id === DEFAULT_PROFILE_ID);
-  const coreCost = core ? describeCost(skillsForSelection(new Set([DEFAULT_PROFILE_ID])).length) : "";
-  return (
-    `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
-    `~${formatTokens(BASELINE_TOKEN_COST)} tokens of context every session. ` +
-    `Load just Core (${coreCost}) instead? ${TOOL_NAME} still reaches all ${TOTAL_SKILL_COUNT} on demand.`
-  );
-};
+const offerTitle = (): string =>
+  `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
+  `~${formatTokens(BASELINE_TOKEN_COST)} tokens of context every session. ` +
+  `Switch to search mode instead? No skills stay in the prompt, and ${TOOL_NAME} ` +
+  `finds any of the ${TOTAL_SKILL_COUNT} on demand.`;
 
 /**
  * "1.4.1" and "1.4.0" share a minor line. A patch release changes only the
@@ -120,11 +113,23 @@ export const compareVersions = (a: string, b: string): number => {
 const downgradeNotice = (from: string): string =>
   `${PACKAGE_NAME}: running ${PACKAGE_VERSION} after ${from}; your selection is unchanged.`;
 
+/** The release that shipped upstream snapshot v2.69.0. */
+const SNAPSHOT_RELEASE = "1.6.0";
+
+const SNAPSHOT_NEWS = [
+  `Upstream snapshot v2.69.0 (commit 49c6e97, in ${SNAPSHOT_RELEASE}) adds one skill: alphagenome`,
+  `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
+  `non-commercial API key). It also updates two skills: ontology-term-resolution`,
+  `gains Bioregistry, Identifiers.org, ZOOMA and Ontobee companions, and`,
+  `genomic-intelligence documents per-operation sync limits and an unreliable`,
+  `splice-orientation check.`,
+];
+
 /**
  * `current` defaults to `PACKAGE_VERSION` for every real call site; it takes
  * an explicit value only in `scripts/test-extension.mjs`'s pure-function
  * tests, which check the patch and minor notice text against fixed pairs
- * (e.g. "1.5.3"→"1.5.4", "1.5.0"→"1.6.0") independent of whatever version
+ * (e.g. "1.5.3"→"1.5.4", "1.6.0"→"1.7.0") independent of whatever version
  * this release actually carries — the case that matters at `x.y.0`, where
  * there is no lower patch in the same minor line to derive through startup.
  */
@@ -136,17 +141,15 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
   if (sameMinorLine(from, current)) {
     return [...head, `Patch release: no change to the skills, and your settings are untouched.`].join(" ");
   }
+  // A user coming from before the snapshot release has not heard its news yet.
+  const missedSnapshot = from === undefined || compareVersions(from, SNAPSHOT_RELEASE) < 0;
   return [
     ...head,
-    `Upstream snapshot v2.69.0 (commit 49c6e97) adds one skill: alphagenome`,
-    `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
-    `non-commercial API key). It also updates two skills: ontology-term-resolution`,
-    `gains Bioregistry, Identifiers.org, ZOOMA and Ontobee companions, and`,
-    `genomic-intelligence documents per-operation sync limits and an unreliable`,
-    `splice-orientation check.`,
-    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} skills on demand.`,
-    `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
-    `"/${COMMAND_NAME} status" to see where you stand.`,
+    `Search mode ("/${COMMAND_NAME} search", or its new alias "/${COMMAND_NAME} none") now keeps`,
+    `every skill out of the system prompt, instead of loading Core.`,
+    `${TOOL_NAME} is now listed in the system prompt and finds all ${TOTAL_SKILL_COUNT} skills on demand.`,
+    ...(missedSnapshot ? SNAPSHOT_NEWS : []),
+    `Run "/${COMMAND_NAME} search" to switch, or "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
 };
 
@@ -171,7 +174,8 @@ const filteredNotice = (): string =>
     `ZOOMA and Ontobee companions) and genomic-intelligence (per-operation sync`,
     `limits; the splice-orientation check is documented as unreliable).`,
     `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand —`,
-    `including any your filter leaves out of the system prompt.`,
+    `including any your filter leaves out of the system prompt — and is listed`,
+    `in the system prompt so the model knows it is there.`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
 
@@ -295,23 +299,38 @@ export default function (pi: ExtensionAPI): void {
   });
 
   // The model-facing half of progressive disclosure. Registered unconditionally
-  // when the catalogue is locatable: ~150 tokens of tool definition against a
-  // ~23k index is not a trade worth a configuration flag, and a user running
-  // the full set still benefits from being able to look a skill up by need
-  // rather than by name.
+  // when the catalogue is locatable: a tool definition of about 200 tokens,
+  // plus a one-line snippet and one guideline, against a ~23k index is not a
+  // trade worth a configuration flag, and a user running the full set still
+  // benefits from being able to look a skill up by need rather than by name.
+  //
+  // pi lists a custom tool under "Available tools" only when it has a
+  // promptSnippet (system-prompt.js filters on it). Without one the model sees
+  // sci_find only in the tool schema. In the 2026-09-23 live test, 15 of 19
+  // misses on valid probes were attempts that never called it. Guidelines are
+  // appended flat to pi's own list, so each one names the tool.
   if (SKILLS_DIR) {
     pi.registerTool({
       name: TOOL_NAME,
       label: "Find scientific skill",
+      promptSnippet:
+        `Search the ${TOTAL_SKILL_COUNT} installed scientific skills by task and get the ` +
+        `SKILL.md path to read`,
+      promptGuidelines: [
+        `Use ${TOOL_NAME} before you write code, install a package or set up a service for a ` +
+          `scientific, data or research task: a skill may already cover it. Then read the ` +
+          `SKILL.md it returns.`,
+      ],
       description:
         `Search ${TOTAL_SKILL_COUNT} installed scientific skills (biology, genomics, ` +
         `chemistry, drug discovery, clinical research, imaging, physics, statistics, ML, ` +
-        `scientific writing) and get the path to load one. Most of these skills are NOT ` +
-        `listed in the system prompt, so this is the only way to discover them. Call it ` +
-        `with a natural-language description of the task ("variant calling from a bam ` +
-        `file", "fit a survival model"). Omit all arguments to list the profiles, or pass ` +
-        `a profile id to list its skills. Returns skill names, full descriptions, and the ` +
-        `SKILL.md path to read.`,
+        `scientific writing) and get the path to load one. Skills cover analysis methods, ` +
+        `code and data work, databases, lab and cloud tools and services, and writing. ` +
+        `Most of these skills are NOT listed in the system prompt, so this is the only ` +
+        `way to discover them. Call it with a natural-language description of the task ` +
+        `("variant calling from a bam file", "fit a survival model"). Omit all arguments ` +
+        `to list the profiles, or pass a profile id to list its skills. Returns skill ` +
+        `names, full descriptions, and the SKILL.md path to read.`,
       parameters: Type.Object({
         query: Type.Optional(
           Type.String({ description: "What you are trying to do, in natural language." }),
