@@ -529,6 +529,16 @@
       "date": "2026-09-21",
       "probes": 3,
       "note": "`scripts/try-it.sh new --check` on the packed 1.6.0 tarball: fresh install printed the Core+search offer text and left settings.json untouched pre-accept. `scripts/try-it.sh upgrading --check` (Genomics profile, 1.0.2): printed \"updated to 1.6.0 (from 1.0.2)\" naming the alphagenome addition and the ontology-term-resolution/genomic-intelligence updates, filter unchanged, settings.json byte-identical afterwards. `npm run test:tui` (pi's real TUI over a pty): accept writes the Core filter (10 skills), decline and timeout both leave it unchanged — all three PASS. `npm test` and `npm run typecheck` are CI checks that run on every push, not extensionRuns probes, so they are not counted here. Still owed for 1.6.0: `node scripts/test-find-live.mjs` on a small model and the tarball discovery probe from the publishing checklist — neither has been run against this batch."
+    },
+    {
+      "test": "supervised live search test, all testable probes: sci_find only, no skills in the prompt",
+      "verdict": "PASS",
+      "packageVersion": "1.6.0",
+      "upstreamVersion": "v2.69.0",
+      "model": "prism-llama/Ternary-Bonsai-2-27B-PQ2_0 (local, PrismML llama.cpp b10709-9a9394a)",
+      "date": "2026-09-23",
+      "probes": 161,
+      "note": "node scripts/test-find-live.mjs, testing/find-probes.json, --prompt-skills none, --thinking medium, --timeout 1200; server --reasoning-budget 8192, reasoning_effort medium, -np 1; sci_find has no promptSnippet; 3 attempts x 5 responses; persona claude-opus-5-5 (blind), probe-check judge claude-fable-5-1 (high), extended rule applied after the run by scripts/check-probes.mjs. 161 of 162 probes run (autoskill untestable, testing/README.md). Harness errors 0. Core n=10: success 8, partial-success 1, functional 1, fail 0. non-Core n=151, 4 probe-invalid (consciousness-council, get-available-resources, pi-agent, scholar-evaluation), 147 graded: success 135, partial-success 9, functional 2, fail 1 (esm); raw 135/10/2/4. The adjusted line reads high by design: the judge audits only persona-ended misses. sci_find rank at reach (156 reaches): 1 in 125, 2-3 in 24, 4-8 in 7, 9-20 in 0. Misses on valid probes (19 attempts): 15 never called sci_find, 3 esm index gap, 1 limit (simpy a1, rank 13 at limit 8). 18 attempts timed out (12 grades touched); every one lacked the skill. Verdict PASS = 156 of 157 valid probes reached the target (143 on attempt 1); the esm fail is an index gap. Full record: testing/runs/2026-09-23-bonsai2-27b.md. Transcripts kept out of git."
     }
   ]
 }
