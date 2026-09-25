@@ -98,7 +98,7 @@ export async function runSupervisedProbe(probe, ctx) {
     ctx.log(
       `${label}: ${attempt.endedBy} after ${attempt.responses} response(s), ${attempt.elapsedSeconds}s` +
         (attempt.target ? ` — reached ${probe.target} by ${attempt.target.by} in response ${attempt.target.response}` : "") +
-        (attempt.stoppedEarly ? " (stopped on reach)" : ""),
+        (attempt.stoppedEarly ? (attempt.target ? " (stopped on reach)" : " (stopped early)") : ""),
     );
     if (attempt.target) break;
   }
