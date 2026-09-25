@@ -215,6 +215,7 @@ scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by han
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
 scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
+scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
@@ -631,7 +632,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, a provider error as `no-run`). A wrong endpoint or gate still gives numbers in a live run, so it is checked here. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`). A wrong endpoint, gate or join still gives numbers in a live run, so it is checked here. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -774,6 +775,21 @@ it once if it died, stops after three harness errors in a row, and runs under
 chunk runs every arm, with the order rotated per chunk, so a run stopped at a
 chunk boundary is still balanced and paired. `--stop-after HH:MM` starts no
 chunk after that time; the same `--out` continues on a later night.
+
+`scripts/find-live-timing.mjs <out>` splits each attempt's time by the
+server. It pairs every finished request in `llama-server.log` with the pi
+message it produced: pi's `usage.input` is the prompt tokens llama.cpp
+processed and `usage.output` the tokens it generated, and the clock offset is
+fit from the pairs. Per attempt and warm-up it gives prefill and generation
+seconds, tokens processed and cached, and the **queue wait**: the time from
+pi's request to the server starting it. The queue wait exists because a stop
+(reach or gate) kills pi, but llama.cpp finishes the prefill of the cancelled
+request first, about 11 s (v16) to 17 s (`full`) on 2026-09-25. The next
+attempt's first request waits for it, inside its recorded time to read.
+`endpointSecondsNet` is the time to read without that wait. The script also
+prints prefill and generation tok/s by prompt size per arm. It needs the
+archived session files: an invocation stopped by a signal archives nothing,
+so its attempts are not timed.
 
 Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it

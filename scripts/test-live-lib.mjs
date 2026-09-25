@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSupervisedProbe } from "./lib/converse.mjs";
 import { gateTripped, isSeek, responses, sessionMeasures, skillReads } from "./lib/pi-session.mjs";
+import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/server-log.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -178,6 +179,61 @@ console.log("-- attempts end by the right rule --");
   });
   check("a response that ends on another provider error is a harness error, not a grade", dead.outcome === "no-run" && /ECONNREFUSED/.test(dead.detail));
   rmSync(dir, { recursive: true, force: true });
+}
+
+console.log("-- server log join (find-live-timing) --");
+{
+  const timing = (task, kind, ms, tokens) =>
+    `I slot print_timing: id  0 | task ${task} | ${kind === "prompt" ? "prompt eval time" : "       eval time"} = ${ms} ms / ${tokens} tokens (x)`;
+  const log = [
+    "0.00.100.000 I main: server is listening on http://127.0.0.1:8090",
+    "0.10.000.000 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0",
+    `0.19.000.000 ${timing(0, "prompt", "9000.00", 1000)}`,
+    `0.20.000.000 ${timing(0, "eval", "1000.00", 20)}`,
+    "0.20.000.000 I slot      release: id  0 | task 0 | stop processing: n_tokens = 1020, truncated = 0",
+    "0.20.100.000 I slot launch_slot_: id  0 | task 5 | processing task, is_child = 0",
+    "0.21.000.000 W srv          stop: cancel task, id_task = 5",
+    "0.32.000.000 I slot      release: id  0 | task 5 | stop processing: n_tokens = 3000, truncated = 0",
+    "0.32.000.000 I slot launch_slot_: id  0 | task 7 | processing task, is_child = 0",
+    `0.36.000.000 ${timing(7, "prompt", "3500.00", 400)}`,
+    `0.40.000.000 ${timing(7, "eval", "4000.00", 30)}`,
+    "0.40.000.000 I slot      release: id  0 | task 7 | stop processing: n_tokens = 1430, truncated = 0",
+    "61.05.000.000 I slot launch_slot_: id  0 | task 9 | processing task, is_child = 0",
+    "0.01.000.000 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0",
+  ].join("\n");
+  check("a stamp past 60 minutes keeps counting minutes", stampMs("61.05.000.000 I x") === 3665000);
+  const runs = parseServerLog(log);
+  const cancelled = runs[0]?.find((r) => r.task === 5);
+  const finished = runs[0]?.find((r) => r.task === 7);
+  check("a stamp that goes back starts a new server run", runs.length === 2 && runs[0].length === 4 && runs[1].length === 1);
+  check("a cancelled request keeps its cancel and release times", cancelled?.cancel === 21000 && cancelled?.release === 32000 && cancelled?.promptMs === undefined);
+  check("a finished request has prompt, generation and context", finished?.promptTokens === 400 && finished?.genTokens === 30 && finished?.context === 1430);
+
+  const t0 = Date.parse("2026-09-25T15:50:22Z");
+  const message = (start, end, input, output) => ({ start: t0 + start, end: t0 + end, input, output });
+  // pi writes each message 50 ms after the release; the driver's clock reads 1.5 s early.
+  const first = message(10000, 20050, 1000, 20);
+  const second = message(21000, 40050, 400, 30);
+  const decoy = message(400000, 400050, 400, 30);
+  const { pairs, offsets } = joinRequests(runs, [t0 - 1500], [first, second, decoy]);
+  const queued = pairs.find((pair) => pair.message === second);
+  check("requests pair with the messages whose tokens and time match", pairs.length === 2 && !pairs.some((pair) => pair.message === decoy));
+  check("the clock offset is refit from the pairs", offsets[0] === t0 + 50, String(offsets[0] - t0));
+  check("queue wait = server launch minus pi's request start", queued?.queueMs === 11050, String(queued?.queueMs));
+
+  const driver = parseDriverLog(
+    [
+      "[2026-09-25 08:50:22] starting server: start.sh",
+      "[2026-09-25 08:50:24] START chunk-01 v16 a,b",
+      "[2026-09-25 08:56:21] END   chunk-01 v16 rc=0 lines=+10 5 min",
+      "[2026-09-25 08:56:21] START chunk-01 v17 a,b",
+      "[2026-09-25 09:00:00] interrupted",
+    ].join("\n"),
+  );
+  check(
+    "driver log: server starts and arm windows, an interrupt closes the open one",
+    driver.starts.length === 1 && driver.windows.length === 2 && driver.windows[1].arm === "v17" && driver.windows[1].end !== null,
+  );
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

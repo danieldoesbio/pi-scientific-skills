@@ -232,3 +232,36 @@ Harness changes after the smoke, before the run (not in the smoke):
 ## Results
 
 Pending.
+
+### Notes during the run
+
+**2026-09-25, first session (chunk 1 done, chunk 2 part done, paused).** Daniel
+stopped the run at 09:53 with `pkill`. Chunk 1 is complete in all arms.
+Chunk 2 is complete for `v17`; `full` finished 5 of 10; `v16` did not start.
+
+- **The stop hung** until llama-server got a second TERM: the driver sends
+  one and waits. No data was lost to this.
+- **Five `full` attempts in chunk 2 have no session files.** The harness
+  archives transcripts only when an invocation ends normally, so the stop
+  lost them. Their results lines are kept and they stay in the read-rate
+  analysis. They have no server timing (below). The attempt in flight
+  (`pi-agent`) has no line and runs again on resume.
+- **Queue wait (found after the run started, measured post hoc).** A stop on
+  reach or gate kills pi, but llama.cpp finishes the prefill of the cancelled
+  request before it frees the slot. The next attempt's first request waits
+  for it: median 11.2 s in `v16`, 15.8 s in `v17`, 16.7 s in `full`, and
+  0–0.7 s when the attempt before did not stop (the first probe of an
+  invocation, or after a `persona-end`). The recorded time to read
+  (`endpointSeconds`) includes this wait, so it is biased by arm. Read rates
+  and the gate do not depend on it.
+- **Added measure, not pre-registered:** `endpointSecondsNet`, the time to
+  read minus the queue wait of the attempt's requests before the read, from
+  `scripts/find-live-timing.mjs` (server log joined to the session files).
+  The pre-registered time to read is still reported as recorded, with the net
+  value beside it and labelled post hoc. The script also gives prefill and
+  generation seconds per attempt and warm-up, which is how the pre-registered
+  prompt-processing and generation speeds are measured.
+- **Warm-up cost depends on the arm before.** Cold starts (chunk 1): `v16`
+  30.6 s for 3,744 tokens, `v17` 15.8 s for 1,913, `full` 293.2 s for 30,634.
+  The chunk 2 `v17` warm-up processed 515 tokens and reused 1,397 from the
+  server's cache. Warm-up costs are reported with their cached tokens.
