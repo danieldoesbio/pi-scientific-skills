@@ -67,13 +67,14 @@
     "typebox": "*"
   },
   "scripts": {
-    "test": "npm run validate && npm run test:search && npm run test:extension && npm run test:filter && npm run test:skill-expand && npm run test:frontmatter",
+    "test": "npm run validate && npm run test:search && npm run test:extension && npm run test:filter && npm run test:skill-expand && npm run test:frontmatter && npm run test:live-lib",
     "validate": "node scripts/validate.mjs",
     "test:search": "node scripts/test-search.mjs",
     "test:extension": "node scripts/test-extension.mjs",
     "test:filter": "node scripts/test-filter.mjs",
     "test:skill-expand": "node scripts/test-skill-expand.mjs",
     "test:frontmatter": "node scripts/test-frontmatter.mjs",
+    "test:live-lib": "node scripts/test-live-lib.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "test:tui": "python3 scripts/test-tui-offer.py",
     "try": "bash scripts/try-it.sh",

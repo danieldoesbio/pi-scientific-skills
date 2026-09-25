@@ -13,12 +13,34 @@
 // A response is stopped the moment the target is reached (`stoppedEarly`):
 // nothing after that point changes the grade.
 //
+// Two endpoints (`ctx.endpoint`). `listed` (the default, and every run before
+// 2026-09-25): the target reached the model as above. `read`: the model read
+// the target's SKILL.md (pi-session.mjs `skillReads`) — the only fair endpoint
+// when every skill is already listed in the system prompt. Under `read` the
+// listing is still recorded (`listed`, `listedSeconds`).
+//
+// The timeout gate (`ctx.gateCalls`, off when 0): an attempt whose first N tool
+// calls, counted across its responses, hold no skill-seeking call ends as
+// `gated`, a miss (pi-session.mjs `gateTripped`). A response that ends on a
+// context overflow pi could not recover from ends its attempt as `overflow`.
+//
 // A response that runs past --timeout ends its attempt, and that attempt
 // counts. The limit is a budget per response, not a loop detector: a slow
 // local model can spend it on real work (reading files, writing code). Each
 // attempt records `timedOut`, and the summary counts the grades a timeout
 // touched, so a too-short limit shows up instead of hiding.
-import { readMessages, reaches, readSkills, responses } from "./pi-session.mjs";
+import {
+  allCalls,
+  gateTripped,
+  isSeek,
+  readEntries,
+  readMessages,
+  reaches,
+  readSkills,
+  responses,
+  sessionMeasures,
+  skillReads,
+} from "./pi-session.mjs";
 import { SupervisorError } from "./supervisor.mjs";
 
 export const GRADES = ["success", "partial-success", "functional"];
@@ -54,6 +76,8 @@ function personaFlags(reply, seenText, catalogue) {
  * @param {{next: Function}} ctx.persona
  * @param {Set<string>} ctx.catalogue  Every installed skill name.
  * @param {{attempts: number, responses: number}} ctx.limits
+ * @param {"listed" | "read"} [ctx.endpoint]  Default "listed".
+ * @param {number} [ctx.gateCalls]  Timeout gate; 0 or absent = off.
  * @param {(line: string) => void} ctx.log
  */
 export async function runSupervisedProbe(probe, ctx) {
@@ -111,23 +135,46 @@ async function runAttempt(probe, run, ctx) {
   let found = [];
   let response = 0;
   let stoppedEarly = false;
-  // The same test the grade uses, so a stop never disagrees with it.
-  const targetReached = () =>
-    reaches(responses(readMessages(run.sessionFile)), probe.want, ctx.catalogue).some(
-      (entry) => entry.skill === probe.target,
-    );
+  const endpoint = ctx.endpoint ?? "listed";
+  const gateCalls = ctx.gateCalls ?? 0;
+  const endpointHits = (list) =>
+    endpoint === "read" ? skillReads(list, probe.want) : reaches(list, probe.want, ctx.catalogue);
+  const current = () => responses(readMessages(run.sessionFile));
+  // The same tests the grade uses, so a stop never disagrees with it.
+  const stopWhen = () => {
+    const list = current();
+    return endpointHits(list).some((entry) => entry.skill === probe.target) || gateTripped(list, gateCalls);
+  };
   const summary = () => {
     const finds = turns.flatMap((turn, index) =>
       turn.calls.filter((call) => call.tool === "sci_find").map((call) => ({ call, response: index + 1 })),
     );
+    const base = turns[0]?.at ?? started;
+    const seconds = (at) => (Number.isFinite(at) ? Math.round((at - base) / 1000) : null);
+    const clean = (entry) => {
+      if (!entry) return null;
+      const { at, ...rest } = entry;
+      return { ...rest, seconds: seconds(at) };
+    };
+    const target = found.find((entry) => entry.skill === probe.target);
+    const listed = reaches(turns, [probe.target], ctx.catalogue)[0];
+    const calls = allCalls(turns);
+    const firstSeek = calls.findIndex(isSeek);
     return {
       responses: response,
       endedBy,
       stoppedEarly,
       elapsedSeconds: Math.round((Date.now() - started) / 1000),
-      target: found.find((entry) => entry.skill === probe.target) ?? null,
-      want: found[0] ?? null,
-      reaches: found,
+      endpoint,
+      target: clean(target),
+      want: clean(found[0]),
+      reaches: found.map(clean),
+      endpointSeconds: target ? seconds(target.at) : null,
+      listed: clean(listed),
+      listedSeconds: listed ? seconds(listed.at) : null,
+      toolCalls: calls.length,
+      firstSeekCall: firstSeek >= 0 ? firstSeek : null,
+      ...sessionMeasures(readEntries(run.sessionFile)),
       sciFindCalls: finds.length,
       firstFindResponse: finds[0]?.response ?? null,
       queries: finds.map(({ call }) => call.args?.query ?? (call.args?.profile ? `profile:${call.args.profile}` : "")),
@@ -139,15 +186,23 @@ async function runAttempt(probe, run, ctx) {
 
   while (response < ctx.limits.responses) {
     response++;
-    const turn = await ctx.respond(run, message, response, targetReached);
+    const turn = await ctx.respond(run, message, response, stopWhen);
     stoppedEarly = turn.stoppedEarly === true;
-    turns = responses(readMessages(run.sessionFile));
-    found = reaches(turns, probe.want, ctx.catalogue);
+    turns = current();
+    found = endpointHits(turns);
     if (!turn.answered && !turn.timedOut) {
       return { fatal: "no-run", detail: turn.detail, attempt: summary() };
     }
     if (found.some((entry) => entry.skill === probe.target)) {
       endedBy = "reached";
+      break;
+    }
+    if (sessionMeasures(readEntries(run.sessionFile)).endedOnOverflow) {
+      endedBy = "overflow";
+      break;
+    }
+    if (gateTripped(turns, gateCalls)) {
+      endedBy = "gated";
       break;
     }
     if (turn.timedOut) {
@@ -203,6 +258,38 @@ function recoveryLines(graded) {
   ];
 }
 
+const median = (values) => {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (sorted.length === 0) return "-";
+  const mid = Math.floor(sorted.length / 2);
+  return String(sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2));
+};
+
+/**
+ * Context, time and endpoint measures over every attempt (recorded since
+ * 2026-09-25; older lines have none, and the lines are then left out).
+ */
+function measureLines(attempts) {
+  const measured = attempts.filter((attempt) => attempt.firstPromptTokens !== undefined);
+  if (measured.length === 0) return [];
+  const reached = measured.filter((attempt) => attempt.target);
+  const listed = measured.filter((attempt) => attempt.listed);
+  const compactions = measured.reduce((sum, attempt) => sum + (attempt.compactions?.length ?? 0), 0);
+  const overflows = measured.reduce((sum, attempt) => sum + (attempt.overflows ?? 0), 0);
+  return [
+    `  endpoint: ${[...new Set(measured.map((attempt) => attempt.endpoint))].join(", ")}` +
+      ` | target listed in ${listed.length} of ${measured.length} attempts, endpoint reached in ${reached.length}` +
+      ` (${listed.filter((attempt) => attempt.target).length} of the listed)`,
+    `  medians: first prompt ${median(measured.map((attempt) => attempt.firstPromptTokens))} tokens` +
+      ` | peak context ${median(measured.map((attempt) => attempt.peakContext))}` +
+      ` (max ${Math.max(0, ...measured.map((attempt) => attempt.peakContext ?? 0))})` +
+      ` | output ${median(measured.map((attempt) => attempt.outputTokens))}` +
+      ` | tool calls ${median(measured.map((attempt) => attempt.toolCalls))}` +
+      ` | endpoint at ${median(reached.map((attempt) => attempt.endpointSeconds))} s`,
+    `  compactions: ${compactions} | overflows: ${overflows}`,
+  ];
+}
+
 /**
  * Per-group totals over the last line recorded for each probe id — a probe
  * re-run after a harness error keeps only its latest result. A probe the
@@ -240,6 +327,7 @@ export function summarizeSupervised(lines, print = console.log) {
       `  grades with a timed-out attempt: ${touched}`,
       `  persona replies flagged for review: ${flagged}`,
       ...recoveryLines(graded),
+      ...measureLines(allAttempts),
     ].join("\n");
   };
   print(`\n${row("Core", latest.filter((line) => line.core))}`);

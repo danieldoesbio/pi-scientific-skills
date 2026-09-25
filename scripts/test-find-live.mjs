@@ -43,12 +43,33 @@
 //                      (scripts/lib/converse.mjs).
 //   --attempts <n>     Default 3.
 //   --responses <n>    Default 5.
-//   --prompt-skills <none|core>  Which skills the system prompt lists. none
+//   --prompt-skills <none|core|all>  Which skills the system prompt lists. none
 //                      (default): an empty filter, the configuration
 //                      `/sci search` writes since 1.7.0, so sci_find is the
 //                      only way to any skill. core: the Core profile, what
-//                      `/sci search` wrote before 1.7.0. Recorded on every
+//                      `/sci search` wrote before 1.7.0. all: no filter, every
+//                      skill listed (the normal install). Recorded on every
 //                      result line.
+//   --no-extension     Load the package's skills but not its extension
+//                      (`extensions: []`): no sci_find, no /sci. With
+//                      --prompt-skills all, this is a plain skills install.
+//   --package-dir <dir>  Pack and test this package tree instead of the one
+//                      this script lives in (e.g. an older release, checked
+//                      out with `git archive`).
+//   --package-label <text>  Recorded on every result line as `package`.
+//   --endpoint <listed|read>  What counts as reaching the target. listed
+//                      (default): a sci_find result, bash output or file read
+//                      puts it in front of the model. read: the model read the
+//                      target's SKILL.md. The response stops at the endpoint.
+//   --gate-calls <n>   End an attempt as `gated` (a miss) once its first n tool
+//                      calls hold no skill-seeking call (scripts/lib/pi-session.mjs
+//                      `gateTripped`). Default 0: off.
+//   --warmup           Before the first probe, send one ungraded request with the
+//                      same agent dir, so the cold prefill of the system prompt
+//                      does not count against the first probe. Recorded in
+//                      <results>.warmup.jsonl.
+//   --archive-to <dir> At the end, copy the transcripts and a tarball of the
+//                      attempt workspaces into <dir>.
 //   --supervisor-model <id>  Persona model for the claude CLI, default claude-opus-5-5.
 //   --judge-model <id> Probe-check judge for the claude CLI, default
 //                      claude-fable-5-1. It runs only on a probe that failed
@@ -71,6 +92,7 @@ import { execFileSync, spawn } from "node:child_process";
 import {
   appendFileSync,
   copyFileSync,
+  cpSync,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -87,7 +109,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runSupervisedProbe, summarizeSupervised } from "./lib/converse.mjs";
-import { hitNames } from "./lib/pi-session.mjs";
+import { hitNames, readEntries, sessionMeasures } from "./lib/pi-session.mjs";
 import { networkFor, SANDBOX_EXEC, sandboxAvailable, sandboxProfile } from "./lib/sandbox.mjs";
 import { createPersona } from "./lib/supervisor.mjs";
 import { checkProbe, createJudge } from "./lib/probe-check.mjs";
@@ -140,6 +162,13 @@ function parseArgs(argv) {
     attempts: 3,
     responses: 5,
     promptSkills: "none",
+    extension: true,
+    packageDir: null,
+    packageLabel: null,
+    endpoint: "listed",
+    gateCalls: 0,
+    warmup: false,
+    archiveTo: null,
     supervisorModel: "claude-opus-5-5",
     judgeModel: "claude-fable-5-1",
   };
@@ -161,13 +190,26 @@ function parseArgs(argv) {
     else if (arg === "--supervisor-model") opts.supervisorModel = next();
     else if (arg === "--judge-model") opts.judgeModel = next();
     else if (arg === "--prompt-skills") opts.promptSkills = next();
+    else if (arg === "--no-extension") opts.extension = false;
+    else if (arg === "--package-dir") opts.packageDir = resolve(next());
+    else if (arg === "--package-label") opts.packageLabel = next();
+    else if (arg === "--endpoint") opts.endpoint = next();
+    else if (arg === "--gate-calls") opts.gateCalls = Number(next());
+    else if (arg === "--warmup") opts.warmup = true;
+    else if (arg === "--archive-to") opts.archiveTo = resolve(next());
     else die(`unknown option ${arg}`);
   }
   if (!Number.isFinite(opts.timeout) || opts.timeout <= 0) die("--timeout must be a positive number");
   for (const key of ["attempts", "responses"]) {
     if (!Number.isInteger(opts[key]) || opts[key] < 1) die(`--${key} must be a positive integer`);
   }
-  if (!["core", "none"].includes(opts.promptSkills)) die("--prompt-skills must be core or none");
+  if (!["core", "none", "all"].includes(opts.promptSkills)) die("--prompt-skills must be none, core or all");
+  if (!["listed", "read"].includes(opts.endpoint)) die("--endpoint must be listed or read");
+  if (!Number.isInteger(opts.gateCalls) || opts.gateCalls < 0) die("--gate-calls must be a non-negative integer");
+  if (opts.packageDir && !existsSync(join(opts.packageDir, "package.json"))) die(`no package.json in ${opts.packageDir}`);
+  if (opts.promptSkills === "all" && opts.endpoint === "listed") {
+    die("--prompt-skills all needs --endpoint read: the system prompt already lists every target");
+  }
   if (opts.resume && !opts.results) die("--resume needs --results");
   return opts;
 }
@@ -239,14 +281,14 @@ function doneIds(file, taskOf) {
   );
 }
 
-/** Pack the package and extract it, so the run exercises what ships. */
-function stageTarball(scratch) {
+/** Pack the package (`source`, a package tree) and extract it, so the run exercises what ships. */
+function stageTarball(scratch, source) {
   const stage = join(scratch, "pkg");
   mkdirSync(stage, { recursive: true });
   // --silent: npm pack lists every file in the tarball on stderr, which buries
   // the probe results this script exists to show.
   const packed = execFileSync("npm", ["pack", "--silent", "--pack-destination", stage], {
-    cwd: root,
+    cwd: source,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   })
@@ -268,8 +310,11 @@ function stageTarball(scratch) {
 /**
  * An agent dir holding nothing but this package, its skills filter set to
  * `promptSkills`: empty (the configuration `/sci search` writes since 1.7.0,
- * so the run tests the shipped default; sci_find the only way in) or the Core
- * profile (what `/sci search` wrote before 1.7.0).
+ * so the run tests the shipped default; sci_find the only way in), the Core
+ * profile (what `/sci search` wrote before 1.7.0), or `null` for no filter
+ * (every skill listed). `extension: false` loads no extension (`extensions:
+ * []`, pi's "none of this type"), so sci_find, /sci and the input hook are
+ * absent — a plain skills install.
  *
  * Credentials and the model catalogue are copied in because isolating the agent
  * dir also isolates them: without this, every probe fails with "No API key
@@ -285,13 +330,15 @@ function stageTarball(scratch) {
  * run writes there — pi's own state, or a model editing settings.json — reaches
  * the next one. The seed itself is outside every sandbox.
  */
-function seedAgentDir(scratch, packageDir, promptSkills, { credentials }) {
+function seedAgentDir(scratch, packageDir, promptSkills, { credentials, extension }) {
   const agentDir = join(scratch, "agent-seed");
   mkdirSync(agentDir, { recursive: true });
-  writeFileSync(
-    join(agentDir, "settings.json"),
-    `${JSON.stringify({ packages: [{ source: packageDir, skills: promptSkills }] }, null, 2)}\n`,
-  );
+  const entry = {
+    source: packageDir,
+    ...(promptSkills !== null && { skills: promptSkills }),
+    ...(!extension && { extensions: [] }),
+  };
+  writeFileSync(join(agentDir, "settings.json"), `${JSON.stringify({ packages: [entry] }, null, 2)}\n`);
 
   const auth = join(realAgentDir, "auth.json");
   if (credentials && !existsSync(auth)) {
@@ -412,13 +459,21 @@ console.log(
     : "sandbox: OFF — the model can read and write as you",
 );
 console.log("staging tarball…");
-const packageDir = stageTarball(scratch);
-const promptSkills = opts.promptSkills === "core" ? [...core.skills] : [];
-const seedDir = seedAgentDir(scratch, packageDir, promptSkills, { credentials: network.kind !== "loopback" });
+const packageDir = stageTarball(scratch, opts.packageDir ?? root);
+const promptSkills = { core: [...core.skills], none: [], all: null }[opts.promptSkills];
+const seedDir = seedAgentDir(scratch, packageDir, promptSkills, {
+  credentials: network.kind !== "loopback",
+  extension: opts.extension,
+});
+const listing =
+  promptSkills === null
+    ? "every skill in the prompt"
+    : promptSkills.length > 0
+      ? `Core only — ${promptSkills.length} skills in the prompt`
+      : "no skills in the prompt";
 console.log(
-  `agent dir seed: ${seedDir} (` +
-    (promptSkills.length > 0 ? `Core only — ${promptSkills.length} skills in the prompt` : "no skills in the prompt — sci_find only") +
-    ")\n",
+  `package: ${opts.packageLabel ?? "this tree"} | endpoint: ${opts.endpoint} | gate: ${opts.gateCalls || "off"}\n` +
+    `agent dir seed: ${seedDir} (${listing}; ${opts.extension ? "extension loaded, sci_find available" : "extension NOT loaded, no sci_find"})\n`,
 );
 const skillsDir = join(packageDir, "skills");
 const catalogue = new Set(readdirSync(skillsDir).filter((name) => existsSync(join(skillsDir, name, "SKILL.md"))));
@@ -617,6 +672,10 @@ const baseRecord = (probe) => ({
   model: opts.model,
   thinking: opts.thinking ?? "default",
   promptSkills: opts.promptSkills,
+  extension: opts.extension,
+  package: opts.packageLabel,
+  endpoint: opts.endpoint,
+  gateCalls: opts.gateCalls,
   sandbox: opts.sandbox,
   date: new Date().toISOString().slice(0, 10),
 });
@@ -658,6 +717,8 @@ async function runSupervised() {
     };
   };
 
+  if (opts.warmup && pending.length > 0) await warmup(respond);
+
   let harnessErrorsInARow = 0;
   for (const [index, probe] of pending.entries()) {
     console.error(`[${index + 1}/${pending.length}] ${probe.id}${probe.core ? " [core]" : ""}`);
@@ -668,6 +729,8 @@ async function runSupervised() {
       persona,
       catalogue,
       limits: { attempts: opts.attempts, responses: opts.responses },
+      endpoint: opts.endpoint,
+      gateCalls: opts.gateCalls,
       log: (line) => console.error(`  ${line}`),
     });
     // A judge failure is recorded on the line, not treated as a harness error.
@@ -720,10 +783,46 @@ async function runSupervised() {
             line.model === opts.model &&
             line.supervisor &&
             (line.promptSkills ?? "core") === opts.promptSkills &&
+            (line.extension ?? true) === opts.extension &&
+            (line.endpoint ?? "listed") === opts.endpoint &&
             ranCurrentTask(line, taskOf),
         )
     : records;
   summarizeSupervised(all);
+}
+
+/**
+ * One ungraded request before the first probe. It pays the cold prefill of
+ * the system prompt (about 23k tokens with every skill listed), which llama.cpp
+ * then keeps in its prefix cache, so that cost does not fall inside the first
+ * probe's time budget. Its own cost is a result, recorded apart.
+ */
+async function warmup(respond) {
+  const run = startAttempt("_warmup", "w1");
+  const started = Date.now();
+  let turn;
+  try {
+    turn = await respond(run, "Reply with the single word OK. Do not use any tool.", 1, null);
+  } finally {
+    run.finish();
+  }
+  const line = {
+    kind: "warmup",
+    at: new Date(started).toISOString(),
+    model: opts.model,
+    package: opts.packageLabel,
+    promptSkills: opts.promptSkills,
+    extension: opts.extension,
+    answered: turn.answered,
+    timedOut: turn.timedOut,
+    elapsedSeconds: Math.round((Date.now() - started) / 1000),
+    ...sessionMeasures(readEntries(join(run.transcripts, "w1.session.jsonl"))),
+  };
+  console.error(
+    `warmup: ${line.answered ? "answered" : `NO ANSWER (${turn.detail})`} in ${line.elapsedSeconds}s,` +
+      ` first prompt ${line.firstPromptTokens ?? "?"} tokens`,
+  );
+  if (opts.results) appendFileSync(opts.results.replace(/\.jsonl$/, "") + ".warmup.jsonl", `${JSON.stringify(line)}\n`);
 }
 
 /** Default mode: the three built-in probes, one response each, no supervisor. */
@@ -824,6 +923,14 @@ async function runGate() {
 
 // Goes regardless of --keep — only transcripts and workspaces are worth keeping.
 cleanupAgentDirs();
+if (opts.archiveTo) {
+  mkdirSync(opts.archiveTo, { recursive: true });
+  cpSync(outDir, join(opts.archiveTo, "transcripts"), { recursive: true });
+  if (existsSync(join(scratch, "runs"))) {
+    execFileSync("tar", ["-czf", join(opts.archiveTo, "workspaces.tgz"), "-C", scratch, "runs"]);
+  }
+  console.log(`\narchived: ${opts.archiveTo}`);
+}
 if (opts.keep) {
   console.log(`\ntranscripts: ${outDir}\nworkspaces: ${join(scratch, "runs")}`);
 } else {
