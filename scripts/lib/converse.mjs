@@ -23,6 +23,8 @@
 // calls, counted across its responses, hold no skill-seeking call ends as
 // `gated`, a miss (pi-session.mjs `gateTripped`). A response that ends on a
 // context overflow pi could not recover from ends its attempt as `overflow`.
+// A response that ends on any other provider error is a harness failure
+// (`no-run`), so a server that dies mid-run cannot turn probes into fails.
 //
 // A response that runs past --timeout ends its attempt, and that attempt
 // counts. The limit is a budget per response, not a loop detector: a slow
@@ -197,13 +199,17 @@ async function runAttempt(probe, run, ctx) {
       endedBy = "reached";
       break;
     }
-    if (sessionMeasures(readEntries(run.sessionFile)).endedOnOverflow) {
+    const measures = sessionMeasures(readEntries(run.sessionFile));
+    if (measures.endedOnOverflow) {
       endedBy = "overflow";
       break;
     }
     if (gateTripped(turns, gateCalls)) {
       endedBy = "gated";
       break;
+    }
+    if (measures.endedOnProviderError) {
+      return { fatal: "no-run", detail: `provider error: ${measures.endedOnProviderError}`, attempt: summary() };
     }
     if (turn.timedOut) {
       endedBy = "timeout";

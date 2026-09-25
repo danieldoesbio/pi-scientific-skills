@@ -227,5 +227,11 @@ export function sessionMeasures(entries) {
     providerErrors: errors.map((message) => String(message.errorMessage ?? "").slice(0, 200)),
     overflows: overflows.length,
     endedOnOverflow: assistants.length > 0 && overflows.includes(assistants.at(-1)),
+    // Any other provider error (the server died, a 500): a harness failure,
+    // not the model's behaviour. None occurred in 185 sessions on 2026-09-23.
+    endedOnProviderError:
+      assistants.at(-1)?.stopReason === "error" && !overflows.includes(assistants.at(-1))
+        ? String(assistants.at(-1).errorMessage ?? "unknown").slice(0, 200)
+        : null,
   };
 }

@@ -163,6 +163,20 @@ console.log("-- attempts end by the right rule --");
     { endpoint: "read", gateCalls: 10 },
   );
   check("a response that ends on an overflow ends the attempt as overflow", overflow.endedBy === "overflow");
+  const dead = await runSupervisedProbe(probe, {
+    startAttempt: () => {
+      const file = join(dir, `s${++ids}.jsonl`);
+      writeFileSync(file, [user("task"), assistant([], undefined, { stopReason: "error", errorMessage: "fetch failed: ECONNREFUSED" })].map((e) => JSON.stringify(e)).join("\n") + "\n");
+      return { sessionFile: file, finish: () => {} };
+    },
+    respond: async () => ({ answered: true, timedOut: false }),
+    persona: { next: async () => ({ action: "reply", message: "go on" }) },
+    catalogue,
+    limits: { attempts: 1, responses: 3 },
+    log: () => {},
+    endpoint: "read",
+  });
+  check("a response that ends on another provider error is a harness error, not a grade", dead.outcome === "no-run" && /ECONNREFUSED/.test(dead.detail));
   rmSync(dir, { recursive: true, force: true });
 }
 
