@@ -213,6 +213,8 @@ scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
+scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
+scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
@@ -619,7 +621,7 @@ path (finds pi on `PATH`, rebuilds the alias map, imports `jiti/lib/jiti-static.
 directly), so the suites exercise the same module graph pi does. An installed pi
 is therefore a hard prerequisite for `npm test`.
 
-`npm test` runs five things, none of which spend model tokens:
+`npm test` runs seven things, none of which spend model tokens:
 
 | Script | What it proves |
 |---|---|
@@ -628,6 +630,8 @@ is therefore a hard prerequisite for `npm test`.
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
+| `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`). A wrong endpoint or gate still gives numbers in a live run, so it is checked here. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -724,8 +728,50 @@ tell a vague probe or a search gap apart from a model that did not search.
 empties the skills filter, so no skill is listed in the system prompt and
 `sci_find` is the only way in; `core` lists the Core profile, what
 `/sci search` wrote before 1.7.0, where a listed skill can stand in for a
-search. Each result line records which one ran; a line from before the option
-existed counts as `core`. Two summary lines show recovery: the
+search. `all` sets no filter: every skill is listed, as in a normal install.
+Each result line records which one ran; a line from before the option
+existed counts as `core`.
+
+Options for comparing configurations (added for the 2026-09-25 three-arm run,
+[`testing/runs/2026-09-25-night-arms.md`](testing/runs/2026-09-25-night-arms.md)):
+
+- `--no-extension` writes `extensions: []` into the package entry: pi loads the
+  skills but not the extension, so there is no `sci_find`, no `/sci` and no
+  input hook. Not `--exclude-tools sci_find`, which would leave the hook
+  running.
+- `--package-dir <dir>` packs another package tree (an older release from
+  `git archive`), and `--package-label` records it on every line.
+- `--endpoint read` moves the endpoint from "listed" to "read": the model read
+  the target's SKILL.md with `read`, or printed it with bash (the command names
+  `<target>/SKILL.md` and the output holds its `name:` line). With every skill
+  in the prompt a listing proves nothing, so `--prompt-skills all` requires
+  it. The first listing is still recorded (`listed`, `listedSeconds`).
+- `--gate-calls <n>` ends an attempt as `gated`, a miss, once its first n tool
+  calls hold no skill-seeking call (`sci_find`, or a `read` or bash call that
+  touches a SKILL.md or a `/skills/` path segment). On 2026-09-23 every
+  reaching attempt looked for a skill by its eighth call, and n = 10 would have
+  ended 12 of 28 misses early (10 of them timeouts) and lost no reach.
+- `--warmup` sends one ungraded request first, so the cold prefill of a large
+  system prompt does not count against the first probe (llama.cpp keeps the
+  prefix; pi's skills block comes before the working-directory line).
+- `--archive-to <dir>` copies the transcripts and a tarball of the workspaces
+  out of the temporary directory at the end.
+
+Every attempt now also records the first request's prompt size (pi usage:
+input + cacheRead + cacheWrite), peak context, output tokens, tool calls, the
+index of the first skill-seeking call, pi's `compaction` entries and provider
+overflow errors. A response that ends on an overflow pi could not recover from
+ends its attempt as `overflow`.
+
+`scripts/find-live-arms.sh` runs several arms unattended. It `git archive`s
+the two commits into `<out>/src/` at the start and runs only from there, so an
+edit to the working tree cannot change an arm mid-run. It starts the model
+server from a script you pass, checks it before each invocation and restarts
+it once if it died, stops after three harness errors in a row, and runs under
+`caffeinate`. Probes run in chunks (Core first, then a seeded shuffle); each
+chunk runs every arm, with the order rotated per chunk, so a run stopped at a
+chunk boundary is still balanced and paired. `--stop-after HH:MM` starts no
+chunk after that time; the same `--out` continues on a later night. Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it
 first called `sci_find` (response 1, later, never) with how many of each
 reached the target. A late first search that still reaches is recovery inside
