@@ -261,6 +261,16 @@ Chunk 2 is complete for `v17`; `full` finished 5 of 10; `v16` did not start.
   value beside it and labelled post hoc. The script also gives prefill and
   generation seconds per attempt and warm-up, which is how the pre-registered
   prompt-processing and generation speeds are measured.
+- **A stop may also slow the next prefill (measured post hoc, small n).** The
+  first request of an attempt that follows a stop prefilled at 59 tok/s in
+  `v16` (9 requests) against 109 (1 request) otherwise, and at 44 against 82
+  in `full` (9 against 1). `v17` showed no slowdown: 108 (17) against 110 (3).
+  `endpointSecondsNet` removes the queue wait only; this slowdown, about 4–5 s
+  per attempt where it occurs, stays inside it and may differ by arm. The
+  per-attempt `firstAfterStop` and first-request prefill fields let the
+  analysis estimate it once each arm has more first probes (one per
+  invocation). The speed table leaves out warm-ups and requests right after a
+  stop.
 - **Warm-up cost depends on the arm before.** Cold starts (chunk 1): `v16`
   30.6 s for 3,744 tokens, `v17` 15.8 s for 1,913, `full` 293.2 s for 30,634.
   The chunk 2 `v17` warm-up processed 515 tokens and reused 1,397 from the

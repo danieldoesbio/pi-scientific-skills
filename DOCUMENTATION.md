@@ -786,8 +786,11 @@ pi's request to the server starting it. The queue wait exists because a stop
 (reach or gate) kills pi, but llama.cpp finishes the prefill of the cancelled
 request first, about 11 s (v16) to 17 s (`full`) on 2026-09-25. The next
 attempt's first request waits for it, inside its recorded time to read.
-`endpointSecondsNet` is the time to read without that wait. The script also
-prints prefill and generation tok/s by prompt size per arm. It needs the
+`endpointSecondsNet` is the time to read without that wait. A stop can also
+slow the next request's prefill (2026-09-25: about half speed in two arms);
+that stays inside the net time, and `firstAfterStop` marks the attempts it
+can touch. The script also prints prefill and generation tok/s by prompt
+size per arm, without warm-ups and requests right after a stop. It needs the
 archived session files: an invocation stopped by a signal archives nothing,
 so its attempts are not timed.
 

@@ -26,7 +26,9 @@ export function stampMs(line) {
 /**
  * Requests per server run, in launch order. Times are ms since that run's
  * start. A stamp that goes back by more than 5 s starts a new run: the driver
- * restarted the server and appended to the same log.
+ * restarted the server and appended to the same log. `afterCancel`: the
+ * request before it in the run was cancelled (a stop), so it may start on a
+ * cache the cancelled request left behind.
  */
 export function parseServerLog(text) {
   const runs = [];
@@ -39,7 +41,8 @@ export function parseServerLog(text) {
     last = at;
     const launch = LAUNCH.exec(line);
     if (launch) {
-      tasks.set(launch[1], { task: Number(launch[1]), run: runs.length - 1, launch: at });
+      const previous = [...tasks.values()].at(-1);
+      tasks.set(launch[1], { task: Number(launch[1]), run: runs.length - 1, launch: at, afterCancel: previous?.cancel != null });
       continue;
     }
     for (const [pattern, fields] of FIELDS) {

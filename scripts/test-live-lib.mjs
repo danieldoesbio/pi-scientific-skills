@@ -208,6 +208,7 @@ console.log("-- server log join (find-live-timing) --");
   check("a stamp that goes back starts a new server run", runs.length === 2 && runs[0].length === 4 && runs[1].length === 1);
   check("a cancelled request keeps its cancel and release times", cancelled?.cancel === 21000 && cancelled?.release === 32000 && cancelled?.promptMs === undefined);
   check("a finished request has prompt, generation and context", finished?.promptTokens === 400 && finished?.genTokens === 30 && finished?.context === 1430);
+  check("a request right after a cancelled one is marked", finished?.afterCancel === true && cancelled?.afterCancel === false);
 
   const t0 = Date.parse("2026-09-25T15:50:22Z");
   const message = (start, end, input, output) => ({ start: t0 + start, end: t0 + end, input, output });

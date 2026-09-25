@@ -127,24 +127,34 @@ function timingOf(session, pairs, messageCount, row) {
     generationTokens: sum(own.map((pair) => pair.request.genTokens)),
     queueSeconds: tenth(sum(own.map((pair) => pair.queueMs)) / 1000),
     firstQueueSeconds: own.length > 0 ? tenth(own[0].queueMs / 1000) : null,
+    firstAfterStop: own.length > 0 ? own[0].request.afterCancel : null,
+    firstPrefillSeconds: own.length > 0 ? tenth(own[0].request.promptMs / 1000) : null,
+    firstPrefillTokens: own.length > 0 ? own[0].request.promptTokens : null,
     endpointSeconds: attempt?.endpointSeconds ?? null,
     endpointSecondsExact: hit ? tenth((hit.at - base) / 1000) : null,
     endpointSecondsNet: hit ? tenth((hit.at - base - queueBefore) / 1000) : null,
   };
 }
 
-/** Finished and cancelled requests per arm, placed by the driver's START/END windows. */
+/**
+ * Finished and cancelled requests per arm, placed by the driver's START/END
+ * windows. The first request in a window is the invocation's warm-up.
+ */
 function requestsByArm(runs, offsets, windows) {
-  const byArm = new Map();
+  const byWindow = new Map();
   runs.forEach((requests, run) => {
     if (offsets[run] == null) return;
     for (const request of requests) {
       const at = offsets[run] + request.launch;
       const window = windows.find((w) => at >= w.start - 1000 && (w.end === null || at <= w.end + 1000));
-      if (!window) continue;
-      byArm.set(window.arm, [...(byArm.get(window.arm) ?? []), request]);
+      if (window) byWindow.set(window, [...(byWindow.get(window) ?? []), request]);
     }
   });
+  const byArm = new Map();
+  for (const [window, requests] of byWindow) {
+    const tagged = requests.map((request, index) => ({ ...request, warmup: index === 0 }));
+    byArm.set(window.arm, [...(byArm.get(window.arm) ?? []), ...tagged]);
+  }
   return byArm;
 }
 
@@ -168,10 +178,19 @@ function printSummary(arms, timings, byArm) {
         `${pad(tenth(median(own.map((t) => t.prefillSeconds))), 10)} ${tenth(median(own.map((t) => t.generationSeconds)))}`,
     );
   }
-  console.log("\nServer speed by prompt size, pooled over finished requests: prefill tok/s | generation tok/s (n)");
+  console.log("\nFirst request of an attempt, prefill tok/s pooled (n): after a stop | not after a stop");
+  for (const arm of arms) {
+    const firsts = timings.filter((t) => t.arm === arm && t.probe !== "_warmup" && t.firstPrefillSeconds > 0);
+    const pooled = (list) => (list.length ? `${rate(sum(list.map((t) => t.firstPrefillTokens)), sum(list.map((t) => t.firstPrefillSeconds * 1000)))} (${list.length})` : "-");
+    console.log(`  ${pad(arm, 5)} ${pooled(firsts.filter((t) => t.firstAfterStop))} | ${pooled(firsts.filter((t) => !t.firstAfterStop))}`);
+  }
+  console.log("\nServer speed by prompt size, finished requests that are not a warm-up and not right after a stop:");
+  console.log("prefill tok/s | generation tok/s (n), pooled");
   console.log(`  ${pad("arm", 5)} ${BIN_LABELS.map((label) => pad(label, 16)).join("")}`);
   for (const arm of arms) {
-    const done = (byArm.get(arm) ?? []).filter((r) => r.promptMs != null && r.genMs != null && r.context != null);
+    const done = (byArm.get(arm) ?? []).filter(
+      (r) => r.promptMs != null && r.genMs != null && r.context != null && !r.warmup && !r.afterCancel,
+    );
     const cells = BINS.map((top, index) => {
       const bin = done.filter((r) => r.context - r.genTokens < top && r.context - r.genTokens >= (BINS[index - 1] ?? 0));
       if (bin.length === 0) return pad("-", 16);
