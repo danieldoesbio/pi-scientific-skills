@@ -177,8 +177,8 @@ console.log("-- sci_find tool --");
   // only in the tool schema, and 15 of 19 misses never called it.
   const snippet = tool?.promptSnippet ?? "";
   check(
-    "has a one-line promptSnippet that says it searches scientific skills",
-    snippet.length > 0 && !/\n/.test(snippet) && /scientific skills/.test(snippet),
+    "has a one-line promptSnippet that scopes it to scientific, research and analysis work",
+    snippet.length > 0 && !/\n/.test(snippet) && /scientific, research and analysis work/.test(snippet),
     snippet,
   );
   const guidelines = tool?.promptGuidelines ?? [];

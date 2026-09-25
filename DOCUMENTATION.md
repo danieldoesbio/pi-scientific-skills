@@ -313,8 +313,10 @@ in its prompt: it reached all ten Core targets through `sci_find` (8 on the
 first attempt), and 143 of 157 valid targets overall. The risk, stated: the two
 Core probes below first-attempt success (`exploratory-data-analysis`, `polars`)
 were attempts that never searched. With Core in the prompt, those skills would
-have been listed. The `promptSnippet` below exists to cover that, and a live
-A/B pilot measures it (`testing/runs/`). Profiles still put a field's skills in
+have been listed. The `promptSnippet` below exists to cover that. A small A/B
+pilot (`testing/runs/2026-09-24-bonsai2-snippet-ab.md`) showed no effect on the
+search rate (11/12 in both arms); a three-arm overnight run measures the default
+change itself (`testing/runs/2026-09-25-night-arms.md`). Profiles still put a field's skills in
 the prompt for anyone who wants them there. Existing users keep their filter;
 the 1.7.0 upgrade notice tells them how to switch.
 
@@ -324,11 +326,16 @@ filters on it); until 1.7.0 the model saw `sci_find` only in the tool schema.
 In the 2026-09-23 test, 15 of the 19 misses on valid probes were attempts that
 never called it. The tool now carries a one-line snippet and one guideline:
 use `sci_find` before writing code, installing a package or setting up a
-service for a scientific, data or research task. pi appends guidelines flat to
+service for scientific, research or analysis work. pi appends guidelines flat to
 its own list, so the guideline names the tool. `test-extension.mjs` renders
-both through pi's own `buildSystemPrompt`. Known trade-off: "data" lets the
-guideline fire in ordinary data-coding sessions, which costs one tool call. The
-live tests cannot measure that, because every probe has a target.
+both through pi's own `buildSystemPrompt`. The scope reads "scientific, research
+and analysis" and not only "scientific": in the pilot's one treatment miss
+(`parallel-web`), the model's thinking named `sci_find` as a tool for
+"scientific skills" and judged a web-monitoring task out of its scope. The
+wording does not name web search, because that would fit one probe directly.
+Known trade-off: "analysis" lets the guideline fire in ordinary data-coding
+sessions, which costs one tool call. The live tests cannot measure that,
+because every probe has a target.
 
 **Design decisions worth not re-deriving:**
 

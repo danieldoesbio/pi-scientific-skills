@@ -154,7 +154,11 @@ Stopped after probe 15 (`matplotlib`). Not run: `scientific-critical-thinking`,
   regression to the mean stated under "Limits": the selection was a miss at
   temperature 1.0, not a stable property of the probe.
 - **Cost:** the 1.7.0 prompt text adds about 90 tokens to the first request.
-- Raw results and transcripts: scratch only, not archived in git.
+- Raw results, logs and transcripts: in the main checkout, gitignored, under
+  `testing/transcripts/find-live/2026-09-24-bonsai2-snippet-ab/`
+  (`pilot-*.jsonl`, `smoke-*.jsonl`, `pilot.log`, `llama-server.log`,
+  `logs.tgz`, and `transcripts.tgz` with the 34 kept attempt directories,
+  staged package excluded).
 
 ## Next
 

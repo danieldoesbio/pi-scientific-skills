@@ -152,14 +152,20 @@ In order of evidence:
    `modal`, `open-notebook`, `parallel-web`, `polars`, `pysam`,
    `pytorch-lightning`, `qutip`. **Implemented in 1.7.0** (snippet, one
    guideline, one more scope sentence in the description), together with
-   search mode that loads no skills. The A/B pilot is pending.
+   search mode that loads no skills. The A/B pilot was stopped early: both
+   arms searched in response 1 on 11 of 12, so it showed no effect on the
+   search rate (regression to the mean; see
+   [`runs/2026-09-24-bonsai2-snippet-ab.md`](runs/2026-09-24-bonsai2-snippet-ab.md)).
+   The default change itself is measured by a three-arm run
+   ([`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md)).
 5. **Open hypotheses for offline tests:** IDF weighting; a `profile` value
    that is not a profile falling back to the query (the model confused the
    two once in 183 calls).
 
 ## Proposed next experiment: the full prompt against search
 
-**Status: proposed, not run.**
+**Status: scheduled** as the `v17` against `full` comparison of
+[`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md).
 
 **Question.** What does the normal install cost this model: all 162 skill
 descriptions in the system prompt, and no `sci_find`? We want the cost in

@@ -314,18 +314,19 @@ export default function (pi: ExtensionAPI): void {
       name: TOOL_NAME,
       label: "Find scientific skill",
       promptSnippet:
-        `Search the ${TOTAL_SKILL_COUNT} installed scientific skills by task and get the ` +
-        `SKILL.md path to read`,
+        `Search the ${TOTAL_SKILL_COUNT} installed skills for scientific, research and ` +
+        `analysis work, and get the SKILL.md path to read`,
       promptGuidelines: [
-        `Use ${TOOL_NAME} before you write code, install a package or set up a service for a ` +
-          `scientific, data or research task: a skill may already cover it. Then read the ` +
+        `Use ${TOOL_NAME} before you write code, install a package or set up a service for ` +
+          `scientific, research or analysis work: a skill may already cover it. Then read the ` +
           `SKILL.md it returns.`,
       ],
       description:
-        `Search ${TOTAL_SKILL_COUNT} installed scientific skills (biology, genomics, ` +
-        `chemistry, drug discovery, clinical research, imaging, physics, statistics, ML, ` +
-        `scientific writing) and get the path to load one. Skills cover analysis methods, ` +
-        `code and data work, databases, lab and cloud tools and services, and writing. ` +
+        `Search ${TOTAL_SKILL_COUNT} installed skills for scientific, research and analysis ` +
+        `work (biology, genomics, chemistry, drug discovery, clinical research, imaging, ` +
+        `physics, statistics, ML, scientific writing) and get the path to load one. Skills ` +
+        `cover analysis methods, code and data work, databases, lab and cloud tools and ` +
+        `services, and writing. ` +
         `Most of these skills are NOT listed in the system prompt, so this is the only ` +
         `way to discover them. Call it with a natural-language description of the task ` +
         `("variant calling from a bam file", "fit a survival model"). Omit all arguments ` +
