@@ -212,6 +212,13 @@ the run's flags. Harness frozen at commit `af4e299`. Output in the gitignored
   and the driver aborted and stopped the server. A harness exit code of 2 also
   aborts.
 
+- **Arm contents, from the requests.** A fake server recorded the request
+  body of each arm at commit `08aff2e`. `v16`: tools `read bash edit write
+  sci_find`, `sci_find` not named in the system prompt, 10 skills listed.
+  `v17`: the same tools, `sci_find` named in the system prompt, no skills
+  listed. `full`: tools `read bash edit write`, no `sci_find` anywhere, 162
+  skills listed.
+
 Harness changes after the smoke, before the run (not in the smoke):
 
 - `4fef0ce`: the log says "stopped early", not "stopped on reach", for a gate
