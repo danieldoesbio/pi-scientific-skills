@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Checks for the live harness's grading helpers (scripts/lib/pi-session.mjs,
 // scripts/lib/converse.mjs) on synthetic pi session files: the read endpoint,
-// the timeout gate, the context measures, and how an attempt ends. These fail
+// the timeout gate, the context measures, and how an attempt ends. Also the
+// server log join (scripts/lib/server-log.mjs) and the report's paired
+// statistics and analysis set (scripts/lib/arms-report.mjs). These fail
 // silently in a live run — a wrong endpoint or gate still gives numbers — so
 // they are checked here, with no model.
 import { mkdtempSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
@@ -10,6 +12,7 @@ import { join } from "node:path";
 import { runSupervisedProbe } from "./lib/converse.mjs";
 import { gateTripped, isSeek, responses, sessionMeasures, skillReads } from "./lib/pi-session.mjs";
 import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/server-log.mjs";
+import { Z95, analysisSet, mcnemarExact, newcombePaired, pairCounts, wilson } from "./lib/arms-report.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -235,6 +238,32 @@ console.log("-- server log join (find-live-timing) --");
     "driver log: server starts and arm windows, an interrupt closes the open one",
     driver.starts.length === 1 && driver.windows.length === 2 && driver.windows[1].arm === "v17" && driver.windows[1].end !== null,
   );
+}
+
+console.log("-- paired statistics and analysis set (find-live-arms-report) --");
+{
+  const near = (x, y, tolerance = 5e-4) => Math.abs(x - y) < tolerance;
+  // Closed form: the Wilson lower bound for n of n is n / (n + z²).
+  const allTen = 10 / (10 + Z95 * Z95);
+  check("Wilson: 10 of 10 has lower bound n / (n + z²) and upper bound 1", near(wilson(10, 10)[0], allTen, 1e-12) && near(wilson(10, 10)[1], 1, 1e-12));
+  const [low, high] = newcombePaired(10, 0, 0, 0);
+  check("Newcombe: no discordant pairs at 10 of 10 gives ±(1 − the Wilson lower bound)", near(low, -(1 - allTen), 1e-12) && near(high, 1 - allTen, 1e-12));
+  // Hand-computed on 2026-09-26: p1 − l1 = 0.04917, u2 − p2 = 0.07535, φ = 0.19214, δ = 0.08168.
+  const [handLow] = newcombePaired(69, 20, 0, 1);
+  check("Newcombe: a 69, b 20, c 0, d 1 gives the hand-computed lower bound 0.1405", near(handLow, 0.1405), String(handLow));
+  const forward = newcombePaired(40, 7, 3, 10);
+  const backward = newcombePaired(40, 3, 7, 10);
+  check("Newcombe: swapping the arms negates the interval", near(forward[0], -backward[1], 1e-12) && near(forward[1], -backward[0], 1e-12));
+  check("McNemar exact: 20:0 gives 2 × 0.5^20, 2:0 gives 0.5, 5:5 and 0:0 give 1", near(mcnemarExact(20, 0), 2 * 0.5 ** 20, 1e-15) && mcnemarExact(2, 0) === 0.5 && mcnemarExact(5, 5) === 1 && mcnemarExact(0, 0) === 1);
+  check("McNemar exact: 9:1 gives 2 × 11 / 1024", near(mcnemarExact(9, 1), 22 / 1024, 1e-15) && mcnemarExact(1, 9) === mcnemarExact(9, 1));
+  const counts = pairCounts(["p", "q", "r", "s"], (id) => "pq".includes(id), (id) => "pr".includes(id));
+  check("pair counts: both, first only, second only, neither", counts.a === 1 && counts.b === 1 && counts.c === 1 && counts.d === 1, JSON.stringify(counts));
+
+  const order = ["1\ta", "1\tb", "2\tc", "2\td", "3\te"].map((line) => ({ chunk: Number(line[0]), id: line.slice(2) }));
+  const graded = (ids, extra = {}) => new Map(ids.map((id) => [id, { id, outcome: "graded", ...(extra[id] ?? {}) }]));
+  const set = analysisSet(order, [graded(["a", "b", "c", "d", "e"]), graded(["a", "b", "c", "e"], { b: { outcome: "no-run" } })]);
+  check("analysis set: a chunk missing a line in any arm is left out, even when its other probes are paired", set.complete.join() === "1,3" && set.incomplete.join() === "2" && !set.ids.includes("c"), JSON.stringify(set));
+  check("analysis set: a harness error in any arm drops the probe from all arms", set.harnessErrors.join() === "b" && set.ids.join() === "a,e", JSON.stringify(set));
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

@@ -372,5 +372,6 @@ post-stop slowdown inside it.
 **Speed** (server log, without warm-ups and post-stop requests): prefill /
 generation tok/s `v16` 111/20 under 4k tokens and 103/16 at 16k–32k; `v17`
 114/20 under 4k; `full` 75/14 at 16k–32k and 74/13 at 32k and more.
-Computed with `scripts/find-live-timing.mjs` and scratch tallies; the final
-analysis will use a committed report script.
+Speed from `scripts/find-live-timing.mjs`. The read rates, intervals and
+times to read above come again from `scripts/find-live-arms-report.mjs`
+(written after this look, same numbers).
