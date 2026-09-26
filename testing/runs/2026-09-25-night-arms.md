@@ -275,3 +275,86 @@ Chunk 2 is complete for `v17`; `full` finished 5 of 10; `v16` did not start.
   30.6 s for 3,744 tokens, `v17` 15.8 s for 1,913, `full` 293.2 s for 30,634.
   The chunk 2 `v17` warm-up processed 515 tokens and reused 1,397 from the
   server's cache. Warm-up costs are reported with their cached tokens.
+
+**2026-09-25/26, second session (resumed 20:52, stopped by `--stop-after
+07:30` at 07:34).** Chunks 2–9 finished in all arms. No `no-run` or
+`supervisor-error` lines. The server log holds two server runs; the join
+found both clock offsets under 1 s and paired 645 of 656 finished requests.
+Five `full` probes of chunk 2 have no timing (sessions lost, above), and
+`molfeat` and `rdkit` in `v16` have none: both reads have no recorded time
+(`seconds: null` in `reaches`, cause not checked), so they drop out of every
+time-to-read comparison.
+
+- **Post-stop prefill slowdown, whole night** (first request of an attempt,
+  after a stop against not): `v16` 93 tok/s (76) against 110 (14); `v17` 107
+  (80) against 109 (10); `full` 44 (76) against 78 (9). The early `v16`
+  figure (59) was small-n. The slowdown stays inside `endpointSecondsNet` and
+  costs `full` the most.
+- **Warm-up per chunk:** `full` 290–303 s every chunk. `v17` reused the
+  server's cache in chunks 2, 5 and 8 (515 processed, 1,397 cached).
+
+### Interim look after night 1 (chunks 1–9, 90 paired probes)
+
+Not the final analysis. Chunks 10–17 run as planned whatever these numbers
+show. The CIs are not adjusted for this look. All nine chunks are complete in
+all three arms; analysis set 90 (Core 10, non-Core 80).
+
+| | `v16` | `v17` | `full` |
+|---|---|---|---|
+| Read | 69/90 | 89/90 | 87/90 |
+| Core / non-Core | 10/10, 59/80 | 10/10, 79/80 | 10/10, 77/80 |
+| Ended | reached 69, timeout 9, gated 9, persona-end 2, max-responses 1 | reached 89, persona-end 1 | reached 87, gated 2, timeout 1 |
+| First prompt, median tokens | 3,789 | 1,945 | 30,824.5 |
+| Peak context, median / max | 6,874 / 51,859 | 4,353.5 / 38,250 | 31,039 / 56,367 |
+| Tool calls, median | 3 | 2 | 1 |
+| Output tokens, median | 689.5 | 338.5 | 236 |
+| Compactions / overflows | 1 / 0 | 0 / 0 | 1 / 1 |
+| Attempt time, sum | 426 min | 100 min | 106 min |
+
+`listed` without a read: 0 in every arm.
+
+**Primary 1, `v17 − v16`:** +22.2 points, Newcombe 95% CI 14.1 to 31.8;
+discordant 20:0, McNemar exact p = 1.9 × 10⁻⁶. The lower bound is far above
+−5: non-inferior at this look. Core: 0.0 (CI −27.8 to 27.8, 0:0). Non-Core:
++25.0 (15.9 to 35.4, 20:0).
+
+The 20 `v16` misses and the bundle caveat: 14 never sought a skill (9 gated,
+3 timeouts, 1 persona-end, 1 max-responses). 4 read other skills without
+`sci_find`: three read listed Core skills (`paper-lookup`,
+`citation-management`, `scientific-writing`, `experimental-design`), one read
+`phylogenetics`. 2 called `sci_find`, the target was not in its results, and
+they read `paper-lookup` and `tamarind`. All 6 ended as timeouts. No miss had the
+target listed and unread, so "Then read the SKILL.md it returns" explains
+none of the 20. The gap is in whether and where the model looks.
+
+**Primary 2, `v17 − full`:** +2.2 points, Newcombe 95% CI −1.9 to 7.8;
+discordant 2:0 (`seaborn` gated, `scikit-survival` timeout in `full`),
+McNemar exact p = 0.50. Core: 0.0 (−27.8 to 27.8). Non-Core: +2.5 (−2.1 to
+8.7). The CI includes 0 and excludes a `v17` loss of more than 1.9 points.
+
+**Secondary analysis without probe-invalid probes** (`pi-agent` in `v16` and
+`v17`, `consciousness-council` in `v16`; 88 left): `v17 − v16` +21.6 (13.2
+to 31.3), 19:0, p = 3.8 × 10⁻⁶; `v17 − full` +2.3 (−2.2 to 7.9), 2:0,
+p = 0.50.
+
+**Time to read, paired medians on probes read in both arms.**
+
+| | n | `v17` | other arm | paired median `v17 −` other | `v17` faster |
+|---|---|---|---|---|---|
+| `v17`/`v16`, recorded (`endpointSeconds`) | 67 | 55 s | 62 s | −6 s | 42 of 67 |
+| `v17`/`v16`, server-exact (post hoc) | 67 | 55.1 | 61.6 | −6.7 | 42 of 67 |
+| `v17`/`v16`, net of queue (post hoc) | 67 | 40.1 | 55.4 | −9.7 | 45 of 67 |
+| `v17`/`full`, recorded | 87 | 55 | 42 | +13 | 14 of 87 |
+| `v17`/`full`, server-exact (post hoc) | 82 | 55.3 | 42.5 | +13.1 | 15 of 82 |
+| `v17`/`full`, net of queue (post hoc) | 82 | 40.6 | 27.3 | +13.1 | 14 of 82 |
+
+Time to read counts reads only (69 and 87 pairs read in both; the
+`v16` pairs `molfeat` and `rdkit` have no time). `full` pays its warm-up
+(290–303 s per chunk, about 30 s per probe) outside this measure, and its
+post-stop slowdown inside it.
+
+**Speed** (server log, without warm-ups and post-stop requests): prefill /
+generation tok/s `v16` 111/20 under 4k tokens and 103/16 at 16k–32k; `v17`
+114/20 under 4k; `full` 75/14 at 16k–32k and 74/13 at 32k and more.
+Computed with `scripts/find-live-timing.mjs` and scratch tallies; the final
+analysis will use a committed report script.
