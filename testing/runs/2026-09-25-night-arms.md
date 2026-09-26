@@ -308,10 +308,12 @@ all three arms; analysis set 90 (Core 10, non-Core 80).
 | Peak context, median / max | 6,874 / 51,859 | 4,353.5 / 38,250 | 31,039 / 56,367 |
 | Tool calls, median | 3 | 2 | 1 |
 | Output tokens, median | 689.5 | 338.5 | 236 |
-| Compactions / overflows | 1 / 0 | 0 / 0 | 1 / 1 |
+| Compactions | 1 | 0 | 1 |
+| Overflow errors | 0 | 0 | 1, recovered by compaction |
 | Attempt time, sum | 426 min | 100 min | 106 min |
 
-`listed` without a read: 0 in every arm.
+`listed` without a read: 0 in `v16` and `v17`. (In `full` every target is
+in the prompt, so the count says nothing there.)
 
 **Primary 1, `v17 − v16`:** +22.2 points, Newcombe 95% CI 14.1 to 31.8;
 discordant 20:0, McNemar exact p = 1.9 × 10⁻⁶. The lower bound is far above
@@ -330,7 +332,7 @@ none of the 20. The gap is in whether and where the model looks.
 **Primary 2, `v17 − full`:** +2.2 points, Newcombe 95% CI −1.9 to 7.8;
 discordant 2:0 (`seaborn` gated, `scikit-survival` timeout in `full`),
 McNemar exact p = 0.50. Core: 0.0 (−27.8 to 27.8). Non-Core: +2.5 (−2.1 to
-8.7). The CI includes 0 and excludes a `v17` loss of more than 1.9 points.
+8.7). The CI includes 0.
 
 **Secondary analysis without probe-invalid probes** (`pi-agent` in `v16` and
 `v17`, `consciousness-council` in `v16`; 88 left): `v17 − v16` +21.6 (13.2
@@ -352,6 +354,20 @@ Time to read counts reads only (69 and 87 pairs read in both; the
 `v16` pairs `molfeat` and `rdkit` have no time). `full` pays its warm-up
 (290–303 s per chunk, about 30 s per probe) outside this measure, and its
 post-stop slowdown inside it.
+
+**Predictions against the interim data.**
+
+- First prompt: `v17` 1,945 (predicted about 1.95k), `v16` 3,789 (about
+  3.3k), `full` 30,824.5 (about 25k). Bonsai counts the index at about 29k,
+  not 23k.
+- Generation: about 20 tok/s in `v16` and `v17` (predicted 19), 13–14 in
+  `full` (predicted 16).
+- Read rate on non-Core, `v17` against `v16`: predicted within noise.
+  **Wrong:** +25.0 points, in `v17`’s favor.
+- Core, `v16` reads sooner: **held.** Recorded time to read, 10 of 10 faster
+  in `v16`; median 29.5 s against 56 s.
+- Overflow rare and in `full` only: held (1). Compactions mostly in `full`:
+  not shown (1 in `v16`, 1 in `full`).
 
 **Speed** (server log, without warm-ups and post-stop requests): prefill /
 generation tok/s `v16` 111/20 under 4k tokens and 103/16 at 16k–32k; `v17`
