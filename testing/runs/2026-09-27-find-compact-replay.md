@@ -262,4 +262,72 @@ node scripts/find-live-replay-report.mjs <main-checkout>/testing/transcripts/fin
 
 ## Results
 
-Not run yet.
+Run on 2026-09-27, 13:18–16:11 local time (2 h 53 min), at commit `876094b`,
+with the server started from the same script. 316 requests, 0 errors, 0
+retries. Output (gitignored):
+`testing/transcripts/find-live/2026-09-27-find-compact-replay/` (`report.txt`
+holds the full report).
+
+**Analysis set:** 158 probes. 3 excluded as expected (`pi-agent`,
+`get-available-resources`, `scholar-evaluation`: no `sci_find` call). 0
+errors, 0 parity failures, 0 hash mismatches.
+
+**Validity: faithful.** The `full` replay read the target in 158 of 158; the
+recorded run read it in 157 of 158. Rule 1 (≥ 152): met. Rule 2 (0 ≤ 5): met.
+Discordance of the `full` replay against the recorded choice: 1:0 (the one
+probe the recorded run missed was read in the replay).
+
+**Primary: inconclusive.**
+
+| | `full` | `compact` | Difference (95% CI) | Discordant | McNemar exact p |
+|---|---|---|---|---|---|
+| Target read in the choice turn | 158/158 | 155/158 | −1.9 points (−5.4 to 0.8) | 0:3 | 0.25 |
+
+The lower bound (−5.4) is below the −5 point margin and the upper bound is
+above 0, so the result is inconclusive, not inferior. This is the row "3 losses,
+0 gains" of the margin table. The secondary test (target listed in both arms)
+has the same 158 probes and the same result.
+
+The 3 probes that `compact` lost:
+
+| Probe | Target rank in the first list | `compact` choice |
+|---|---|---|
+| `esm` | not in the first list (in a later list of the same turn) | a new `sci_find` and a read of `tamarind` |
+| `molfeat` | 4 | a new `sci_find`, no read |
+| `pytorch-lightning` | 1 (full text in both arms) | an `ls` of the working directory |
+
+By rank: rank 1, 124 vs 123; rank 2, 15 vs 15; rank 3–6, 14 vs 13; rank 7+ or
+absent, 5 vs 4 (`full` vs `compact`).
+
+**Secondary measures (paired median, `compact` − `full`):**
+
+- `sci_find` characters: 6,804 → 3,222 (−3,535; lower in 153 of 158).
+- Prompt tokens: 4,156 → 3,135 (−951; lower in 153 of 158).
+- Output tokens: 152 → 127 (−10; lower in 96 of 158).
+- Seconds at position 1 (unpaired, 79 per arm): 39.7 → 35.2 s. At position 2:
+  25.7 → 18.8 s.
+
+**Predictions against results:**
+
+- Validity 153 or more with 0–3 discordant: **met** (158; 1).
+- `compact` within 2 probes of `full` and non-inferior: **not met** (3
+  probes; inconclusive).
+- Losses mostly at ranks 3–6: **not met** (1 of 3 at rank 3–6; 1 at rank 1,
+  where the format does not change the target's text).
+- Prompt tokens about −1,000: **met** (−951).
+- Output tokens within ±20: **met** (−10).
+- Seconds at position 1 about −9 s: **not met** (−4.5 s, unpaired).
+
+**Reading.** The replay is faithful and the context saving is as predicted:
+about 1,000 prompt tokens per choice turn. The pick cannot be shown to be
+non-inferior at the −5 point margin: 3 losses and no gains. One loss
+(`pytorch-lightning`, target first with its full text in both arms) is not
+plausibly caused by the format. The noise floor of one sample at temperature
+1.0 was 1 discordant probe (the validity line). One sample cannot separate a
+small format cost from noise.
+
+**Decision (by the pre-registered rule): inconclusive.** The next step is a
+second sample with the same design, analysed with this one as one sample of
+two requests per probe per arm. That analysis is pre-registered before the
+second sample runs. The default does not change, the flag stays experimental,
+and the harness gets no `--find-format` passthrough yet.

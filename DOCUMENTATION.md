@@ -365,10 +365,12 @@ because every probe has a target.
   the others with the first sentence of their description only, and a call
   without `limit` gets 6 hits, not 8. On 2026-09-25 the top 6 held the target
   in 152 of 158 searches, and the choice turn after the search spent most of
-  its time in prefill of the result. The flag stays experimental until the
-  choice-turn replay
+  its time in prefill of the result. The first choice-turn replay
   ([`testing/runs/2026-09-27-find-compact-replay.md`](testing/runs/2026-09-27-find-compact-replay.md))
-  and a live A/B show no loss. Profile listings and no-match results are the
+  was inconclusive: the target was read in 155 of 158 choice turns with
+  `compact` and 158 of 158 with `full` (95% CI −5.4 to 0.8 points, margin −5),
+  and `compact` saved a median 951 prompt tokens. The flag stays experimental
+  until a second replay sample and a live A/B show no loss. Profile listings and no-match results are the
   same in both formats.
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
