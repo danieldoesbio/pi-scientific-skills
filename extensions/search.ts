@@ -23,6 +23,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ALIASES } from "./aliases";
+import { type Bm25fIndex, buildIndex, passesNoMatchRule, rankAll } from "./bm25f";
 import { parseFrontmatter } from "./frontmatter";
 
 // ---------------------------------------------------------------------------
@@ -318,6 +319,52 @@ export const DEFAULT_LIMIT = 8;
 export const MAX_LIMIT = 20;
 
 /**
+ * Which ranker `sci_find` uses. "current" (the default) is the scoring below;
+ * "bm25f" (experimental, `PI_SCI_FIND_RANKER=bm25f`) is `bm25f.ts`.
+ */
+export type Ranker = "current" | "bm25f";
+
+export const findRanker = (): Ranker => (process.env.PI_SCI_FIND_RANKER === "bm25f" ? "bm25f" : "current");
+
+/**
+ * One BM25F index per catalogue array. It reads every SKILL.md body (about
+ * 2 MB for the whole catalogue), so it is built on the first bm25f search, not
+ * at load, and kept: an installed package cannot change while pi runs.
+ */
+const bm25fIndexes = new WeakMap<readonly SkillEntry[], Bm25fIndex>();
+
+export const bm25fIndexFor = (catalog: readonly SkillEntry[]): Bm25fIndex => {
+  let index = bm25fIndexes.get(catalog);
+  if (index === undefined) {
+    index = buildIndex(catalog);
+    bm25fIndexes.set(catalog, index);
+  }
+  return index;
+};
+
+/** Every skill BM25F scores above 0 for the query, best first (no floor, no limit). */
+export const rankBm25f = (catalog: readonly SkillEntry[], query: string): SearchHit[] =>
+  rankAll(bm25fIndexFor(catalog), expandQuery(query).terms);
+
+/**
+ * The bm25f search: a query equal to a skill name lists that skill first;
+ * otherwise nothing is returned unless the no-match rule passes.
+ */
+const searchBm25f = (catalog: readonly SkillEntry[], query: string, limit: number): SearchHit[] => {
+  const index = bm25fIndexFor(catalog);
+  const { terms } = expandQuery(query);
+  const hits = rankAll(index, terms);
+  const wholeQuery = compact(query.toLowerCase());
+  const exact = wholeQuery.length >= 3 ? catalog.find((entry) => compact(entry.name.toLowerCase()) === wholeQuery) : undefined;
+  if (exact) {
+    const rest = hits.filter((hit) => hit.entry !== exact);
+    return [{ entry: exact, score: hits.find((hit) => hit.entry === exact)?.score ?? 0 }, ...rest].slice(0, Math.max(1, limit));
+  }
+  if (hits.length === 0 || !passesNoMatchRule(index, terms, hits[0].score)) return [];
+  return hits.slice(0, Math.max(1, limit));
+};
+
+/**
  * Rank the catalogue against a query.
  *
  * OR-scored, not AND-matched: requiring every term to appear returns nothing
@@ -327,7 +374,9 @@ export const search = (
   catalog: readonly SkillEntry[],
   query: string,
   limit: number = DEFAULT_LIMIT,
+  ranker: Ranker = findRanker(),
 ): SearchHit[] => {
+  if (ranker === "bm25f") return searchBm25f(catalog, query, limit);
   const { terms, boosted } = expandQuery(query);
   if (terms.length === 0 && boosted.size === 0) return [];
 

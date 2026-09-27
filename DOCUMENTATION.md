@@ -199,6 +199,7 @@ extensions/picker.ts    # the /sci profiles checkbox list (focused multiselect +
 extensions/commands.ts  # /sci's subcommands and bare-menu dispatch (status, search, all/none/reset)
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 extensions/search.ts    # sci_find's catalogue + ranking, and skills/ root resolution
+extensions/bm25f.ts     # the experimental BM25F ranker (PI_SCI_FIND_RANKER=bm25f)
 extensions/aliases.ts   # curated query→skill aliases, each from an observed miss
 extensions/frontmatter.ts    # the one YAML parser, shared with validate.mjs
 extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guards the drift
@@ -373,6 +374,26 @@ because every probe has a target.
   and `compact` saved a median 951 prompt tokens. The flag stays experimental
   until a second replay sample and a live A/B show no loss. Profile listings and no-match results are the
   same in both formats.
+- **A second ranker is under test, off by default.** With
+  `PI_SCI_FIND_RANKER=bm25f`, `sci_find` ranks with BM25F over three fields
+  per skill: name, description and SKILL.md body (`extensions/bm25f.ts`). A
+  word's weight falls with the number of skills that use it, and the body lets
+  a query reach a skill through words its description does not use. The
+  settings are fixed; they came from cross-validation on 425 recorded first
+  `sci_find` queries. A query equal to a skill name lists that skill first.
+  The no-match rule is its own: the best score must reach 2.5, or 35% of the
+  most the query could score. On development data it put the target in the
+  top 8 for 99.8% of recorded queries (current ranker: 97.2%) and 95.0% of
+  plain-language rewrites of the probes (current: 77.0%), and lost none of
+  1,069 development queries to the no-match rule. Its costs: it returns hits
+  for more in-domain requests that no skill covers (29 of 40 against 33 of 40
+  for the current ranker, from an agent-written set), and it has no alias
+  boost, so a query made only of common words can miss ("write the methods
+  section of my paper" ranks `scientific-writing` 11th; `test-search.mjs`
+  lists it as a known miss). The index is built on the first call (about
+  120 ms) and later calls take under 3 ms. It becomes the default only after
+  the checks in
+  [`testing/runs/2026-09-27-find-ranker.md`](testing/runs/2026-09-27-find-ranker.md).
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
   than no answer. Matching is **word-boundary, not substring** — raw substring
@@ -647,7 +668,7 @@ is therefore a hard prerequisite for `npm test`.
 | Script | What it proves |
 |---|---|
 | `validate.mjs` | All 162 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
-| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including four queries that must return *nothing*. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`current` and `bm25f`); bm25f's known misses are listed and reported, not checked. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |

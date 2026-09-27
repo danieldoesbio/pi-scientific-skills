@@ -99,6 +99,19 @@ const NEGATIVES = [
   "furniture",
 ];
 
+/**
+ * Golden queries that the experimental bm25f ranker misses, each with its
+ * reason. They are reported under bm25f, not checked. bm25f has no alias boost
+ * (development data set it to 0), and the words below are in most SKILL.md
+ * bodies, so they carry almost no weight (testing/runs/2026-09-27-find-ranker.md).
+ */
+const BM25F_KNOWN_MISSES = new Map([
+  [
+    "write the methods section of my paper",
+    '"write", "methods", "section", "paper" are in 76–148 of the 159 skill bodies; scientific-writing ranks 11th',
+  ],
+]);
+
 const suite = createSuite("ranking checks");
 const { failures, finish } = suite;
 const note = (message) => console.log(message);
@@ -129,42 +142,72 @@ for (const entry of catalog) {
   }
 }
 
-note("\n-- queries --");
-for (const [query, want] of QUERIES) {
-  const names = search.search(catalog, query, TOP_N).map((hit) => hit.entry.name);
-  const rank = names.findIndex((name) => want.includes(name));
-  suite.record(rank !== -1, `"${query}" did not surface any of [${want.join(", ")}] in top ${TOP_N}`);
-  if (rank === -1) {
-    note(`  FAIL  ${query}\n        want one of [${want.join(", ")}], got [${names.join(", ") || "none"}]`);
-  } else {
-    note(`  ok #${rank + 1}  ${query} → ${names[rank]}`);
+// Every check runs under both rankers: "current" (the default) and "bm25f"
+// (experimental, PI_SCI_FIND_RANKER=bm25f). Neither may regress the other's
+// obligations while both ship.
+for (const ranker of ["current", "bm25f"]) {
+  const run = (query) => search.search(catalog, query, TOP_N, ranker);
+  const tag = ranker === "current" ? "" : ` [${ranker}]`;
+
+  note(`\n-- queries (${ranker}) --`);
+  for (const [query, want] of QUERIES) {
+    const names = run(query).map((hit) => hit.entry.name);
+    const rank = names.findIndex((name) => want.includes(name));
+    if (ranker === "bm25f" && BM25F_KNOWN_MISSES.has(query)) {
+      note(`  known miss  ${query} (${rank === -1 ? BM25F_KNOWN_MISSES.get(query) : `now found at #${rank + 1}: remove it from the list`})`);
+      continue;
+    }
+    suite.record(rank !== -1, `"${query}"${tag} did not surface any of [${want.join(", ")}] in top ${TOP_N}`);
+    if (rank === -1) {
+      note(`  FAIL  ${query}\n        want one of [${want.join(", ")}], got [${names.join(", ") || "none"}]`);
+    } else {
+      note(`  ok #${rank + 1}  ${query} → ${names[rank]}`);
+    }
+  }
+
+  note(`\n-- must return nothing (${ranker}) --`);
+  for (const query of NEGATIVES) {
+    const hits = run(query);
+    const shown = hits.map((hit) => `${hit.entry.name}:${Number(hit.score.toFixed(2))}`).join(", ");
+    suite.record(hits.length === 0, `"${query}"${tag} should have matched nothing, got [${shown}]`);
+    if (hits.length > 0) {
+      note(`  FAIL  ${query} → ${shown}`);
+    } else {
+      note(`  ok      ${query}`);
+    }
+  }
+
+  note(`\n-- must rank first (${ranker}) --`);
+  for (const [query, mustBeFirst] of RANKED) {
+    const names = run(query).map((hit) => hit.entry.name);
+    suite.record(
+      names[0] === mustBeFirst,
+      `"${query}"${tag} must rank "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`,
+    );
+    if (names[0] !== mustBeFirst) {
+      note(`  FAIL  ${query}\n        want "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`);
+    } else {
+      note(`  ok      ${query} → ${mustBeFirst}`);
+    }
   }
 }
 
-note("\n-- must return nothing --");
-for (const query of NEGATIVES) {
-  const hits = search.search(catalog, query, TOP_N);
-  const shown = hits.map((hit) => `${hit.entry.name}:${hit.score}`).join(", ");
-  suite.record(hits.length === 0, `"${query}" should have matched nothing, got [${shown}]`);
-  if (hits.length > 0) {
-    note(`  FAIL  ${query} → ${shown}`);
-  } else {
-    note(`  ok      ${query}`);
-  }
-}
-
-note("\n-- must rank first --");
-for (const [query, mustBeFirst] of RANKED) {
-  const names = search.search(catalog, query, TOP_N).map((hit) => hit.entry.name);
-  suite.record(
-    names[0] === mustBeFirst,
-    `"${query}" must rank "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`,
-  );
-  if (names[0] !== mustBeFirst) {
-    note(`  FAIL  ${query}\n        want "${mustBeFirst}" first, got [${names.join(", ") || "none"}]`);
-  } else {
-    note(`  ok      ${query} → ${mustBeFirst}`);
-  }
+note("\n-- ranker switch and bm25f specifics --");
+{
+  const before = process.env.PI_SCI_FIND_RANKER;
+  process.env.PI_SCI_FIND_RANKER = "bm25f";
+  const on = search.findRanker();
+  process.env.PI_SCI_FIND_RANKER = "something-else";
+  const other = search.findRanker();
+  if (before === undefined) delete process.env.PI_SCI_FIND_RANKER;
+  else process.env.PI_SCI_FIND_RANKER = before;
+  suite.record(on === "bm25f" && other === "current", `PI_SCI_FIND_RANKER: "bm25f" selects bm25f, anything else the current ranker (got ${on}, ${other})`);
+  const exact = search.search(catalog, "pytorch lightning", TOP_N, "bm25f").map((hit) => hit.entry.name);
+  suite.record(exact[0] === "pytorch-lightning", `bm25f: a query equal to a skill name lists it first, got [${exact.join(", ")}]`);
+  const limited = search.search(catalog, "single cell rna-seq clustering", 3, "bm25f");
+  suite.record(limited.length === 3, `bm25f: limit caps the hit count (got ${limited.length})`);
+  const sorted = search.rankBm25f(catalog, "protein structure prediction").every((hit, i, all) => i === 0 || all[i - 1].score >= hit.score);
+  suite.record(sorted, "bm25f: hits come best first");
 }
 
 note("\n-- aliases resolve to real skills --");
