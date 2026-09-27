@@ -5,13 +5,17 @@
 // For each attempt of one arm, the recorded session is cut after the tool
 // results of its first sci_find call. Two copies go to the model: `full`, the
 // recorded result as it was, and `compact`, the same hits in rank order
-// rendered by extensions/catalog.ts's compact format. One request per copy,
+// rendered by extensions/catalog.ts's compact format. A third copy, `bm25f`
+// (testing/runs/2026-09-27-find-ranker.md), re-runs each sci_find call of the
+// turn through the extension's own runToolSearch with PI_SCI_FIND_RANKER=bm25f,
+// in the full format; the same call under the current ranker must reproduce
+// the recorded result byte for byte first. One request per copy,
 // through pi's own SDK (scripts/lib/replay-worker.mjs), with the arm's frozen
 // package and the recorded working directory. Arm order alternates by probe.
 //
 //   node scripts/find-live-replay.mjs <run-dir> --out <dir> [--arm v17]
 //     [--model <id>] [--thinking medium] [--probes a,b] [--max N]
-//     [--variants full,compact] [--flip-order] [--prove-stub] [--resume] [--timeout 900]
+//     [--variants full,compact|full,bm25f] [--flip-order] [--prove-stub] [--resume] [--timeout 900]
 //     [--dry-run]
 //
 // --dry-run prepares every attempt and checks the parser gate without the
@@ -23,17 +27,18 @@
 import { spawn } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
 import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, textOf, truncateAndReplace } from "./lib/replay.mjs";
 
-const VARIANTS = ["full", "compact"];
+const VARIANTS = ["full", "compact", "bm25f"];
+const DEFAULT_VARIANTS = ["full", "compact"];
 const WORKER = fileURLToPath(new URL("./lib/replay-worker.mjs", import.meta.url));
 
 function parseArgs(argv) {
   const opts = { runDir: null, out: null, arm: "v17", model: "prism-llama/Ternary-Bonsai-2-27B-PQ2_0", thinking: "medium",
-    probes: null, max: Infinity, variants: VARIANTS, flipOrder: false, proveStub: false, resume: false, timeout: 900, dryRun: false };
+    probes: null, max: Infinity, variants: DEFAULT_VARIANTS, flipOrder: false, proveStub: false, resume: false, timeout: 900, dryRun: false };
   const value = (i) => argv[i] ?? usage(2, `${argv[i - 1]} needs a value`);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -54,7 +59,9 @@ function parseArgs(argv) {
     else usage(2, `unknown argument: ${arg}`);
   }
   if (!opts.runDir || !opts.out) usage(2, "a run directory and --out are required");
-  if (!opts.variants.every((v) => VARIANTS.includes(v))) usage(2, `--variants takes ${VARIANTS.join(",")}`);
+  if (opts.variants.length !== 2 || opts.variants[0] !== "full" || !VARIANTS.slice(1).includes(opts.variants[1])) {
+    usage(2, "--variants takes full,compact or full,bm25f");
+  }
   if (!Number.isFinite(opts.timeout) || opts.timeout <= 0 || !(opts.max > 0)) usage(2, "--timeout and --max take positive numbers");
   for (const need of ["order.tsv", `results-${opts.arm}.jsonl`, join("src", opts.arm, "package.json")]) {
     if (!existsSync(join(opts.runDir, need))) usage(2, `${need} not found in ${opts.runDir}`);
@@ -64,7 +71,7 @@ function parseArgs(argv) {
 
 function usage(code, error) {
   if (error) console.error(`error: ${error}`);
-  console.error("usage: node scripts/find-live-replay.mjs <run-dir> --out <dir> [--arm v17] [--probes a,b] [--max N] [--variants full,compact] [--flip-order] [--prove-stub] [--resume]");
+  console.error("usage: node scripts/find-live-replay.mjs <run-dir> --out <dir> [--arm v17] [--probes a,b] [--max N] [--variants full,compact|full,bm25f] [--flip-order] [--prove-stub] [--resume]");
   process.exit(code);
 }
 
@@ -92,19 +99,24 @@ function seedAgentDir(out, packageDir, realAgentDir) {
 }
 
 /**
- * Both variants of one attempt's choice turn, or `{excluded: reason}`.
+ * Every variant of one attempt's choice turn, or `{excluded: reason}`.
  * `render`: (hits, format, limit) → text, from extensions/catalog.ts.
- * `targetRank`: the target's place in the first hit list (0 when absent).
+ * `rerun`: (args, ranker, skillsDir) → the sci_find text for these arguments
+ * under that ranker, with paths under the recorded `skillsDir`.
+ * `targetRank`: the target's place in the first hit list (0 when absent);
+ * `bm25fRank` the same for the bm25f copy.
  * `listed`: whether any hit list of the turn names the target, per variant.
  */
-function prepare(entries, target, render) {
+function prepare(entries, target, render, rerun) {
   const turn = choiceTurn(entries);
   if (!turn) return { excluded: "no sci_find call" };
   if (!turn.choice) return { excluded: "no recorded choice turn" };
+  const results = turn.results.filter((entry) => entry.message.toolName === "sci_find");
   const compact = new Map();
-  const listed = { full: false, compact: false };
+  const listed = { full: false, compact: false, bm25f: false };
   let targetRank = null;
-  for (const result of turn.results.filter((entry) => entry.message.toolName === "sci_find")) {
+  let skillsDir = null;
+  for (const result of results) {
     const text = textOf(result.message);
     const parsed = parseHits(text);
     if (parsed.kind === "other") continue;
@@ -113,16 +125,35 @@ function prepare(entries, target, render) {
     const short = render(parsed.hits, "compact", turn.argsById.get(result.message.toolCallId)?.limit);
     compact.set(result.id, short);
     targetRank ??= parsed.hits.findIndex((hit) => hit.name === target) + 1;
+    skillsDir ??= dirname(parsed.hits[0].dir);
     listed.full ||= parsed.hits.some((hit) => hit.name === target);
     listed.compact ||= listedNames(short).includes(target);
   }
   if (compact.size === 0) return { excluded: "no query hits in the choice turn" };
+  const bm25f = new Map();
+  let bm25fRank = null;
+  for (const result of results) {
+    const args = turn.argsById.get(result.message.toolCallId) ?? {};
+    if (rerun(args, "current", skillsDir) !== textOf(result.message)) {
+      return { error: `the current ranker does not reproduce the recorded result (${result.id})` };
+    }
+    const text = rerun(args, "bm25f", skillsDir);
+    bm25f.set(result.id, text);
+    const names = listedNames(text);
+    if (parseHits(text).kind === "hits") bm25fRank ??= names.indexOf(target) + 1;
+    listed.bm25f ||= names.includes(target);
+  }
   return {
     cwd: entries[0].cwd,
     targetRank,
+    bm25fRank: bm25fRank ?? 0,
     listed,
     recorded: { ...classifyChoice(turn.choice.message, target), promptTokens: promptTokens(turn.choice.message.usage) },
-    sessions: { full: truncateAndReplace(entries, turn.cut, new Map()), compact: truncateAndReplace(entries, turn.cut, compact) },
+    sessions: {
+      full: truncateAndReplace(entries, turn.cut, new Map()),
+      compact: truncateAndReplace(entries, turn.cut, compact),
+      bm25f: truncateAndReplace(entries, turn.cut, bm25f),
+    },
   };
 }
 
@@ -151,6 +182,16 @@ async function main() {
     const entries = hits.slice(0, count).map((hit) => ({ entry: { ...hit, description: descriptions.get(hit.name)?.description ?? "" }, score: 0 }));
     return catalog.formatHits(entries, format);
   };
+  const rerun = (args, ranker, skillsDir) => {
+    const before = process.env.PI_SCI_FIND_RANKER;
+    process.env.PI_SCI_FIND_RANKER = ranker;
+    try {
+      return catalog.runToolSearch(args, "full").replaceAll(`${catalog.SKILLS_DIR}/`, `${skillsDir}/`);
+    } finally {
+      if (before === undefined) delete process.env.PI_SCI_FIND_RANKER;
+      else process.env.PI_SCI_FIND_RANKER = before;
+    }
+  };
 
   for (const dir of ["sessions", "jobs", "work"]) mkdirSync(join(opts.out, dir), { recursive: true });
   const seed = seedAgentDir(opts.out, join(opts.runDir, "src", opts.arm), realAgentDir);
@@ -163,7 +204,7 @@ async function main() {
   const order = readFileSync(join(opts.runDir, "order.tsv"), "utf8").split("\n").filter(Boolean).map((line) => line.split("\t"));
 
   let included = 0;
-  const dry = { excluded: [], errors: [], ranks: [], full: [], compact: [], recorded: [], cutOff: [], notListed: [] };
+  const dry = { excluded: [], errors: [], ranks: [], bm25fRanks: [], full: [], compact: [], bm25f: [], recorded: [], cutOff: [], notListed: [], bm25fNotListed: [] };
   let errorsInRow = 0;
   for (const [chunk, probe] of order) {
     if (included >= opts.max) break;
@@ -175,13 +216,15 @@ async function main() {
       if (!done.has(`${probe}/null`)) append({ ...base, variant: null, status: "excluded", reason: "no session file" });
       continue;
     }
-    const prepared = prepare(jsonLines(file), target, render);
+    const prepared = prepare(jsonLines(file), target, render, rerun);
     if (opts.dryRun) {
       if (prepared.excluded) dry.excluded.push(`${probe}: ${prepared.excluded}`);
       else if (prepared.error) dry.errors.push(`${probe}: ${prepared.error}`);
       else {
         included++;
         dry.ranks.push(prepared.targetRank);
+        dry.bm25fRanks.push(prepared.bm25fRank);
+        if (!prepared.listed.bm25f) dry.bm25fNotListed.push(probe);
         dry.recorded.push(prepared.recorded.outcome);
         if (prepared.listed.full && !prepared.listed.compact) dry.cutOff.push(`${probe} (rank ${prepared.targetRank})`);
         if (!prepared.listed.full) dry.notListed.push(probe);
@@ -217,7 +260,7 @@ async function main() {
       const replayed = result.ok ? promptTokens(usage) : null;
       const sciFindChars = prepared.sessions[variant].filter((e) => e.message?.toolName === "sci_find").reduce((n, e) => n + textOf(e.message).length, 0);
       append({
-        ...base, variant, order: index + 1, targetRank: prepared.targetRank, listed: prepared.listed, status: result.ok ? "ok" : "error",
+        ...base, variant, order: index + 1, targetRank: prepared.targetRank, bm25fRank: prepared.bm25fRank, listed: prepared.listed, status: result.ok ? "ok" : "error",
         reason: result.ok ? undefined : result.errorMessage, outcome: choice?.outcome ?? null, reads: choice?.reads ?? null, calls: choice?.calls ?? null,
         promptTokens: replayed, inputTokens: usage.input ?? null, cachedTokens: usage.cacheRead ?? null, outputTokens: usage.output ?? null,
         thinkingChars: (result.message?.content ?? []).filter((p) => p.type === "thinking").reduce((n, p) => n + (p.thinking ?? "").length, 0),
@@ -235,12 +278,15 @@ async function main() {
     const median = (v) => [...v].sort((a, b) => a - b)[v.length >> 1];
     console.error(`dry run: ${included} attempts prepared; ${dry.excluded.length} excluded; ${dry.errors.length} errors`);
     for (const line of [...dry.excluded, ...dry.errors]) console.error(`  ${line}`);
-    console.error(`target rank in the first hit list: ${JSON.stringify(Object.fromEntries([...new Set(dry.ranks)].sort((a, b) => a - b).map((r) => [r, dry.ranks.filter((x) => x === r).length])))}`);
-    console.error(`sci_find text in the choice turn, median chars: full ${median(dry.full)}, compact ${median(dry.compact)}`);
+    const ranks = (values) => JSON.stringify(Object.fromEntries([...new Set(values)].sort((a, b) => a - b).map((r) => [r, values.filter((x) => x === r).length])));
+    console.error(`target rank in the first hit list: ${ranks(dry.ranks)}`);
+    console.error(`target rank in the first bm25f hit list: ${ranks(dry.bm25fRanks)}`);
+    console.error(`sci_find text in the choice turn, median chars: full ${median(dry.full)}, compact ${median(dry.compact)}, bm25f ${median(dry.bm25f)}`);
     const tally = (values) => JSON.stringify(Object.fromEntries([...new Set(values)].map((v) => [v, values.filter((x) => x === v).length])));
     console.error(`recorded choice-turn outcome: ${tally(dry.recorded)}`);
     console.error(`target listed in full but cut off in compact: ${dry.cutOff.length}${dry.cutOff.length ? ` — ${dry.cutOff.join(", ")}` : ""}`);
     console.error(`target in no hit list of the choice turn: ${dry.notListed.length}${dry.notListed.length ? ` — ${dry.notListed.join(", ")}` : ""}`);
+    console.error(`target in no bm25f hit list of the choice turn: ${dry.bm25fNotListed.length}${dry.bm25fNotListed.length ? ` — ${dry.bm25fNotListed.join(", ")}` : ""}`);
     return;
   }
   const lines = jsonLines(resultsFile).filter((l) => l.variant);

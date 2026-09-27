@@ -888,7 +888,12 @@ second sample. `scripts/find-live-replay-pooled.mjs <sample-1> <sample-2>`
 pools two samples: validity per sample, then `compact` − `full` over the
 (probe, sample) pairs with two intervals (Newcombe method 10, and a cluster
 bootstrap over probes with a fixed seed); a verdict counts only when both
-give it.
+give it. `--variants full,bm25f` replaces `compact` with `bm25f`: each
+`sci_find` call of the choice turn runs again through the extension's own
+`runToolSearch` under `PI_SCI_FIND_RANKER=bm25f`, in the full format, with
+the recorded package's paths. Before that, the same call under the current
+ranker must reproduce the recorded result byte for byte, or the probe is an
+error. `find-live-replay-report.mjs --variant bm25f` reports `bm25f` − `full`.
 
 Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it

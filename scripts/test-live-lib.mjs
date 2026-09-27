@@ -326,6 +326,8 @@ console.log("-- choice-turn replay (find-live-replay) --");
   ]);
   check("replay analysis set: system prompt hashes differ across probes, compared within a probe only", set.ids.join() === "a,b" && set.hashMismatches.join() === "d", JSON.stringify({ ids: set.ids, mismatch: set.hashMismatches }));
   check("replay analysis set: the last line wins; parity failures, errors and exclusions leave the set", set.parityFailures.join() === "c" && set.errors.join() === "e: timeout" && set.excluded.join() === "f: no sci_find call", JSON.stringify(set));
+  const ranked = replayAnalysisSet([row("a", "full"), row("a", "bm25f"), row("a", "compact", { status: "error", reason: "x" }), row("b", "full"), row("b", "compact")], "bm25f");
+  check("replay analysis set: the treatment variant is paired with full, other variants are ignored", ranked.ids.join() === "a" && ranked.pairs.get("a").bm25f?.variant === "bm25f" && ranked.errors.join() === "b: a variant did not run", JSON.stringify({ ids: ranked.ids, errors: ranked.errors }));
 
   check("verdictOf: above the margin, wholly below 0, otherwise", verdictOf(-0.04, 0.01, -0.05) === "non-inferior" && verdictOf(-0.08, -0.01, -0.05) === "inferior" && verdictOf(-0.06, 0.01, -0.05) === "inconclusive");
   const outcomes = (probe, full, compact, recorded = "target") => [

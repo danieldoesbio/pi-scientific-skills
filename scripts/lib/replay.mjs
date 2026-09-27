@@ -120,13 +120,14 @@ export const promptTokens = (usage) => (usage?.input ?? 0) + (usage?.cacheRead ?
 /**
  * The analysis set of a replay (scripts/find-live-replay-report.mjs) from the
  * lines of results.jsonl; the last line per probe and variant wins, so a
- * --resume re-run replaces an error. A probe is in `ids` when both variants
+ * --resume re-run replaces an error. `treatment` is the variant compared with
+ * `full` ("compact" or "bm25f"). A probe is in `ids` when both variants
  * are `ok`, the full replay has prompt-token parity with the recorded
  * request, and both variants saw the same system prompt and tools. The
  * system prompt holds the recorded working directory, so its hash is
  * compared within a probe, never across probes.
  */
-export function replayAnalysisSet(lines) {
+export function replayAnalysisSet(lines, treatment = "compact") {
   const last = new Map(lines.map((line) => [`${line.probe}/${line.variant}`, line]));
   const set = { ids: [], pairs: new Map(), excluded: [], errors: [], parityFailures: [], hashMismatches: [] };
   for (const line of last.values()) {
@@ -135,13 +136,13 @@ export function replayAnalysisSet(lines) {
   }
   for (const probe of [...new Set(lines.filter((line) => line.variant !== null).map((line) => line.probe))]) {
     const full = last.get(`${probe}/full`);
-    const compact = last.get(`${probe}/compact`);
-    if (full?.status !== "ok" || compact?.status !== "ok") set.errors.push(`${probe}: ${full?.reason ?? compact?.reason ?? "a variant did not run"}`);
+    const other = last.get(`${probe}/${treatment}`);
+    if (full?.status !== "ok" || other?.status !== "ok") set.errors.push(`${probe}: ${full?.reason ?? other?.reason ?? "a variant did not run"}`);
     else if (full.parity !== true) set.parityFailures.push(probe);
-    else if (full.systemPromptHash !== compact.systemPromptHash || full.toolsHash !== compact.toolsHash) set.hashMismatches.push(probe);
+    else if (full.systemPromptHash !== other.systemPromptHash || full.toolsHash !== other.toolsHash) set.hashMismatches.push(probe);
     else {
       set.ids.push(probe);
-      set.pairs.set(probe, { full, compact });
+      set.pairs.set(probe, { full, [treatment]: other });
     }
   }
   return set;
