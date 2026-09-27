@@ -231,7 +231,149 @@ Harness changes after the smoke, before the run (not in the smoke):
 
 ## Results
 
-Pending.
+All 17 chunks, 161 probes, finished in all three arms: 2026-09-25 08:50 to
+2026-09-26 22:45, in three sessions (notes below). No harness errors, so the
+analysis set is all 161 (Core 10, non-Core 151). The numbers come from:
+
+```bash
+node scripts/find-live-timing.mjs <out> --jsonl <out>/timing.jsonl
+node scripts/find-live-arms-report.mjs <out> --timing <out>/timing.jsonl
+```
+
+| | `v16` | `v17` | `full` |
+|---|---|---|---|
+| Read | 116/161 | 157/161 | 158/161 |
+| Core / non-Core | 10/10, 106/151 | 10/10, 147/151 | 10/10, 148/151 |
+| Ended | reached 116, gated 21, timeout 19, persona-end 4, max-responses 1 | reached 157, persona-end 3, timeout 1 | reached 158, gated 2, timeout 1 |
+
+### Primary 1: `v17` against `v16`
+
+**`v17 − v16` = +25.5 points, 95% CI 18.4 to 32.9** (Newcombe method 10);
+discordant 43:2, McNemar exact p = 5.9 × 10⁻¹¹. The lower bound is above −5,
+so `v17` is **non-inferior**, as pre-registered. The CI also lies wholly
+above 0; superiority was not pre-registered.
+
+- Core: 10/10 in both, 0.0 (CI −27.8 to 27.8). Ten probes cannot show a
+  difference on Core.
+- Non-Core: +27.2 (19.6 to 34.9), 43:2.
+- Without probe-invalid probes (156): +25.6 (18.6 to 33.1), 41:1.
+
+**The bundle caveat.** `v17` has the guideline "Then read the SKILL.md it
+returns"; `v16` does not. Of the 43 probes only `v16` missed, none had the
+target listed and unread, so that line explains none of them:
+
+- 32 never sought a skill (20 gated, 9 timeouts, 2 persona-end, 1
+  max-responses).
+- 11 sought one: 7 read only listed Core skills (one of them after a
+  `sci_find` call), 1 read `phylogenetics`, 1 used `sci_find` and read
+  `tamarind` (the target was not in its results), 2 read no skill.
+
+The gap is in whether and where `v16` looks: with ten Core skills in the
+prompt it often did not look, or took a listed Core skill. The one case
+against `v17`: in `deepchem`, `sci_find` listed the target at 25 s, then the
+model read `torchdrug` and `pytdc` and hung on a network test until the
+timeout. That is the only listed-without-read in `v17`. The 2 probes only
+`v16` read are `deepchem` (`v17` timeout, above) and `scholar-evaluation`
+(`v17` persona-end, judged probe-invalid in `v17`).
+
+### Primary 2: `v17` against `full`
+
+**`v17 − full` = −0.6 points, 95% CI −4.2 to 2.8**; discordant 2:3,
+McNemar exact p = 1.0. No difference shown. No margin was set, so this is not
+a claim of equivalence.
+
+- Core: 10/10 in both. Non-Core: −0.7 (−4.5 to 2.9).
+- Without probe-invalid probes (156): +0.6 (−2.4 to 4.0), 2:1.
+- `v17` only: `seaborn` (`full` gated), `scikit-survival` (`full` timeout).
+  `full` only: `deepchem` (above), `get-available-resources` and
+  `scholar-evaluation` (`v17` persona-end; both judged probe-invalid in
+  `v17`).
+
+### Secondary
+
+| Per attempt | `v16` | `v17` | `full` |
+|---|---|---|---|
+| First prompt, median tokens | 3,788 | 1,945 | 30,827 |
+| Peak context, median (max) | 7,399 (51,859) | 4,331 (38,250) | 31,050 (56,367) |
+| Tool calls, median | 3 | 2 | 1 |
+| Output tokens, median | 731 | 348 | 228 |
+| Compactions / overflow errors | 1 / 0 | 0 / 0 | 1 / 1, recovered by compaction |
+| `listed` without a read | 0 | 1 | — (every target is in the prompt) |
+| Attempt time, sum | 864 min | 203 min | 178 min |
+| Arm time, driver (warm-ups and supervisor included) | 869 min | 203 min | about 272 min |
+
+The `full` arm time adds about 15 min for the chunk-2 invocation stopped by
+`pkill`, which has no END line.
+
+**Warm-up per cold start** (one per invocation): `v16` 30.5–33.6 s for
+3.74k–3.78k tokens; `v17` 15.7–16.6 s for 1.91k, or 4.7–4.9 s in the 5 of 17
+chunks where the server's cache held 1,397 of its tokens from the arm before;
+`full` 290–320 s for 30.6k–31.1k tokens, in every chunk (85 min in all).
+
+**Time to read**, paired, on probes read in both arms:
+
+| | n | `v17` | other | paired median `v17 −` other | `v17` faster |
+|---|---|---|---|---|---|
+| `v17`/`v16`, recorded | 110 | 56 s | 64.5 s | −8 s | 71 of 110 |
+| `v17`/`v16`, server-exact (post hoc) | 110 | 55.9 | 64.4 | −7.6 | 71 |
+| `v17`/`v16`, net of queue wait (post hoc) | 110 | 40.7 | 55.8 | −11.2 | 77 |
+| `v17`/`full`, recorded | 152 | 56 | 42 | +13 | 21 of 152 |
+| `v17`/`full`, server-exact (post hoc) | 147 | 56.1 | 42.1 | +13.3 | 23 |
+| `v17`/`full`, net of queue wait (post hoc) | 147 | 40.9 | 27.0 | +13.1 | 21 |
+
+Reads with no recorded time: 5 in `v16` (`molfeat`, `rdkit`, `deepchem`,
+`cirq`, `scvi-tools`), 0 in `v17`, 4 in `full` (`deepchem`, `statsmodels`,
+`astropy`, `cobrapy`). The stop lands after the read call but before its tool
+result is written, so the harness has no `resultAt` stamp. These reads leave
+the time comparisons: 4 of the 114 pairs read in both `v16` and `v17`, and 3
+of the 155 read in both `v17` and `full`. Their effect on the medians is not
+measured. Five `full` probes of chunk 2 have no server timing. The `full` time
+to read leaves out its 5-minute warm-up per cold start.
+
+**Server speed** (not warm-ups, not right after a stop): prefill /
+generation tok/s by prompt size, (n).
+
+| | <4k | 4k–8k | 8k–16k | 16k–32k | ≥32k |
+|---|---|---|---|---|---|
+| `v16` | 108 / 19 (39) | 110 / 18 (257) | 110 / 18 (112) | 100 / 16 (81) | 79 / 11 (7) |
+| `v17` | 113 / 19 (107) | 115 / 19 (89) | 111 / 18 (9) | 96 / 17 (6) | 84 / 13 (1) |
+| `full` | — | — | — | 75 / 14 (44) | 74 / 13 (14) |
+
+The first request after a stop prefilled more slowly: `full` 42 against 77
+tok/s, `v16` 97 against 108, `v17` 106 against 108.
+
+**Probe-invalid** (judge): `v16` `pi-agent`, `consciousness-council`, `dask`;
+`v17` `pi-agent`, `get-available-resources`, `scholar-evaluation`; `full`
+none.
+
+### Predictions
+
+- First prompt: `v17` 1,945 (predicted about 1.95k: held). `v16` 3,788
+  (predicted about 3.3k: higher). `full` 30,827 (predicted about 25k: higher;
+  Bonsai counts the index at about 29k, not 23k).
+- Generation, in the bins the prediction names: 19 tok/s under 4k in `v16`
+  and `v17` (predicted 19: held); `full` 14 at 16k–32k (predicted 16:
+  slower). Most `v16` requests were at 4k–16k, at 18 tok/s.
+- Read rate on non-Core, `v17` against `v16`: predicted within noise.
+  **Wrong:** +27.2 points in favor of `v17`.
+- Core, `v16` reads sooner: **held**, 10 of 10 faster in `v16`, median 29.5 s
+  against 56 s.
+  All Core probes are in chunk 1, so this is the same data as the interim
+  look.
+- Overflow rare and in `full` only: held (1). Compactions mostly in `full`:
+  not shown (1 in `v16`, 1 in `full`).
+
+### Deviation: external fans off for part of the run (not pre-registered)
+
+The external fans were on for the run, as planned, except 15:37:55–19:39:55
+on 2026-09-26, when Daniel turned them off to test them. Chunk 12: the first
+17 minutes of `full` had the fans on, the rest off. Chunk 13: all off. Chunk
+14: `v17` and `full` off, `v16` off for its first 47 minutes. Generation was
+3–5% slower with the fans off in every arm and prompt-size bin with data in
+all three periods (on, off, on again), for example `v16` at 4k–8k: 19.30,
+18.52, 19.07 tok/s (n 21, 41, 44). The effect on read rates is probably
+small: 5% of the 1,200 s timeout is 60 s, and the gate counts calls, not
+time. Details in the third-session notes below.
 
 ### Notes during the run
 
@@ -282,8 +424,8 @@ Chunk 2 is complete for `v17`; `full` finished 5 of 10; `v16` did not start.
 found both clock offsets under 1 s and paired 645 of 656 finished requests.
 Five `full` probes of chunk 2 have no timing (sessions lost, above), and
 `molfeat` and `rdkit` in `v16` have none: both reads have no recorded time
-(`seconds: null` in `reaches`, cause not checked), so they drop out of every
-time-to-read comparison.
+(`seconds: null` in `reaches`; the cause is in Results), so they drop out of
+every time-to-read comparison.
 
 - **Post-stop prefill slowdown, whole night** (first request of an attempt,
   after a stop against not): `v16` 93 tok/s (76) against 110 (14); `v17` 107
@@ -292,6 +434,38 @@ time-to-read comparison.
   costs `full` the most.
 - **Warm-up per chunk:** `full` 290–303 s every chunk. `v17` reused the
   server's cache in chunks 2, 5 and 8 (515 processed, 1,397 cached).
+
+**2026-09-26, third session (resumed 11:34, DONE 22:45).** Chunks 10–17
+finished in all arms. No harness errors. The server log now holds three
+server runs, one per session; the join found clock offsets of 0.2, 0.5 and
+0.7 s and paired 1,223 of 1,234 finished requests.
+
+- **A hung tool call.** In `v17` `deepchem`, the model ran a Python network
+  test in the sandbox that did not return; the 1,200 s timeout ended the
+  attempt. The backstop worked as intended.
+- **Temperature log (not pre-registered).** From 13:51 a small logger
+  (`thermal/thermlog.c` in the run folder; no root needed) wrote one row
+  every 10 s: macOS thermal pressure, GPU load, both internal fan speeds, GPU
+  temperature (SMC `Tg*` keys) and SoC die temperature (HID `PMU tdie`
+  sensors). The external fan times are in `thermal/fans.csv`. Rows during
+  generation (GPU load 90% or more), by period, first 5 min after a switch
+  left out, medians:
+
+  | | On, 13:56–15:37 | Off, 15:42–19:39 | On, 19:44–22:45 |
+  |---|---|---|---|
+  | Rows | 353 | 876 | 589 |
+  | Internal fans, rpm | 4,951 / 5,352 | 4,950 / 5,352 | 4,951 / 5,352 |
+  | GPU temperature, mean / max sensor | 87.9 / 93.8 °C | 84.6 / 90.2 °C | 86.8 / 92.4 °C |
+  | Rows at "heavy" thermal pressure | 39% | 45% | 40% |
+
+  The internal fans stayed at the same speed in every period, about two
+  thirds of their 7,826 rpm maximum. The energy mode is Automatic
+  (`powermode 0`), which probably holds them there. With the external fans
+  off, the GPU was about 3 °C cooler, heavy thermal pressure was more common,
+  and generation was 3–5% slower (Results). A likely reading, not measured
+  (the log has no GPU clock or power): with less cooling, macOS lowers GPU
+  power sooner, so the GPU runs cooler and slower. The external fans help
+  speed a little; they do not take load off the internal fans.
 
 ### Interim look after night 1 (chunks 1–9, 90 paired probes)
 

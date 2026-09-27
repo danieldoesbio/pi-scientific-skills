@@ -156,16 +156,23 @@ In order of evidence:
    arms searched in response 1 on 11 of 12, so it showed no effect on the
    search rate (regression to the mean; see
    [`runs/2026-09-24-bonsai2-snippet-ab.md`](runs/2026-09-24-bonsai2-snippet-ab.md)).
-   The default change itself is measured by a three-arm run
-   ([`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md)).
+   The default change itself was measured by a three-arm run over 161
+   probes ([`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md)):
+   the target skill was read on 157 with 1.7.0 against 116 with 1.6.0 search
+   mode (+25.5 points, 95% CI 18.4 to 32.9), and on all ten Core probes in
+   both.
 5. **Open hypotheses for offline tests:** IDF weighting; a `profile` value
    that is not a profile falling back to the query (the model confused the
    two once in 183 calls).
 
 ## Proposed next experiment: the full prompt against search
 
-**Status: scheduled** as the `v17` against `full` comparison of
-[`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md).
+**Status: done** as the `v17` against `full` comparison of
+[`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md). Read
+157/161 in `v17` against 158/161 in `full` (−0.6 points, 95% CI −4.2 to
+2.8). `full` had a first prompt of 30,827 tokens against 1,945 and a cold
+start of about 5 min against about 16 s; once warm, it read a median 13 s
+sooner per probe.
 
 **Question.** What does the normal install cost this model: all 162 skill
 descriptions in the system prompt, and no `sci_find`? We want the cost in

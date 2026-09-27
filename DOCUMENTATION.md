@@ -319,8 +319,12 @@ Core probes below first-attempt success (`exploratory-data-analysis`, `polars`)
 were attempts that never searched. With Core in the prompt, those skills would
 have been listed. The `promptSnippet` below exists to cover that. A small A/B
 pilot (`testing/runs/2026-09-24-bonsai2-snippet-ab.md`) showed no effect on the
-search rate (11/12 in both arms); a three-arm overnight run measures the default
-change itself (`testing/runs/2026-09-25-night-arms.md`). Profiles still put a field's skills in
+search rate (11/12 in both arms). A three-arm run over 161 probes then measured
+the default change itself (`testing/runs/2026-09-25-night-arms.md`): the model
+read the target skill on 157 with 1.7.0, 116 with 1.6.0 search mode (+25.5
+points, 95% CI 18.4 to 32.9) and 158 with all 162 skills listed. It read all ten
+Core targets in every arm. The gain belongs to the 1.7.0 release as a whole: it
+also added the `sci_find` snippet and guideline, which 1.6.0 did not have. Profiles still put a field's skills in
 the prompt for anyone who wants them there. Existing users keep their filter;
 the 1.7.0 upgrade notice tells them how to switch.
 
