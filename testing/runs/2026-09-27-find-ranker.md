@@ -1,8 +1,8 @@
 # Run notebook: a BM25F ranker for `sci_find`
 
-**Status: development done; live checks not pre-registered yet.** The
-pre-registrations of the query-writer panel (step 3) and the choice-turn
-replay (step 4a) are added to this notebook and committed before each launch.
+**Status: development done; step 4a pre-registered.** Each pre-registration
+below was written and committed before its first request. The query-writer
+panel (step 3) is added after its setup smokes, before it runs.
 
 ## Why
 
@@ -112,10 +112,108 @@ their own target (the target name as whole words) and are dropped
 (p145 novice and terse, p152 terse). The set is used once, before any
 default change, and reported whatever the result.
 
+The files are kept out of git (the maintainer's `test-artifacts/`, which is
+gitignored). Their SHA-256, recorded here so that a change shows:
+
+| File | SHA-256 |
+|---|---|
+| `part-1.json` | `58b5a4ecba57be6a2c0a73a3ac15586ea8dabf39f19ef1c947cdd34592cbce67` |
+| `part-2.json` | `08bd0b530b88c099024dee1909193539964bbafe416ca4e1be5d36a4bcda639d` |
+| `leaks.json` | `22031fa928a0bd7c0b0d3b026d84b8b0531c139fba8c66c4b56c134ae5863c9d` |
+
+## Step 4a: choice-turn replay with bm25f hit lists (pre-registered)
+
+### Why
+
+The model reads a listed target even when it is not first, but bm25f changes
+the order of the list and the skills beside the target. This step checks
+that the new lists do not confuse the model at the moment it picks a skill.
+
+### Design
+
+The same as the first compact replay
+([`2026-09-27-find-compact-replay.md`](2026-09-27-find-compact-replay.md)) in
+every point (source run `2026-09-25-night-arms`, arm `v17`, frozen package,
+Bonsai 2 27B, server script and flags, one slot, temperature 1.0, thinking
+`medium`, pi's SDK, stubbed tools, one request per copy per probe, the parser
+gate, arm order alternating by probe, `full` first on the 1st included
+probe), with `bm25f` in place of `compact`:
+
+- **`bm25f` copy.** Each `sci_find` call of the choice turn runs again
+  through the extension's own `runToolSearch` with
+  `PI_SCI_FIND_RANKER=bm25f`, in the full format, with the recorded
+  package's paths. Gate: the same call under the current ranker must give
+  the recorded result byte for byte, or the probe is an error.
+- **Checked before this notebook was committed.** The dry run prepared 158
+  attempts with 0 errors (the gate passed on all 158); 3 have no `sci_find`
+  call and are excluded. `skills/` of this tree is identical to the frozen
+  `v17` package (`diff -rq`), so bm25f's index is the one `v17` would build.
+- **The lists (dry run).** The target is in a hit list of the choice turn
+  for all 158 probes in both copies. It is first in the first list for 147
+  with bm25f and 124 in the recorded run. Median `sci_find` text in the
+  choice turn: `full` 6,816 characters, `bm25f` 6,396.
+
+### This is a ceiling test
+
+The target is listed in both copies for every included probe, and the `full`
+copy read it in 158 of 158 turns in the first replay. The replay can detect a
+loss from the new order or the new neighbours; it cannot show a gain. The
+gain of bm25f is in the lists (step 2) and in the queries of other models
+(step 3).
+
+### Rules fixed before this run
+
+- **Validity.** Rule 1 (the `full` replay reads the target at least as often
+  as the recorded run minus 5) and rule 2 (parity failures plus hash
+  mismatches at most 5), as in the compact notebook. If either fails, no
+  comparison is reported.
+- **Analysis set.** Probes with both copies `ok`, `full` prompt-token parity,
+  and the same system prompt and tools in both copies.
+- **Primary.** `bm25f` − `full`, target read in the choice turn, paired by
+  probe; Newcombe method 10 95% CI; margin −5 points. Lower bound above −5:
+  non-inferior. Upper bound below 0: inferior. Otherwise: inconclusive.
+  McNemar exact p is reported.
+- **Secondary.** Outcomes of the choice turn per copy; the discordant probes
+  with the target's rank in each list; prompt tokens, output tokens and
+  `sci_find` characters (paired medians).
+- **Report:** `node scripts/find-live-replay-report.mjs <out> --variant bm25f`.
+
+### Decision rule
+
+- **Non-inferior:** 4a passes. bm25f can become the default in 1.8.0 when
+  step 3's rule also holds (and 4b, if it runs, shows no loss); the held-out
+  set is run once and reported before the change.
+- **Inferior:** bm25f does not become the default. The discordant probes are
+  examined.
+- **Inconclusive:** no default change and no automatic second sample.
+  Daniel decides.
+
+### Predictions
+
+- Faithful: the `full` replay reads the target in 153 or more.
+- `bm25f` reads the target in 155–158; discordant pairs 0–3 in total.
+- Verdict: non-inferior, about 75%. Most of the rest: inconclusive.
+- Prompt tokens: `bm25f` about 100 lower (median), from the shorter lists.
+
+### Commands
+
+From a checkout at this commit, with the model server running:
+
+```bash
+node scripts/find-live-replay.mjs <main-checkout>/testing/transcripts/find-live/2026-09-25-night-arms --out <main-checkout>/testing/transcripts/find-live/2026-09-27-find-ranker-replay --variants full,bm25f
+```
+
+```bash
+node scripts/find-live-replay-report.mjs <main-checkout>/testing/transcripts/find-live/2026-09-27-find-ranker-replay --variant bm25f
+```
+
+### Results
+
+Not run yet.
+
 ## Next
 
 - Step 3: first queries from a panel of small models (Bonsai 2 27B, Gemma 4
   12B, Gemma 4 E4B, Claude Haiku 4.5), current vs bm25f offline on each
-  writer's queries. Pre-registered here before launch.
-- Step 4a: choice-turn replay with bm25f hit lists, non-inferiority at −5
-  points. Pre-registered here before launch.
+  writer's queries. Pre-registered here after the setup smokes, before it
+  runs.
