@@ -157,7 +157,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
   `/skill:../../etc/passwd` is not),
   490 byte-identity checks against pi's own `/skill:` expansion (every skill,
-  three argument forms), 97 ranking checks against the real 162 descriptions,
+  three argument forms), 98 ranking checks against the real 162 descriptions,
   7 checks that **pi itself** honours the filter through a real
   `DefaultPackageManager`, and 175 frontmatter parity checks against pi's own
   parser (every skill plus synthetic edge cases). The first-run offer is

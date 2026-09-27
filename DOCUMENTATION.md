@@ -221,9 +221,11 @@ scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-a
 scripts/find-live-replay.mjs # replay the choice turn of a find-live run with another sci_find format
 scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
 scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
+scripts/find-rank-bench.mjs  # offline top-k rates of the sci_find rankers on the fixed query sets
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
+testing/find-rank/      # ranker query sets: recorded first sci_find queries, blind probe paraphrases
 testing/transcripts/    # raw pi output per graded run, kept as evidence
 metrics/downloads.json  # gitignored: npm daily series + publish dates, with revisions
 LICENSE.md              # upstream MIT verbatim
@@ -668,7 +670,7 @@ is therefore a hard prerequisite for `npm test`.
 | Script | What it proves |
 |---|---|
 | `validate.mjs` | All 162 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
-| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`current` and `bm25f`); bm25f's known misses are listed and reported, not checked. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`current` and `bm25f`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |

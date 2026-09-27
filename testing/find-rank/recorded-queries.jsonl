@@ -1,0 +1,425 @@
+{"source":"v17","target":"citation-management","query":"search scholarly papers, verify citation metadata, generate BibTeX entries, reference/bibliography management"}
+{"source":"v17","target":"experimental-design","query":"design of experiments fractional factorial 2-level 6 factors screening design randomized run order"}
+{"source":"v17","target":"exploratory-data-analysis","query":"exploratory data analysis, missing value patterns, data quality profile, leakage check, outlier sensitivity analysis on CSV"}
+{"source":"v17","target":"matplotlib","query":"matplotlib custom plotting, broken axis, inset zoom panel, custom colormap, export PDF"}
+{"source":"v17","target":"paper-lookup","query":"look up a paper by partial citation, resolve a DOI, check open access status, retrieve full text, and find papers that cite it (citations/bibliographic database search)"}
+{"source":"v17","target":"polars","query":"lazy ETL with Polars lazy query optimization, out-of-core streaming, Arrow-based expression API, replacing pandas"}
+{"source":"v17","target":"scientific-critical-thinking","query":"critical appraisal of clinical trial evidence, systematic review methodology, GRADE evidence grading, checking for bias and confounders in randomized trials"}
+{"source":"v17","target":"scientific-visualization","query":"design and audit a multi-panel manuscript figure for journal submission: colorblind-accessible palettes, error/uncertainty bar labeling, axis range and scaling checks to avoid exaggerating effects"}
+{"source":"v17","target":"scientific-writing","query":"scientific manuscript writing, methods and results sections, mapping claims to evidence, citation verification"}
+{"source":"v17","target":"statistical-analysis","query":"compare three treatment groups, hypothesis test selection, checking assumptions, effect sizes, reporting results"}
+{"source":"v17","target":"bids","query":"BIDS conversion DICOM MRI to standardized directory layout with JSON metadata sidecars validation"}
+{"source":"v17","target":"biopython","query":"parse FASTA and GenBank files with Biopython and run BLAST similarity searches against NCBI databases in a batch pipeline"}
+{"source":"v17","target":"diffdock","query":"predict protein ligand binding pose from PDB structure and SMILES with confidence score for virtual screening"}
+{"source":"v17","target":"gget","query":"lookup gene information from NCBI/Ensembl and retrieve AlphaFold DB protein structure PDB IDs"}
+{"source":"v17","target":"infographics","query":"create a polished infographic with icons, statistics and colorblind-safe layout for social media"}
+{"source":"v17","target":"research-lookup","query":"verify scientific references, PubMed search, manuscript literature review, citation checking"}
+{"source":"v17","target":"scikit-learn","query":"build cross-validated classical classification models with scikit-learn, grid search hyperparameter tuning, preprocessing pipeline, model comparison"}
+{"source":"v17","target":"torchdrug","query":"self-supervised graph pretraining for molecular graphs, then fine-tune for property prediction and retrosynthesis"}
+{"source":"v17","target":"vaex","query":"out-of-core aggregate statistics on a huge tabular dataset bigger than RAM, fast aggregation without loading into memory"}
+{"source":"v17","target":"datamol","query":"canonicalize SMILES, compute molecular descriptors and fingerprints with RDKit, cluster molecules into diverse representative subset"}
+{"source":"v17","target":"esm","query":"fill in masked regions of a partial protein sequence with a generative protein model, sequence completion"}
+{"source":"v17","target":"etetoolkit","query":"Robinson-Foulds distance comparison between gene trees"}
+{"source":"v17","target":"medchem","query":"filter a virtual compound library by Lipinski rule of five and Veber rules, PAINS and structural alert screening for medicinal chemistry"}
+{"source":"v17","target":"molfeat","query":"convert SMILES to molecular fingerprints and embeddings, QSAR activity modeling"}
+{"source":"v17","target":"paperzilla","query":"paper recommendation feed, track new papers, relevant notes, export paper as markdown"}
+{"source":"v17","target":"polars-bio","query":"overlap and nearest feature operations between two large BED interval files, streaming without loading into memory"}
+{"source":"v17","target":"scientific-slides","query":"create a visually engaging slide deck for a conference talk with narrative arc"}
+{"source":"v17","target":"seaborn","query":"quick exploratory data visualization with seaborn box plots violin plots correlation heatmap"}
+{"source":"v17","target":"waypoint-bio","query":"pretrained microbiome foundation model embedding abundance table 16S metagenomics sample embeddings"}
+{"source":"v17","target":"anndata","query":"combine multiple h5ad AnnData files into one, concatenate batches, sparse matrices"}
+{"source":"v17","target":"bioservices","query":"map UniProt accessions to KEGG pathways and retrieve pathway and Gene Ontology annotations through one interface"}
+{"source":"v17","target":"clinical-decision-support","query":"calibration and subgroup fairness evaluation of a clinical risk-prediction model, GRADE evidence grading, aggregate evaluation package"}
+{"source":"v17","target":"consciousness-council","query":"structured multi-perspective debate, devil's advocate, red teaming, argumentation frameworks for strategic decisions"}
+{"source":"v17","target":"datalad","query":"clone a large neuroimaging dataset on demand without downloading all files, then record a reproducible pipeline for analysis outputs"}
+{"source":"v17","target":"hugging-science","query":"find curated protein language model datasets, pretrained models and demos on Hugging Face for biology research"}
+{"source":"v17","target":"lab-hardware-cad","query":"CAD 3D modeling microplate holder STEP file 3D printing"}
+{"source":"v17","target":"omero-integration","query":"OMERO server integration, fetch ROI annotations and metadata, export microscopy image data"}
+{"source":"v17","target":"scikit-bio","query":"16S rRNA amplicon alpha beta diversity, PERMANOVA, ordination from abundance table"}
+{"source":"v17","target":"statistical-power","query":"calculate sample size and statistical power for a study design to detect an effect with 80% power"}
+{"source":"v17","target":"bulk-rnaseq","query":"RNA-seq pipeline: quality control, alignment to transcriptome, differential expression, pathway enrichment"}
+{"source":"v17","target":"literature-review","query":"systematic literature review, search PubMed and arXiv databases, synthesize findings into thematic sections, verify citations, write manuscript background section"}
+{"source":"v17","target":"markitdown","query":"convert Word documents PowerPoint decks and CSV files to clean Markdown text for indexing"}
+{"source":"v17","target":"pacsomatic","query":"PacBio sample sheet generation launch dry-run Slurm"}
+{"source":"v17","target":"pathogen-variant-surveillance","query":"SARS-CoV-2 Pango lineage surveillance, GISAID/Nextstrain query, which lineages are growing fastest"}
+{"source":"v17","target":"pymatgen","query":"check symmetry of crystal structures from DFT calculations, space group analysis, structure files"}
+{"source":"v17","target":"scvelo","query":"RNA velocity, single-cell trajectory, differentiation direction, driver genes from spliced and unspliced counts"}
+{"source":"v17","target":"transformers","query":"download a pretrained language model, run a text classification pipeline, and fine-tune it with a training loop and training arguments"}
+{"source":"v17","target":"uncertainty-and-units","query":"measurement uncertainty budget, GUM, coverage factor, dimensional analysis of units"}
+{"source":"v17","target":"zarr-python","query":"store large multi-dimensional arrays as chunks, parallel read/write, Zarr arrays, cloud object storage S3, NumPy Xarray integration"}
+{"source":"v17","target":"analytical-method-validation","query":"HPLC assay method validation plan for pharmaceutical drug product, ICH Q2, acceptance criteria, linearity accuracy precision LOD LOQ"}
+{"source":"v17","target":"cellxgene-census","query":"Pull expression values and cell-type metadata across many public single-cell studies by tissue/disease without downloading each dataset, to build a cross-study reference set"}
+{"source":"v17","target":"database-lookup","query":"lookup a gene's records across public identifier databases (UniProt, Ensembl, NCBI/RefSeq, GeneCards) using each documented REST API with filters and pagination, and record provenance"}
+{"source":"v17","target":"genomic-intelligence","query":"predict promoter region and splice donor acceptor sites from DNA sequence using hosted cloud API or model service"}
+{"source":"v17","target":"latchbio-integration","query":"Latch platform workflows Python pipeline GPU memory task configuration SDK Registry metadata"}
+{"source":"v17","target":"nextflow","query":"nf-test Nextflow testing module DSL2"}
+{"source":"v17","target":"paperclip","query":"search full-text biomedical papers alongside FDA and EMA regulatory filings and clinical trial protocols in a unified grep-able archive with citations pinned to exact line numbers, using an API key"}
+{"source":"v17","target":"pydicom","query":"DICOM image de-identification, stripping PHI metadata tags from DICOM files, export pixel arrays"}
+{"source":"v17","target":"rdkit","query":"RDKit molecular descriptors molecular weight TPSA Morgan fingerprints SMARTS substructure search sanitization"}
+{"source":"v17","target":"what-if-oracle","query":"scenario planning, risk analysis, decision analysis, what-if modeling with probabilities and consequences"}
+{"source":"v17","target":"arbor","query":"automated experiment loop benchmarking hyperparameter optimization held-out test set avoid overfitting A/B testing experiment tracking"}
+{"source":"v17","target":"arboreto","query":"infer transcription factor target gene regulatory relationships from single-cell RNA-seq expression matrix using gradient boosting or tree ensemble methods, parallelized across CPU cores"}
+{"source":"v17","target":"geomaster","query":"calculate NDVI from Sentinel-2 satellite bands"}
+{"source":"v17","target":"geopandas","query":"spatial join of points to polygons, reproject geospatial data, geodataframe"}
+{"source":"v17","target":"labarchive-integration","query":"LabArchives API signed requests authentication notebook inventory"}
+{"source":"v17","target":"molecular-dynamics","query":"run energy minimization and molecular dynamics simulation of a protein-ligand complex, then compute RMSD and RMSF from the trajectory"}
+{"source":"v17","target":"pytdc","query":"therapeutics machine-learning benchmark datasets drug-target interaction ADMET molecule generation"}
+{"source":"v17","target":"qiskit","query":"Qiskit quantum circuit, exact simulator, sampling primitive, transpile for IBM quantum processor, session with error mitigation"}
+{"source":"v17","target":"scanpy","query":"single-cell RNA-seq 10x Genomics droplet QC normalization clustering marker genes Seurat"}
+{"source":"v17","target":"scientific-brainstorming","query":"generate and transparently evaluate multiple candidate research directions, brainstorm with a team, capture assumptions and disagreements before choosing one path"}
+{"source":"v17","target":"adaptyv","query":"submit protein sequences to a cloud lab experiment API for binding, thermostability and expression assays and retrieve results"}
+{"source":"v17","target":"clinical-reports","query":"CONSORT checklist reporting results for randomized controlled trial clinical report"}
+{"source":"v17","target":"depmap","query":"CRISPR knockout screen dependency scores, gene essentiality, synthetic lethality, CRISPRi/Cas9 screen analysis"}
+{"source":"v17","target":"geniml","query":"Region2Vec genomic interval embedding BED files pretrained model tokenizer vocabulary compatibility"}
+{"source":"v17","target":"glycoengineering","query":"scan antibody sequence for N-linked glycosylation motifs and O-glycosylation sites"}
+{"source":"v17","target":"imaging-data-commons","query":"download DICOM CT scans from NCI cancer imaging archive public lung CT dataset for radiology AI"}
+{"source":"v17","target":"pymoo","query":"multi-objective evolutionary algorithm, Pareto front optimization, NSGA-2, pymoo"}
+{"source":"v17","target":"pyzotero","query":"Zotero API download items and PDF attachments from a shared group library, organize by collection, export citation metadata for systematic review"}
+{"source":"v17","target":"qutip","query":"Lindblad master equation, open quantum system dynamics, quantum trajectory unraveling, Monte Carlo wavefunction, stochastic Schrödinger equation"}
+{"source":"v17","target":"scikit-survival","query":"fit Cox proportional hazards model and random survival forest with right-censored data, evaluate concordance index and time-dependent prediction error"}
+{"source":"v17","target":"benchling-integration","query":"Benchling API integration, pulling DNA construct records, lab notebook entries, biobanking sample registry"}
+{"source":"v17","target":"deeptools","query":"ChIP-seq analysis: coverage tracks from BAM files, sample correlation, enrichment quality (log2 fold change, enrichment score), TSS heatmaps around transcription start sites"}
+{"source":"v17","target":"exa-search","query":"search the web for recent technical writeups and fetch full text from article URLs and academic PDFs"}
+{"source":"v17","target":"folklore-variant-evidence","query":"lookup a germline variant by reference SNP ID to get gene-disease validity assertions and source-linked supporting literature, with unambiguous identifier resolution that fails cleanly on ambiguous matches"}
+{"source":"v17","target":"ginkgo-cloud-lab","query":"Ginkgo Bioworks automated wet-lab platform submission cell-free protein expression HiBiT luminescence"}
+{"source":"v17","target":"gtars","query":"pairwise interval overlaps and consensus coverage across genomic interval files, tokenize genomic regions for ML model"}
+{"source":"v17","target":"pathway-enrichment","query":"KEGG Reactome pathway enrichment GSEA dotplot differential expression genes"}
+{"source":"v17","target":"pennylane","query":"variational quantum circuit training parameters gradient descent eigenvalue problem automatic differentiation simulator and hardware backends"}
+{"source":"v17","target":"rowan","query":"Predict pKa and generate conformer and tautomer ensembles for a small molecule using a cloud API service, no local GPU or HPC"}
+{"source":"v17","target":"tamarind","query":"predict 3D structure of protein-ligand complex and dock ligands using cloud GPUs without local GPU infrastructure"}
+{"source":"v17","target":"bgpt-paper-search","query":"evidence synthesis and systematic review: extract structured per-paper experimental details from full-text studies, including methods, sample sizes, outcomes and quality/risk-of-bias scores."}
+{"source":"v17","target":"fluidsim","query":"pseudospectral turbulent direct numerical simulation (DNS) periodic domain spectral solver"}
+{"source":"v17","target":"generate-image","query":"generate photorealistic images and edit photo background lighting"}
+{"source":"v17","target":"histolab","query":"H&E histology whole slide imaging tissue segmentation stain normalization tile extraction dataset creation"}
+{"source":"v17","target":"market-research-reports","query":"market sizing TAM SAM SOM report, market research, evidence-based analysis, cited sources, forecast assumptions sensitivity analysis"}
+{"source":"v17","target":"optimize-for-gpu","query":"GPU acceleration for NumPy and pandas preprocessing on NVIDIA GPUs, cuDF, Dask-cuda, moving array operations and dataframe joins to GPU"}
+{"source":"v17","target":"parallel-web","query":"web search, fetching current news and documents from the internet, regulatory compliance monitoring"}
+{"source":"v17","target":"pyhealth","query":"clinical machine learning pipeline for mortality prediction from ICU electronic health records, MIMIC-III, EHR time-series modeling"}
+{"source":"v17","target":"pymc","query":"Bayesian hierarchical multilevel model with PyMC NUTS MCMC sampling and leave-one-out cross-validation"}
+{"source":"v17","target":"pytorch-lightning","query":"PyTorch DDP FSDP distributed training loop refactoring, Lightning trainer pattern"}
+{"source":"v17","target":"dask","query":"scale a pandas DataFrame script across multiple cores or a small cluster without rewriting, dask dataframe"}
+{"source":"v17","target":"deepchem","query":"train graph neural network to predict drug-like molecule ADMET properties toxicity benchmark on standard datasets"}
+{"source":"v17","target":"hypogenic","query":"iterative LLM-assisted process proposing and scoring candidate textual patterns as hypotheses from a labeled text dataset, refine pattern bank using literature-derived information"}
+{"source":"v17","target":"latex-posters","query":"LaTeX conference research poster template A0 multi-column layout"}
+{"source":"v17","target":"liteparse","query":"OCR local PDF pages word bounding box coordinates PNG page images no cloud"}
+{"source":"v17","target":"neurokit2","query":"preprocess ECG EDA recordings, detect events, compute heart rate variability and complexity metrics reproducible pipeline"}
+{"source":"v17","target":"pathml","query":"load whole-slide pathology H&E images and tile them into patches for deep learning"}
+{"source":"v17","target":"pkpd-modeling","query":"non-compartmental pharmacokinetic analysis of concentration-time data, AUC and terminal half-life estimation"}
+{"source":"v17","target":"protocolsio-integration","query":"protocols.io lab protocol retrieval, DOI, version history, editing steps"}
+{"source":"v17","target":"sympy","query":"solve differential equation symbolically with sympy and export exact solution to C or Fortran code"}
+{"source":"v17","target":"alphagenome","query":"prioritize noncoding variants from GWAS credible set using precomputed regulatory impact scores and feature attributions (enhancer, promoter, splicing, chromatin accessibility)"}
+{"source":"v17","target":"dnanexus-integration","query":"upload sequencing files to DNAnexus project, launch workflow app, monitor job status and compute cost"}
+{"source":"v17","target":"neuropixels-analysis","query":"SpikeGLX recording preprocessing, drift correction, spike sorting, quality metrics for units"}
+{"source":"v17","target":"ontology-term-resolution","query":"resolve free text labels to validated ontology term IDs for cell types and tissues, check if CURIEs or ontology identifiers are obsolete"}
+{"source":"v17","target":"open-notebook","query":"Transcribe recorded audio/talks into text with Whisper"}
+{"source":"v17","target":"peer-review","query":"peer review a submitted scientific manuscript, assess methods, statistics, and reproducibility, structure a confidential evaluation report"}
+{"source":"v17","target":"pysam","query":"open BAM file with pysam, query overlapping reads for a genomic region, filter secondary/supplementary alignments, compute per-base read depth including zero-coverage positions"}
+{"source":"v17","target":"scientific-schematics","query":"create a publication-quality signaling pathway diagram from a text description"}
+{"source":"v17","target":"torch-geometric","query":"mini-batch neighbor sampling PyG GraphSage sampler GNN PyTorch Geometric large graph"}
+{"source":"v17","target":"aeon","query":"scikit-learn estimator interface for multivariate time series classification, anomaly detection and change point detection"}
+{"source":"v17","target":"genomic-coordinates","query":"check BED and VCF coordinate systems, 0-based vs 1-based, genome build reference, compare variants against ClinVar"}
+{"source":"v17","target":"lamindb","query":"track computational lineage provenance of scRNA-seq datasets, which script produced which version of an AnnData artifact"}
+{"source":"v17","target":"modal","query":"deploy a trained model as a scalable web API endpoint on GPU containers on demand (Modal, serverless inference)"}
+{"source":"v17","target":"networkx","query":"graph centrality measures, community detection, shortest path on protein interaction network"}
+{"source":"v17","target":"primekg","query":"drug repurposing using a knowledge graph integrating biomedical databases of genes drugs diseases and phenotypes, shared molecular targets"}
+{"source":"v17","target":"pufferlib","query":"reinforcement learning training Gymnasium environment vectorized rollouts policy gradient"}
+{"source":"v17","target":"pyopenms","query":"LC-MS/MS proteomics workflow with pyOpenMS: detect and quantify peptide features across multiple runs, align retention times, build consensus feature table, wide intensity matrix"}
+{"source":"v17","target":"statsmodels","query":"fit generalized linear models, econometric regression with coefficient tables, standard errors, heteroskedasticity and autocorrelation diagnostics"}
+{"source":"v17","target":"tiledbvcf","query":"load VCF variant calls into a queryable store, incremental sample addition, query variants for genomic regions across thousands of samples"}
+{"source":"v17","target":"cirq","query":"build and simulate noise-aware quantum circuits for Google processor native gates, Qiskit, error characterization"}
+{"source":"v17","target":"deepspot-m","query":"predict spatial gene expression from H&E whole slide histology images deep learning"}
+{"source":"v17","target":"iso-standards-readiness","query":"ISO 13485 quality management system audit evidence package controlled documents risk management CAPA"}
+{"source":"v17","target":"onekgpd","query":"1000 Genomes homozygous missense variants, gnomAD frequencies, AlphaMissense scores"}
+{"source":"v17","target":"openpiv","query":"particle image velocimetry PIV cross-correlation of interrogation windows velocity field vorticity"}
+{"source":"v17","target":"pylabrobot","query":"vendor-agnostic liquid handling robot protocol for Hamilton STAR and Tecan EVO, lab automation"}
+{"source":"v17","target":"research-grants","query":"scientific writing, NIH grant writing, resubmission, specific aims, significance narrative"}
+{"source":"v17","target":"scvi-tools","query":"deep generative model for single-cell RNA-seq batch integration with uncertainty and differential expression, mapping new cells to reference latent space"}
+{"source":"v17","target":"stable-baselines3","query":"train a reinforcement learning agent with PPO or SAC on a Gymnasium environment without writing training loop or policy network"}
+{"source":"v17","target":"astropy","query":"FITS image WCS coordinate transformation pixel to sky coordinates and cosmology luminosity distance redshift"}
+{"source":"v17","target":"dhdna-profiler","query":"analyze a person's reasoning style and writing style from a long text: infer analytical vs intuitive thinking, values trade-offs, tensions in how they think"}
+{"source":"v17","target":"flowio","query":"flow cytometry FCS files: read channel metadata, extract event data as numpy arrays, write modern single-precision FCS"}
+{"source":"v17","target":"markdown-mermaid-writing","query":"Mermaid diagrams and pipeline visualization in Markdown scientific writing"}
+{"source":"v17","target":"matlab","query":"MATLAB to Octave migration, reviewing .m scripts for correctness and compatibility"}
+{"source":"v17","target":"phylogenetics","query":"align protein sequences, maximum likelihood phylogenetic tree with model selection, tree visualization and annotation"}
+{"source":"v17","target":"pptx-posters","query":"create editable PowerPoint presentation poster from figures and text, check accessibility and print compliance"}
+{"source":"v17","target":"shap","query":"explain a trained model's predictions on specific held-out samples with attribution values that sum to the model output, e.g. SHAP or gradient-based attribution"}
+{"source":"v17","target":"treatment-plans","query":"format a clinical treatment plan decision into a structured record with goals, checkpoints, and approval trail"}
+{"source":"v17","target":"usfiscaldata","query":"US fiscal data: Treasury debt, debt-to-GDP, auction results from official government sources like FRED or Treasury Direct"}
+{"source":"v17","target":"cobrapy","query":"flux balance analysis SBML genome-scale metabolic model gene knockout screen"}
+{"source":"v17","target":"hypothesis-generation","query":"turn preliminary observations into candidate hypotheses with rival explanations, testable predictions, and a preregistration-ready analysis plan"}
+{"source":"v17","target":"matchms","query":"untargeted metabolomics MS/MS spectral library search cosine similarity MGF spectra"}
+{"source":"v17","target":"opentrons-integration","query":"Opentrons Flex liquid handling protocol Python simulation temperature module control"}
+{"source":"v17","target":"pydeseq2","query":"RNA-seq differential expression multi-factor design with batch covariate, log-fold-change shrinkage, DESeq2 in Python"}
+{"source":"v17","target":"relsa-severity-assessment","query":"mouse study severity scoring combining body weight loss temperature clinical scores against reference animals and forecasting humane endpoints"}
+{"source":"v17","target":"simpy","query":"discrete event simulation queueing patient arrivals service times"}
+{"source":"v17","target":"timesfm-forecasting","query":"zero-shot univariate time series forecasting with prediction intervals without training a model, e.g. Naive, ETS, ARIMA, ThetaLine"}
+{"source":"v17","target":"umap-learn","query":"Dimensionality reduction for high-dimensional data visualization preserving local and global structure, UMAP or t-SNE, embedding new points into existing embedding, semi-supervised manifold learning"}
+{"source":"v17","target":"venue-templates","query":"journal submission author guidelines LaTeX template"}
+{"source":"v17","target":"ncats-arax","query":"biomedical knowledge graph gene disease relationships two-hop paths with provenance and supporting publications"}
+{"source":"v16","target":"exploratory-data-analysis","query":"redacted profile of CSV dataset with missing-value patterns, train/test leakage audit, outlier transformation sensitivity, and a scaffolded EDA report"}
+{"source":"v16","target":"bids","query":"convert raw DICOM MRI data to BIDS format with JSON sidecars for public imaging repository"}
+{"source":"v16","target":"biopython","query":"parse FASTA and GenBank sequence files with Biopython"}
+{"source":"v16","target":"diffdock","query":"molecular docking protein-ligand 3D binding pose prediction virtual screening with confidence score"}
+{"source":"v16","target":"infographics","query":"search scholarly literature for Mediterranean diet health benefit statistics, PREDIMED trial outcomes, cardiovascular risk reduction, mortality"}
+{"source":"v16","target":"scikit-learn","query":"build and cross-validate classical tabular classification models with grid search hyperparameter tuning inside a preprocessing pipeline, compare and select a final model"}
+{"source":"v16","target":"torchdrug","query":"self-supervised pretraining of molecular graph neural networks for property prediction"}
+{"source":"v16","target":"datamol","query":"SMILES standardization, molecular descriptors and fingerprints, clustering into diverse representative subset cheminformatics"}
+{"source":"v16","target":"esm","query":"fill masked regions of a protein sequence with a generative protein model to design variants, then predict all-atom 3D structure from the sequence"}
+{"source":"v16","target":"medchem","query":"molecular property calculation, Lipinski rule of five, Veber rules, PAINS structural alerts, compound library virtual screening"}
+{"source":"v16","target":"molfeat","query":"compute molecular fingerprints and embeddings from SMILES for QSAR feature engineering"}
+{"source":"v16","target":"polars-bio","query":"overlap and nearest features between BED interval files and read per-position coverage depth from a BAM file streaming from S3 without loading into memory"}
+{"source":"v16","target":"scientific-slides","query":"build a conference presentation slide deck with narrative, visuals, and speaker notes"}
+{"source":"v16","target":"waypoint-bio","query":"embed microbiome 16S abundance tables with pretrained foundation model, cluster samples, fine-tune for phenotype"}
+{"source":"v16","target":"anndata","query":"combine merge multiple h5ad annData files into one object keeping obs and obsm metadata"}
+{"source":"v16","target":"bioservices","query":"UniProt KEGG Gene Ontology annotations unified database API bioservices"}
+{"source":"v16","target":"clinical-decision-support","query":"calibration and subgroup performance evaluation of a clinical risk-prediction model"}
+{"source":"v16","target":"hugging-science","query":"search the Hugging Face Hub for curated datasets, pretrained models, and interactive Spaces/demos in the biology or protein language model domain"}
+{"source":"v16","target":"lab-hardware-cad","query":"CAD design parametric 3D model export STEP file microplate holder mechanical design"}
+{"source":"v16","target":"scikit-bio","query":"16S rRNA amplicon diversity analysis, alpha beta diversity, PERMANOVA, ordination, microbiome"}
+{"source":"v16","target":"statistical-power","query":"power analysis sample size calculation for study design"}
+{"source":"v16","target":"markitdown","query":"convert Word documents and PowerPoint decks to Markdown text"}
+{"source":"v16","target":"pacsomatic","query":"PacBio BAM pbi somatic variant calling samplesheet slurm launch"}
+{"source":"v16","target":"pathogen-variant-surveillance","query":"SARS-CoV-2 Pango lineage surveillance, variant frequency growth rate"}
+{"source":"v16","target":"pymatgen","query":"check symmetry of crystal structures, space group, refine cell parameters from DFT output, formation energy, phase diagram from materials"}
+{"source":"v16","target":"scvelo","query":"infer differentiation direction from spliced and unspliced scRNA-seq counts, scVel velocity, trajectory and driver genes"}
+{"source":"v16","target":"uncertainty-and-units","query":"measurement uncertainty budget GUM Guide type A type B evaluation coverage factor"}
+{"source":"v16","target":"zarr-python","query":"store a multi-dimensional array with chunked parallel reads and writes to cloud object storage, interoperability with numpy and xarray, zarr"}
+{"source":"v16","target":"analytical-method-validation","query":"plan HPLC assay validation study with acceptance criteria for linearity, accuracy, precision, LOD/LOQ under FDA USP ICH guidelines"}
+{"source":"v16","target":"database-lookup","query":"look up a specific gene's records across public identifier databases (UniProt, NCBI Gene/GenBank, Ensembl, InterPro, PDB, etc.) using each database's documented REST API with provenance"}
+{"source":"v16","target":"genomic-intelligence","query":"predict promoter region and splice donor acceptor sites from DNA sequence, hosted API model, no local GPU"}
+{"source":"v16","target":"latchbio-integration","query":"package a Python pipeline as a Latch workflow, set GPU and memory resources per task, launch via Latch SDK, and upload run metadata to the Latch Registry"}
+{"source":"v16","target":"nextflow","query":"Nextflow module testing with nf-test, SLURM configuration for Nextflow tests"}
+{"source":"v16","target":"paperclip","query":"search full-text biomedical papers alongside FDA and EMA regulatory filings and clinical trial protocols in a unified grep-able archive with citations pinned to line numbers"}
+{"source":"v16","target":"pydicom","query":"DICOM de-identification stripping PHI tags exporting pixel data"}
+{"source":"v16","target":"rdkit","query":"compute molecular descriptors, Morgan fingerprints, and SMARTS substructure search from SMILES with sanitization control"}
+{"source":"v16","target":"what-if-oracle","query":"decision analysis scenario planning risk assessment for branching scenarios of a research program when a key reagent supplier fails to deliver"}
+{"source":"v16","target":"arboreto","query":"infer transcription factor target gene regulatory relationships from single-cell RNA-seq expression matrix, gene regulatory network inference, motif-based TF activity inference"}
+{"source":"v16","target":"geomaster","query":"calculate NDVI from Sentinel-2 satellite imagery bands and watershed delineation hydrological terrain analysis"}
+{"source":"v16","target":"geopandas","query":"spatial join of points to polygons, reproject geospatial data to consistent CRS, shapefile to GeoDataFrame"}
+{"source":"v16","target":"molecular-dynamics","query":"molecular dynamics protein ligand complex energy minimization production run GROMACS RMSD RMSF trajectory analysis"}
+{"source":"v16","target":"pytdc","query":"load machine learning benchmark datasets for drug-target interaction ADMET molecule generation with standard splits and official evaluation metrics"}
+{"source":"v16","target":"scanpy","query":"single-cell RNA-seq 10x Genomics QC normalization clustering marker genes Scanpy, and Seurat RDS conversion"}
+{"source":"v16","target":"scientific-brainstorming","query":"independently generate and transparently evaluate several candidate follow-up research directions with a team, capturing assumptions and disagreements before committing to one path (structured research brainstorming, hypothesis generation, decision-making framework)"}
+{"source":"v16","target":"adaptyv","query":"submit protein sequences to cloud lab experiment API for binding thermostability expression assays and poll for results"}
+{"source":"v16","target":"clinical-reports","query":"clinical trial results reporting checklist CONSORT randomized trial report"}
+{"source":"v16","target":"depmap","query":"genome-wide CRISPR knockout screen dependency analysis, gene essentiality in cancer cell lines, dependency map, KRAS mutant synthetic lethality"}
+{"source":"v16","target":"geniml","query":"Region2Vec genomic BED region embeddings tokenizer vocabulary compatibility"}
+{"source":"v16","target":"glycoengineering","query":"scan protein sequence for N-linked glycosylation motifs N-X-S/T and O-glycosylation sites, glycosylation prediction on Fc antibody region"}
+{"source":"v16","target":"pymoo","query":"multi-objective evolutionary algorithm, Pareto optimization, NSGA-II, multi-objective design"}
+{"source":"v16","target":"pyzotero","query":"Zotero group library, pull items and PDF attachments, export metadata"}
+{"source":"v16","target":"qutip","query":"solve Lindblad master equation, quantum trajectories, quantum optics simulation"}
+{"source":"v16","target":"scikit-survival","query":"cox proportional hazards model and random survival forest, survival analysis, c-index concordance, time-dependent survival curves"}
+{"source":"v16","target":"folklore-variant-evidence","query":"germline variant gene-disease validity assertion by reference SNP ID with source-linked supporting literature"}
+{"source":"v16","target":"ginkgo-cloud-lab","query":"submit an automated wet-lab experiment to Ginkgo Bioworks API and retrieve luminescence results"}
+{"source":"v16","target":"gtars","query":"genomic interval overlap, coverage calculation, merge intervals, bed file processing"}
+{"source":"v16","target":"pathway-enrichment","query":"KEGG and Reactome pathway enrichment, over-representation analysis, GSEA from a ranked list of differential expression genes, dotplot output"}
+{"source":"v16","target":"rowan","query":"predict pKa of a molecule, generate 3D conformer ensemble and tautomers from SMILES, then do virtual docking against a target protein, without local compute infrastructure"}
+{"source":"v16","target":"tamarind","query":"predict 3D structure of a protein and protein-ligand complex, AlphaFold, molecular docking, virtual screening of a batch of candidate binders on cloud GPUs"}
+{"source":"v16","target":"bgpt-paper-search","query":"evidence synthesis full-text extraction per-paper methods sample size quality scoring systematic review"}
+{"source":"v16","target":"fluidsim","query":"periodic pseudospectral incompressible Navier-Stokes turbulence simulation, Fourier collocation solver, CFL and time step, spectral method validation"}
+{"source":"v16","target":"histolab","query":"histopathology image processing: tissue region detection, tile extraction from whole slide images, color normalization of H&E slides"}
+{"source":"v16","target":"optimize-for-gpu","query":"GPU acceleration with CuPy cuDF CUDA for array operations and dataframe joins"}
+{"source":"v16","target":"pymc","query":"PyMC hierarchical Bayesian model NUTS MCMC leave-one-out cross-validation compare models"}
+{"source":"v16","target":"deepchem","query":"graph neural network molecular property prediction drug discovery ADMET toxicity"}
+{"source":"v16","target":"neurokit2","query":"ECG preprocessing, heart rate variability, EDA skin conductance, event detection, complexity metrics reproducible pipeline neurokit2"}
+{"source":"v16","target":"pathml","query":"whole-slide pathology image H&E loading tiling into patches patches image quality control"}
+{"source":"v16","target":"pkpd-modeling","query":"non-compartmental PK analysis AUC half-life elimination rate constant terminal phase two-compartment model"}
+{"source":"v16","target":"protocolsio-integration","query":"protocols.io project protocol DOI version history step edit"}
+{"source":"v16","target":"sympy","query":"solve a differential equation symbolically with exact closed-form solution and generate code from it"}
+{"source":"v16","target":"alphagenome","query":"prioritize noncoding SNVs using precomputed genome-wide regulatory impact scores and feature attributions (enhancers, promoters, splicing, chromatin)"}
+{"source":"v16","target":"dnanexus-integration","query":"DNAnexus integration upload files launch workflow job"}
+{"source":"v16","target":"neuropixels-analysis","query":"SpikeGLX electrophysiology spike sorting drift correction quality metrics"}
+{"source":"v16","target":"ontology-term-resolution","query":"resolve free-text labels like PBMC and left ventricle to validated ontology term IDs and check whether an existing CURIE is obsolete"}
+{"source":"v16","target":"open-notebook","query":"generate a podcast with multiple speakers from text, text to speech, RAG chat over local documents"}
+{"source":"v16","target":"peer-review","query":"formal peer review writing for a manuscript, covering methods, statistics, reproducibility"}
+{"source":"v16","target":"torch-geometric","query":"pytorch geometric neighbor sampling mini-batch sampling for graph neural networks large graphs"}
+{"source":"v16","target":"aeon","query":"multivariate time series classification anomaly detection change point detection with sklearn-style estimator interface"}
+{"source":"v16","target":"genomic-coordinates","query":"convert between BED and VCF 1-based and 0-based genomic coordinates, reference genome build validation, compare variants to a reference sequence"}
+{"source":"v16","target":"modal","query":"deploy a machine learning model as a web API on Modal serverless GPU containers"}
+{"source":"v16","target":"networkx","query":"networkx graph analysis centrality communities shortest path"}
+{"source":"v16","target":"pyopenms","query":"LC-MS/MS peptide feature detection and quantification, retention time alignment, consensus feature table, wide intensity matrix proteomics"}
+{"source":"v16","target":"cirq","query":"build and simulate a noise-aware quantum circuit using a Google processor native gate set and compare to real device errors"}
+{"source":"v16","target":"deepspot-m","query":"predict spatial gene expression from whole-slide H&E histology images without sequencing"}
+{"source":"v16","target":"iso-standards-readiness","query":"ISO 13485 medical device quality management system audit evidence package, CAPA, risk management documentation, compliance document organization"}
+{"source":"v16","target":"onekgpd","query":"find individuals in 1000 Genomes project with homozygous missense variants in a gene, gnomAD frequencies, AlphaMissense"}
+{"source":"v16","target":"openpiv","query":"particle image velocimetry cross-correlation interrogation windows velocity field from particle-seeded flow images"}
+{"source":"v16","target":"pylabrobot","query":"liquid handling, pipetting, Hamilton STAR, Tecan EVO, lab automation, robotic deck protocol"}
+{"source":"v16","target":"scholar-evaluation","query":"developmental feedback on research proposal soundness, framing, and evidence quality"}
+{"source":"v16","target":"scvi-tools","query":"scVI single-cell integration batch correction differential expression latent mapping"}
+{"source":"v16","target":"astropy","query":"convert FITS pixel coordinates to sky coordinates in different reference frame using WCS header, compute luminosity distance from redshift"}
+{"source":"v16","target":"dhdna-profiler","query":"qualitative textual analysis of a person's reasoning style, argumentation patterns, cognitive style, rhetorical or discourse analysis of prose"}
+{"source":"v16","target":"markdown-mermaid-writing","query":"write Mermaid diagrams in markdown files for a pipeline in a methods report"}
+{"source":"v16","target":"phylogenetics","query":"multiple sequence alignment, phylogenetic tree building, maximum likelihood, sequence alignment with MUSCLE or MAFFT, tree visualization with Biopython"}
+{"source":"v16","target":"pptx-posters","query":"build an editable PowerPoint conference poster from figures and abstract text, print and accessibility compliant"}
+{"source":"v16","target":"shap","query":"SHAP attribution values summing to model prediction, model explainability for trained classifier, feature attribution with local accuracy property"}
+{"source":"v16","target":"cobrapy","query":"flux balance analysis, metabolic model gene knockout screening, metabolic modeling with SBML"}
+{"source":"v16","target":"hypothesis-generation","query":"Turn preliminary experimental observations into candidate hypotheses with rival explanations, testable predictions, and a preregistration-ready analysis plan"}
+{"source":"v16","target":"matchms","query":"match MS/MS spectra cosine similarity reference library spectral matching MGF untargeted metabolomics"}
+{"source":"v16","target":"opentrons-integration","query":"write an Opentrons Flex liquid handling protocol and simulate it locally before running on the robot, including temperature module control"}
+{"source":"v16","target":"pydeseq2","query":"RNA-seq differential expression pydeseq2 multi-factor design log2 fold change shrinkage FDR"}
+{"source":"v16","target":"relsa-severity-assessment","query":"combine multiple longitudinal clinical measurements (body weight loss, temperature, clinical scores) into a single severity score per animal relative to a reference set, and forecast time to humane endpoint for time-to-event prediction"}
+{"source":"v16","target":"simpy","query":"discrete-event simulation queueing model waiting time"}
+{"source":"v16","target":"timesfm-forecasting","query":"zero-shot forecasting with a time series foundation model like TimesFM, prediction intervals, no training"}
+{"source":"v16","target":"venue-templates","query":"journal venue templates, author guidelines, page limits, required sections, official LaTeX class/style files"}
+{"source":"v16","target":"ncats-arax","query":"query a biomedical knowledge graph for gene-disease relationships with two-hop paths, supporting publications, and data source provenance per edge"}
+{"source":"0923","target":"adaptyv","query":"submit protein sequences to cloud lab experiment API for binding thermostability expression assays, poll results"}
+{"source":"0923","target":"aeon","query":"classify multivariate sensor time series into failure modes, anomaly detection, change point detection, scikit-learn estimator interface"}
+{"source":"0923","target":"alphagenome","query":"prioritize noncoding GWAS variants using precomputed genome-wide impact scores and feature attributions (enhancer, promoter, splicing, chromatin accessibility)"}
+{"source":"0923","target":"analytical-method-validation","query":"HPLC method validation acceptance criteria linearity accuracy precision LOD LOQ regulatory framework ICH"}
+{"source":"0923","target":"anndata","query":"combine multiple AnnData h5ad single-cell datasets into one, preserve metadata, sparse matrices"}
+{"source":"0923","target":"arbor","query":"iterative automated experiment runs, experiment tracking, statistical evaluation, held-out test split, avoid overfitting to benchmark metric"}
+{"source":"0923","target":"arboreto","query":"infer transcription factor regulation of target genes from single-cell RNA expression using tree-based ensemble model"}
+{"source":"0923","target":"astropy","query":"convert pixel positions to sky coordinates using FITS WCS, change reference frame, compute luminosity distance from redshift"}
+{"source":"0923","target":"benchling-integration","query":"Benchling API DNA construct records ELN electronic lab notebook integration"}
+{"source":"0923","target":"bgpt-paper-search","query":"structured per-paper extraction of methods, sample sizes, and quality scores from full-text studies for evidence synthesis"}
+{"source":"0923","target":"bids","query":"Convert raw DICOM MRI scans to BIDS standardized directory layout with JSON metadata sidecars, validate, and prepare for a public imaging repository"}
+{"source":"0923","target":"biopython","query":"parse FASTA and GenBank files and run BLAST similarity search against NCBI databases in a batch pipeline"}
+{"source":"0923","target":"bioservices","query":"UniProt accessions KEGG pathway mapping and Gene Ontology annotations through a unified API client"}
+{"source":"0923","target":"bulk-rnaseq","query":"bulk RNA-seq differential expression and pathway enrichment from raw paired-end reads"}
+{"source":"0923","target":"cellxgene-census","query":"search and retrieve expression values and cell-type metadata across public single-cell studies without downloading raw datasets, cross-study reference set, CellxGene Census, GFA"}
+{"source":"0923","target":"cirq","query":"simulate noise-aware quantum circuits on Google quantum processor native gate set, calibration, characterization experiments, Qiskit Aer / cirq noise models"}
+{"source":"0923","target":"citation-management","query":"search for scientific papers, verify citation details, generate BibTeX bibliography entries"}
+{"source":"0923","target":"clinical-decision-support","query":"calibration and evaluation of a clinical risk prediction model, subgroup fairness checks"}
+{"source":"0923","target":"clinical-reports","query":"randomized trial results report checklist compliant CONSORT ICMJE clinical reporting"}
+{"source":"0923","target":"cobrapy","query":"run flux balance analysis and gene knockout screen on SBML genome-scale metabolic model"}
+{"source":"0923","target":"consciousness-council","query":"directing a research lab, scientific strategy, weighing long-term vs short-term bets, research ethics, stakeholder tradeoffs"}
+{"source":"0923","target":"consciousness-council","query":"structured debate of conflicting expert viewpoints, council of perspectives, devil's advocate"}
+{"source":"0923","target":"dask","query":"scale a pandas script across multiple cores or a small cluster without rewriting"}
+{"source":"0923","target":"datalad","query":"datalad versioning, reproducible analysis, cloning a large dataset with sparse or lazy download"}
+{"source":"0923","target":"datamol","query":"canonicalize SMILES from CSV, compute molecular descriptors and fingerprints, select diverse representative subset by clustering"}
+{"source":"0923","target":"deepchem","query":"graph neural network for molecular property prediction, ADMET/toxicity benchmarking with standard datasets like ADMET-2, tox2k, PubChem, YADDS"}
+{"source":"0923","target":"deepspot-m","query":"predict spatial gene expression from whole-slide histology images deep learning"}
+{"source":"0923","target":"deeptools","query":"ChIP-seq analysis: coverage tracks, signal correlation, enrichment quality, heatmap around transcription start sites"}
+{"source":"0923","target":"depmap","query":"CRISPR knockout screen dependency scores gene essentiality drug target analysis"}
+{"source":"0923","target":"dhdna-profiler","query":"analyze a person's writing style and reasoning patterns, rhetorical and cognitive analysis of text"}
+{"source":"0923","target":"diffdock","query":"predict 3D binding poses of small molecules (SMILES) in a protein binding site with a confidence score, virtual screening, docking"}
+{"source":"0923","target":"dnanexus-integration","query":"DNAnexus integration: upload files to project, launch app/workflow, monitor job status and compute cost"}
+{"source":"0923","target":"esm","query":"fill masked regions of a partial protein sequence with a generative protein model, then predict all-atom 3D structure"}
+{"source":"0923","target":"esm","query":"generate novel protein sequence variants by filling masked regions in a partial protein sequence, then predict all-atom structure"}
+{"source":"0923","target":"esm","query":"fill in masked regions of a partial protein sequence with a generative protein model"}
+{"source":"0923","target":"etetoolkit","query":"compare gene tree topologies with Robinson-Foulds distance"}
+{"source":"0923","target":"exa-search","query":"search the web for recent technical writeups, fetch web pages, download PDFs"}
+{"source":"0923","target":"experimental-design","query":"design of experiments, fractional factorial design, screening design with 6 factors, randomization of run order"}
+{"source":"0923","target":"exploratory-data-analysis","query":"exploratory data analysis CSV profiling missing value patterns outliers transformations report"}
+{"source":"0923","target":"flowio","query":"flow cytometry FCS file, channel metadata, export events to NumPy, write FCS 3.0 single precision"}
+{"source":"0923","target":"fluidsim","query":"spectral method turbulence simulation solver selection CFL time step resolution check"}
+{"source":"0923","target":"folklore-variant-evidence","query":"Given a reference SNP ID, look up gene-disease validity assertions (e.g. ClinVar gene-disease validity) and source-linked supporting literature; lookup should stop cleanly and report ambiguity rather than guessing which variant"}
+{"source":"0923","target":"generate-image","query":"generate or edit images, illustration, bioluminescent deep-sea jellyfish, background lighting edit on a photo"}
+{"source":"0923","target":"geniml","query":"region2vec genomic interval embedding from BED files with tokenizer vocabulary"}
+{"source":"0923","target":"genomic-coordinates","query":"BED to VCF coordinate conversion and off-by-one alignment between interval files"}
+{"source":"0923","target":"genomic-intelligence","query":"predict promoter region and splice donor/acceptor sites from a raw DNA sequence using a hosted cloud model without downloading weights or using a local GPU"}
+{"source":"0923","target":"geomaster","query":"calculate NDVI from Sentinel-2 satellite imagery bands"}
+{"source":"0923","target":"geopandas","query":"spatial join of points to polygons, reproject GIS data to a common coordinate reference system using geopandas"}
+{"source":"0923","target":"gget","query":"AlphaFold structure lookup for a protein, model ID and confidence pLDDT"}
+{"source":"0923","target":"ginkgo-cloud-lab","query":"submit experiment run to Ginkgo Bioworks automated lab and get luminescence quantification"}
+{"source":"0923","target":"glycoengineering","query":"scan antibody Fc sequence for N-glycosylation sites and O-glycosylation motifs, glycoengineering ADCC"}
+{"source":"0923","target":"gtars","query":"compute pairwise overlaps and consensus coverage of genomic interval files, tokenize genomic regions for ML"}
+{"source":"0923","target":"histolab","query":"H&E histology whole slide image tissue segmentation tile extraction staining normalization histopathology"}
+{"source":"0923","target":"hugging-science","query":"find curated biology datasets, pretrained protein language models, and interactive demos on Hugging Face"}
+{"source":"0923","target":"hypogenic","query":"iterative LLM-assisted hypothesis generation proposing and scoring candidate textual patterns as hypotheses and refining a bank of patterns using literature-derived information"}
+{"source":"0923","target":"hypothesis-generation","query":"hypothesis generation from observations, scientific writing, preregistration analysis plans, rival explanations"}
+{"source":"0923","target":"imaging-data-commons","query":"download public lung CT DICOM dataset from The Cancer Imaging Archive (TCIA) for radiology AI training, license terms"}
+{"source":"0923","target":"infographics","query":"create infographic one page visual summary with icons and stats"}
+{"source":"0923","target":"iso-standards-readiness","query":"ISO 13485 quality management audit readiness, document control, CAPA records organization"}
+{"source":"0923","target":"lab-hardware-cad","query":"design CAD model microplate holder and export as STEP file for 3D printing"}
+{"source":"0923","target":"labarchive-integration","query":"LabArchives API integration with signed request authentication to list notebook entries and inventory items"}
+{"source":"0923","target":"lamindb","query":"track computational lineage and provenance of datasets, ontology validation for cell types and tissue"}
+{"source":"0923","target":"latchbio-integration","query":"Latch platform workflow package deploy SDK registry"}
+{"source":"0923","target":"latex-posters","query":"write a LaTeX research poster with multi-column layout A0 size conference"}
+{"source":"0923","target":"liteparse","query":"OCR scanned PDF pages with word-level bounding boxes and PNG page rendering"}
+{"source":"0923","target":"literature-review","query":"systematic literature review, search PubMed and arXiv, synthesize findings, verify citations, write manuscript background section"}
+{"source":"0923","target":"markdown-mermaid-writing","query":"Mermaid diagrams in Markdown, text-based pipeline diagrams for methods report"}
+{"source":"0923","target":"market-research-reports","query":"market sizing report market research evidence sourcing citations sensitivity analysis"}
+{"source":"0923","target":"markitdown","query":"convert Word documents, PowerPoint decks, and CSV files into Markdown text for indexing"}
+{"source":"0923","target":"matchms","query":"score MS/MS spectra against spectral reference library cosine similarity metabolomics matchms"}
+{"source":"0923","target":"matlab","query":"check MATLAB scripts for compatibility with Octave interpreter migration"}
+{"source":"0923","target":"matplotlib","query":"custom matplotlib plotting broken axis inset zoom panel custom colormap vector PDF"}
+{"source":"0923","target":"medchem","query":"virtual screening compounds lipinski rule of five veber rule PAINS structural alerts"}
+{"source":"0923","target":"modal","query":"deploy a local machine learning model as a web API with auto-scaling GPU"}
+{"source":"0923","target":"molecular-dynamics","query":"molecular dynamics protein-ligand complex energy minimization production simulation RMSD RMSF trajectory analysis"}
+{"source":"0923","target":"molfeat","query":"SMILES fingerprint computation and transformer molecular embeddings for QSAR prediction"}
+{"source":"0923","target":"ncats-arax","query":"query a biomedical knowledge graph for gene-disease relationships with two-hop paths, supporting publications and data source provenance for each edge"}
+{"source":"0923","target":"networkx","query":"networkx centrality communities shortest path graph analysis"}
+{"source":"0923","target":"neurokit2","query":"preprocess ECG EDA heart rate variability complexity entropy metrics reproducible pipeline"}
+{"source":"0923","target":"neuropixels-analysis","query":"SpikeGLX raw recording preprocessing probe drift correction spike sorting quality metrics"}
+{"source":"0923","target":"nextflow","query":"Nextflow DSL2 modules nf-test testing workflow SLURM"}
+{"source":"0923","target":"omero-integration","query":"OMERO server, retrieve ROI annotations and metadata from microscope images, export locally"}
+{"source":"0923","target":"onekgpd","query":"find individuals in 1000 Genomes Project carrying homozygous missense variants in a gene with gnomAD allele frequencies and AlphaMissense scores"}
+{"source":"0923","target":"ontology-term-resolution","query":"resolve free text labels to ontology term IDs, check if a CURIE is obsolete"}
+{"source":"0923","target":"open-notebook","query":"transcribe audio recordings to text locally with whisper"}
+{"source":"0923","target":"openpiv","query":"PIV particle image velocimetry cross-correlation interrogation windows 2D velocity field vorticity"}
+{"source":"0923","target":"opentrons-integration","query":"Opentrons Flex liquid handling protocol simulation temperature module control"}
+{"source":"0923","target":"optimize-for-gpu","query":"accelerate numpy pandas data preprocessing on NVIDIA GPU without changing results"}
+{"source":"0923","target":"pacsomatic","query":"PacBio samplesheet generation and run submission"}
+{"source":"0923","target":"paper-lookup","query":"look up a paper from partial citation to find its DOI, check open access status, retrieve full text, and find citing papers across scholarly databases"}
+{"source":"0923","target":"paperclip","query":"Search full-text biomedical papers, FDA/EMA regulatory filings, and clinical trial protocols in one unified grep-able archive with citations pinned to line numbers"}
+{"source":"0923","target":"paperzilla","query":"paper recommendation feed, recent papers, arxiv feed, note why a paper is relevant"}
+{"source":"0923","target":"parallel-web","query":"current web search for latest news and regulatory updates"}
+{"source":"0923","target":"pathml","query":"load whole slide images and tile into patches for pathology H&E"}
+{"source":"0923","target":"pathogen-variant-surveillance","query":"Pango lineage surveillance for SARS-CoV-2, which lineages are circulating, growth rates, lineage renaming history"}
+{"source":"0923","target":"pathway-enrichment","query":"test KEGG and Reactome pathways for over-representation using up and down regulated genes, and run GSEA with a ranked gene list"}
+{"source":"0923","target":"peer-review","query":"peer review manuscript evaluation, assessing methods statistics and reproducibility, scientific writing for peer review"}
+{"source":"0923","target":"pennylane","query":"variational quantum circuit automatic differentiation gradient descent eigenvalue problem"}
+{"source":"0923","target":"phylogenetics","query":"multiple sequence alignment of protein sequences and maximum likelihood phylogenetic tree with model selection"}
+{"source":"0923","target":"pkpd-modeling","query":"pharmacokinetics AUC half-life non-compartmental PK analysis single dose concentration-time data"}
+{"source":"0923","target":"polars","query":"Migrate a slow pandas ETL script to a lazy query engine with out-of-core streaming and an Arrow-based expression API (Polars)"}
+{"source":"0923","target":"polars-bio","query":"overlap and nearest-neighbor operations between two BED interval files without loading all into memory"}
+{"source":"0923","target":"pptx-posters","query":"build an editable PowerPoint conference poster from figures abstract and citations, printable and accessibility compliant"}
+{"source":"0923","target":"primekg","query":"explore a precision-medicine knowledge graph that integrates over twenty biomedical databases of genes, drugs, diseases, and phenotypes to find which existing drugs might be repurposed for a disease via a shared molecular target"}
+{"source":"0923","target":"protocolsio-integration","query":"protocols.io lab protocol manage DOI version history edit steps publish"}
+{"source":"0923","target":"pufferlib","query":"policy gradient reinforcement learning training with vectorized Gymnasium environments and checkpoint review"}
+{"source":"0923","target":"pydeseq2","query":"differential expression RNA-seq multi-factor design DESeq2 log fold change shrinkage FDR"}
+{"source":"0923","target":"pydicom","query":"DICOM de-identification, removing patient identifying metadata from DICOM files, pixel extraction"}
+{"source":"0923","target":"pyhealth","query":"clinical machine learning pipeline for mortality prediction from ICU EHR data like MIMIC-III"}
+{"source":"0923","target":"pylabrobot","query":"liquid handling robot protocol simulation deck layout"}
+{"source":"0923","target":"pymatgen","query":"analyze crystal structure symmetry and build phase diagram from formation energies"}
+{"source":"0923","target":"pymc","query":"hierarchical multilevel Bayesian model with PyMC NUTS MCMC convergence diagnostics and leave-one-out cross validation model comparison"}
+{"source":"0923","target":"pymoo","query":"multi-objective evolutionary algorithm Pareto front optimization"}
+{"source":"0923","target":"pyopenms","query":"detect and quantify peptide features from LC-MS/MS proteomics spectra, align retention times, build consensus feature table and wide intensity matrix"}
+{"source":"0923","target":"pysam","query":"open BAM file, fetch overlapping reads from region, compute read depth coverage with pySAM"}
+{"source":"0923","target":"pytdc","query":"drug-target interaction benchmark dataset train test split official evaluator metric"}
+{"source":"0923","target":"pytorch-lightning","query":"PyTorch training loop refactoring into trainer pattern with DDP FSDP distributed training"}
+{"source":"0923","target":"pyzotero","query":"download items and PDF attachments from a shared Zotero group library"}
+{"source":"0923","target":"qiskit","query":"build a quantum circuit, run it on an exact simulator with a sampling primitive, transpile for an IBM processor, execute via a session with error mitigation"}
+{"source":"0923","target":"qutip","query":"Lindblad master equation simulation, open quantum system dynamics, quantum trajectory unraveling, quantum optics"}
+{"source":"0923","target":"rdkit","query":"rdkit molecular descriptors morgan fingerprints SMARTS substructure search sanitization"}
+{"source":"0923","target":"relsa-severity-assessment","query":"combine multiple clinical metrics into a single severity score relative to a reference cohort and forecast which animals will reach a humane endpoint"}
+{"source":"0923","target":"research-grants","query":"NIH grant writing, specific aims, research proposal narrative, budget justification"}
+{"source":"0923","target":"research-lookup","query":"verify references for a scientific manuscript on Parkinson's disease mitochondrial dysfunction mechanistic hypotheses"}
+{"source":"0923","target":"rowan","query":"predict pKa of a molecule from SMILES with conformer and tautomer generation"}
+{"source":"0923","target":"scanpy","query":"10x Genomics single-cell RNA-seq workflow: QC filtering, normalization, clustering, marker genes"}
+{"source":"0923","target":"scientific-brainstorming","query":"brainstorm candidate follow-up research directions and evaluate them transparently with team assumptions and disagreements"}
+{"source":"0923","target":"scientific-critical-thinking","query":"critically appraise clinical trials methodology, assess study bias and confounding, grade evidence quality, GRADE framework"}
+{"source":"0923","target":"scientific-schematics","query":"generate a publication-quality diagram of a biological signaling pathway with labeled receptors and effectors from a textual description"}
+{"source":"0923","target":"scientific-slides","query":"build an engaging scientific presentation slide deck with a narrative arc for a 15-minute talk"}
+{"source":"0923","target":"scientific-visualization","query":"scientific visualization manuscript figure, colorblind accessible palettes, honest uncertainty error bars, avoid axis exaggeration, multi-panel publication figure"}
+{"source":"0923","target":"scientific-writing","query":"writing methods and results sections of a manuscript, verifying that every numeric claim maps to verified evidence, avoiding fabricated p-values and citations, keeping unpublished data confidential from external services"}
+{"source":"0923","target":"scikit-bio","query":"16S amplicon alpha beta diversity PERMANOVA ordination microbiome scikit-bio"}
+{"source":"0923","target":"scikit-learn","query":"tabular classification, cross-validation, grid search hyperparameter tuning, model comparison with preprocessing pipeline"}
+{"source":"0923","target":"scikit-survival","query":"Cox proportional hazards model and random survival forest survival analysis concordance index time-dependent prediction"}
+{"source":"0923","target":"scvelo","query":"infer direction of differentiation from spliced and unspliced count layers, scVel velocity, driver genes behind transition, scRNA-seq"}
+{"source":"0923","target":"scvi-tools","query":"single-cell RNA-seq deep generative model for batch effect removal and differential expression with uncertainty, scVI"}
+{"source":"0923","target":"seaborn","query":"seaborn exploratory box plots violin plots correlation heatmap for group differences"}
+{"source":"0923","target":"shap","query":"explain model predictions with SHAP attribution values that sum to the model output for a few held-out samples"}
+{"source":"0923","target":"simpy","query":"discrete-event simulation of patients in a clinic queueing system with random service times, compare staffing levels"}
+{"source":"0923","target":"simpy","query":"discrete event simulation queuing theory waiting times patient clinic staffing"}
+{"source":"0923","target":"stable-baselines3","query":"train a PPO or SAC reinforcement learning agent on a Gymnasium environment with off-the-shelf algorithms"}
+{"source":"0923","target":"statistical-analysis","query":"choose hypothesis test for three treatment groups, check assumptions, effect sizes"}
+{"source":"0923","target":"statistical-power","query":"sample size calculation for study design, power analysis"}
+{"source":"0923","target":"statsmodels","query":"fit generalized linear model with coefficient tables standard errors and diagnostics for heteroskedasticity autocorrelation econometrics"}
+{"source":"0923","target":"sympy","query":"solve an ordinary differential equation symbolically and get an exact closed-form solution, then convert to compiled code"}
+{"source":"0923","target":"tamarind","query":"protein structure prediction and molecular docking on cloud GPU, no local hardware"}
+{"source":"0923","target":"tiledbvcf","query":"load VCF files into TileDB store, incrementally add samples, query genotypes for genomic regions"}
+{"source":"0923","target":"timesfm-forecasting","query":"zero-shot time series forecasting with prediction intervals using pre-trained foundation model like TimesFM"}
+{"source":"0923","target":"torch-geometric","query":"PyTorch Geometric mini-batch neighbor sampling for large heterogeneous graphs with message-passing GNNs"}
+{"source":"0923","target":"torchdrug","query":"pretraining and fine-tuning graph representation models, retrosynthesis prediction in torchdrug"}
+{"source":"0923","target":"transformers","query":"fine-tune a pretrained transformer language model for text classification using HuggingFace transformers pipeline"}
+{"source":"0923","target":"treatment-plans","query":"clinical treatment plan documentation structured record audit trail"}
+{"source":"0923","target":"umap-learn","query":"2D embedding for visualization preserving local neighborhood and global structure, with ability to embed new points using labels from a subset"}
+{"source":"0923","target":"uncertainty-and-units","query":"measurement uncertainty budget, coverage factor, GUM uncertainty propagation, calibration"}
+{"source":"0923","target":"usfiscaldata","query":"U.S. national debt and Treasury securities auction data from official government sources like fiscaldata.treasury.gov"}
+{"source":"0923","target":"vaex","query":"compute fast aggregate statistics and build a density heatmap/histogram from a very large tabular dataset bigger than RAM, out-of-core virtual indexing"}
+{"source":"0923","target":"venue-templates","query":"find journal submission guidelines, page limits, required sections, and LaTeX template/style files for academic paper"}
+{"source":"0923","target":"waypoint-bio","query":"embed microbiome abundance tables into vectors with pretrained microbiome foundation model for clustering and phenotype prediction"}
+{"source":"0923","target":"what-if-oracle","query":"decision analysis branching scenarios probability tree expected value planning uncertainty"}
+{"source":"0923","target":"zarr-python","query":"Zarr array storage, chunked parallel read/write, cloud object storage, NumPy and Xarray integration"}

@@ -41,6 +41,10 @@ written blind to the skill names; 4 cells that name their own target are
 dropped). The paraphrases were first a held-out test of the settings; from
 here on they are development data. A fresh held-out set is below.
 
+The sets are in `testing/find-rank/`; `node scripts/find-rank-bench.mjs` prints
+the table below, and `test-search.mjs` checks one floor (bm25f, recorded,
+top 3 ≥ 98%).
+
 **Parity.** The TypeScript port gives the same full ranking as the scratchpad
 prototype for all 1,125 queries it was given (every recorded query, the probe
 texts and the paraphrases): 0 differ.

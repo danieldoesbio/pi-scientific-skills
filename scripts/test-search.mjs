@@ -14,6 +14,7 @@
 // Exit codes: 0 = OK, 1 = failures.
 import { loadExtensionModule } from "./lib/load-extension.mjs";
 import { createSuite } from "./lib/harness.mjs";
+import { loadSets, targetRanks, topShare } from "./lib/rank-bench.mjs";
 
 const TOP_N = 8;
 
@@ -208,6 +209,11 @@ note("\n-- ranker switch and bm25f specifics --");
   suite.record(limited.length === 3, `bm25f: limit caps the hit count (got ${limited.length})`);
   const sorted = search.rankBm25f(catalog, "protein structure prediction").every((hit, i, all) => i === 0 || all[i - 1].score >= hit.score);
   suite.record(sorted, "bm25f: hits come best first");
+  // Floor on the recorded first queries (development data; the rate there was 98.8%).
+  const { recorded } = loadSets();
+  const top3 = topShare(targetRanks(recorded, (query) => search.search(catalog, query, 3, "bm25f").map((hit) => hit.entry.name)), 3);
+  note(`  bm25f: target in the top 3 for ${(100 * top3).toFixed(1)}% of ${recorded.length} recorded first queries`);
+  suite.record(top3 >= 0.98, `bm25f: target in the top 3 for ${(100 * top3).toFixed(1)}% of recorded first queries, floor 98%`);
 }
 
 note("\n-- aliases resolve to real skills --");

@@ -1,0 +1,1144 @@
+{
+ "excluded": [
+  "p145.synonym",
+  "p145.expert",
+  "p152.expert",
+  "p157.plain"
+ ],
+ "rows": [
+  {
+   "id": "p001",
+   "skill": "market-research-reports",
+   "synonym": "Please put together a source-backed market-sizing analysis — total, served, and obtainable market — for an upcoming diagnostic offering. Every statement needs a linked citation, and the projection's underlying guesses should be spelled out with best- and worst-case ranges.",
+   "plain": "I want a report estimating how big the market is for a new medical-testing product, split into the total market, the part we could reach, and the share we could realistically win. Every claim must trace to its source, and forecast guesses need ranges showing best and worst case.",
+   "expert": "Produce a fully-cited TAM/SAM/SOM sizing model for the diagnostic asset, with explicit forecast assumptions and sensitivity bands on each driver."
+  },
+  {
+   "id": "p002",
+   "skill": "cirq",
+   "synonym": "I want to construct and model a decoherence-aware quantum circuit targeting the native instruction set of one particular commercial quantum chip, then run a benchmarking test comparing the hardware's actual error rates against the modeled prediction.",
+   "plain": "I need help designing a quantum computing routine that accounts for hardware noise, built for the built-in operations of one particular company's quantum chip. After modeling it on a computer, I want to run the same routine on the real chip and measure how its actual mistake rate compares to what the model predicted.",
+   "expert": "Build a noise-aware circuit compiled to a specific vendor processor's native gate set, simulate it, then run hardware characterization to compare measured error rates against the simulated prediction."
+  },
+  {
+   "id": "p003",
+   "skill": "pi-agent",
+   "synonym": "I'm adding a custom capability to Pi and want guidance on registering it, tying into Pi's event framework, and bundling it as an installable add-on so my teammates can use it during their terminal-based coding work.",
+   "plain": "I'm building a new feature to plug into Pi and need to know three things: how to register it so the system recognizes it, how to connect it to Pi's internal events, and how to package it as an installable add-on so my team can use it in their own terminal coding sessions.",
+   "expert": "Walk me through registering a custom tool with Pi, wiring it into Pi's event system, and packaging it as an installable extension for team-wide terminal use."
+  },
+  {
+   "id": "p004",
+   "skill": "pytdc",
+   "synonym": "I'd like to find machine-learning benchmark collections for drug discovery that span drug-target binding, ADMET properties, and molecule-generation problems, then load one using its default task-matched train/test partition and evaluate my predictions with that benchmark's official scoring metric.",
+   "plain": "I want to find benchmark datasets for testing drug-discovery machine-learning models — covering drug-target binding, how compounds behave in the body, and generating new candidate molecules. I'll load one with its normal training/testing split and score my predictions using that benchmark's own official method.",
+   "expert": "Surface therapeutics ML benchmark datasets spanning DTI, ADMET, and de novo molecule generation, load one with its canonical train/test split, and score predictions via the benchmark's official evaluator."
+  },
+  {
+   "id": "p005",
+   "skill": "dnanexus-integration",
+   "synonym": "I need to push a set of sequencing files into our DNAnexus project, start up a workflow application against them, and track both job progress and compute spend as it executes.",
+   "plain": "I need to send a group of sequencing data files into our project on DNAnexus, kick off a processing workflow using those files, and keep an eye on how the job is progressing and how much compute it's costing while it runs.",
+   "expert": "Batch-upload sequencing files to our DNAnexus project, launch a workflow app against them, and monitor job status and compute spend during execution."
+  },
+  {
+   "id": "p006",
+   "skill": "flowio",
+   "synonym": "I have unprocessed flow-cytometry output straight from the instrument and need to examine the channel metadata, extract the event data into an in-memory numeric array for downstream work, and save a new file in the current single-precision variant of the format — compensation and gating aren't required at this stage.",
+   "plain": "I have raw data files straight off a flow-cytometry machine, with no correction applied yet. I need to check the metadata describing each channel, pull the raw per-event measurements into a numeric array for further coding work, and save a new file in the newer single-precision version of the format. I don't need to apply compensation or sort cells into groups yet.",
+   "expert": "Parse raw instrument-native cytometry files, inspect channel metadata, pull event data into an array for downstream processing, and re-save as the modern single-precision file-format variant — no compensation or gating yet."
+  },
+  {
+   "id": "p007",
+   "skill": "hypothesis-generation",
+   "synonym": "I've collected some early experimental observations and would like help converting them into clearly written candidate hypotheses, each with competing explanations and predictions that could be tested, along with an analysis plan ready for preregistration — without assuming my initial guess is correct.",
+   "plain": "I have some early results from an experiment and want help turning them into a few clearly worded possible explanations, each paired with alternative explanations and predictions I could test. I also want an analysis plan detailed enough to lock in ahead of time, without treating my first guess as the answer.",
+   "expert": "Convert preliminary observations into clearly stated candidate hypotheses with rival explanations and testable predictions, plus a preregistration-ready analysis plan, without privileging the initial hypothesis."
+  },
+  {
+   "id": "p008",
+   "skill": "markitdown",
+   "synonym": "I have a folder holding a mix of DOCX documents, PPTX slide decks, and CSV files that need converting into clean Markdown text so I can index them for a retrieval-augmented-generation pipeline. I don't need bounding boxes or page images — just readable, structured text.",
+   "plain": "I have a folder of different file types — word-processor documents, slide-deck presentations, and spreadsheet-style CSV files — that I need turned into clean, plain structured text with simple formatting markers, so I can index the contents for a system that retrieves text to feed into a generation pipeline. I don't need layout coordinates or images of the pages, just readable text.",
+   "expert": "Convert a mixed folder of DOCX, PPTX, and CSV files into clean Markdown for RAG indexing — structured text only, no bounding boxes or page images needed."
+  },
+  {
+   "id": "p009",
+   "skill": "medchem",
+   "synonym": "I have an in-silico collection of several thousand candidate molecules and need to remove any that break Lipinski's rule of five or Veber's rules, while flagging anything carrying PAINS or other structural-alert substructures, ahead of prioritizing compounds for synthesis.",
+   "plain": "I have a computer-based list of a few thousand possible drug-like molecules. I want to remove any that fail standard drug-likeness rules covering things like molecular weight, fat solubility, and flexibility, and separately flag any molecules containing chemical substructures known to cause false positives or other red-flag patterns in lab assays — all before we decide which compounds to actually make.",
+   "expert": "Filter the virtual library against Lipinski Ro5 and Veber criteria, and flag PAINS/structural-alert substructures, ahead of synthesis prioritization."
+  },
+  {
+   "id": "p010",
+   "skill": "lab-hardware-cad",
+   "synonym": "I need to design a bespoke microplate rack that fits precisely to our plate reader's measurements and export it as a STEP file, ready to send to a 3D printer.",
+   "plain": "I want to design a custom holder or tray for lab microplates that fits exactly to the size of our plate-reading instrument, then save the design as a STEP-format 3D model file so it's ready to be 3D printed.",
+   "expert": "Design a custom microplate holder matched to our plate reader's footprint and export a print-ready STEP file for additive manufacturing."
+  },
+  {
+   "id": "p011",
+   "skill": "torch-geometric",
+   "synonym": "I'm developing a graph neural network for node classification on a large, multi-type graph, built from message-passing layers, and I need help with mini-batch neighbor sampling so that training can scale to a graph too large to hold in memory at once.",
+   "plain": "I'm building a neural network that works on graph-structured data, aiming to label nodes in a large graph with several different kinds of nodes and edges, passing information along connections layer by layer. Since the whole graph is too big for memory at once, I need help sampling small batches of neighboring nodes so I can train in pieces.",
+   "expert": "Building a heterogeneous GNN for node classification with message-passing layers; need mini-batch neighbor sampling to scale training beyond memory-resident graphs."
+  },
+  {
+   "id": "p012",
+   "skill": "genomic-coordinates",
+   "synonym": "After a processing step, my BED-file coordinates no longer match my VCF positions — could there be an off-by-one shift somewhere — and how can I verify my variant calls sit on the right reference genome build before checking them against ClinVar?",
+   "plain": "After one pipeline step, my interval-file position ranges no longer line up with my variant-call file's positions — I suspect a shift of exactly one base somewhere. I also want to check that my called variants are mapped to the correct reference-genome version before comparing them to a known variant database.",
+   "expert": "Post-pipeline, BED intervals and VCF positions disagree — suspect an off-by-one coordinate shift — and I need to verify genome-build concordance before cross-referencing against ClinVar."
+  },
+  {
+   "id": "p013",
+   "skill": "stable-baselines3",
+   "synonym": "I want to train a reinforcement-learning agent using an established, ready-made algorithm such as PPO or SAC, on a standard simulation environment built to the usual RL interface, without hand-coding the training loop or policy network myself.",
+   "plain": "I want to train an AI agent that learns through trial and reward, using a well-known, already-implemented algorithm like PPO or SAC, in a standard simulated environment following a common reinforcement-learning interface. I don't want to write the training loop or the policy network myself.",
+   "expert": "Train an RL agent with an off-the-shelf PPO or SAC implementation on a standard reinforcement-learning environment interface, without hand-rolling the training loop or policy network."
+  },
+  {
+   "id": "p014",
+   "skill": "geopandas",
+   "synonym": "I have a shapefile containing county boundary polygons and a CSV listing clinic locations by latitude and longitude, and I need to spatially match each clinic to the county polygon that contains it, then reproject all the data into one consistent coordinate reference system.",
+   "plain": "I have a geographic file outlining county borders as shapes, and a spreadsheet listing clinic locations by latitude and longitude. I need to determine which county shape each clinic falls inside, attach that information, then convert all the location data to use one consistent map projection and coordinate system.",
+   "expert": "Spatially join clinic point locations (CSV lat/lon) to containing county polygons (shapefile), then reproject both layers to a common CRS."
+  },
+  {
+   "id": "p015",
+   "skill": "exploratory-data-analysis",
+   "synonym": "Before modeling begins, I'd like an anonymized profile of my CSV data set — covering missing-data patterns, potential train/test leakage, and how outlier sensitivity shifts across different transformations — compiled into a thorough, structured report.",
+   "plain": "Before building any models, I want an overview of my spreadsheet-style dataset with identifying details removed — covering where data is missing, whether information leaks between training and testing sets, and how sensitive extreme values are to different transformations. I want this pulled into one careful, well-organized report.",
+   "expert": "Generate a redacted EDA profile of the CSV — missingness patterns, train/test leakage risk, and outlier sensitivity across transformations — as a structured report."
+  },
+  {
+   "id": "p016",
+   "skill": "autoskill",
+   "synonym": "For weeks I've been repeating the same multi-step research routine on my machine, and I'd like you to look over my recent on-screen activity — recorded locally and never transmitted without my explicit consent — to suggest a reusable workflow for it.",
+   "plain": "For weeks I've done the same multi-step research task repeatedly on my computer. I want you to look back at a recording of my recent screen activity — staying on my own machine, never sent elsewhere unless I say so — and use it to suggest a repeatable process I could follow instead.",
+   "expert": "Review recent locally-captured screen activity (not transmitted without consent) from a repeated multi-step research routine and propose a reusable workflow."
+  },
+  {
+   "id": "p017",
+   "skill": "pylabrobot",
+   "synonym": "I need to write a manufacturer-independent liquid-handling protocol in Python that runs on either our Hamilton STAR or our Tecan EVO, and simulate it offline first with a visual deck layout before any real run.",
+   "plain": "I need to write one liquid-handling procedure in the Python language that works on two different brands of lab liquid-handling robot we own, without changing the code for each. Before running it on real equipment, I want to test it on the computer first and see a visual picture of the robot's deck layout.",
+   "expert": "Write a vendor-agnostic Python liquid-handling protocol targeting both the Hamilton STAR and Tecan EVO, with offline simulation and a visual deck preview before physical execution."
+  },
+  {
+   "id": "p018",
+   "skill": "bioservices",
+   "synonym": "I need to take a list of UniProt accession numbers, translate them into KEGG pathway IDs, and retrieve both pathway and Gene Ontology annotations — all via one unified interface, rather than managing separate clients for each database.",
+   "plain": "I have a list of protein identifiers from a standard protein database, and want to convert them into pathway identifiers from a standard pathway database, then retrieve pathway information and standardized gene-function annotations. I want one consistent way of asking for the data, instead of a different tool per database.",
+   "expert": "Map UniProt accessions to KEGG pathway IDs and retrieve pathway/GO annotations through one unified interface rather than per-database clients."
+  },
+  {
+   "id": "p019",
+   "skill": "infographics",
+   "synonym": "I'd like a refined single-page visual overview — icons, headline figures, a tidy layout — covering '5 key benefits of a Mediterranean diet,' backed by accurately researched numbers and a colorblind-friendly palette, ready for posting on social media.",
+   "plain": "I want a polished, single-page graphic summarizing five key benefits of a Mediterranean-style diet, using icons, a few standout statistics, and a clean layout. The statistics need to be accurate and researched, colors must work for colorblind viewers, and it should be finished and ready to post on social media.",
+   "expert": "Produce a one-page infographic on '5 key benefits of a Mediterranean diet' — icons, key stats, clean layout, colorblind-safe palette, researched figures — social-media ready."
+  },
+  {
+   "id": "p020",
+   "skill": "lamindb",
+   "synonym": "I need a system that records the complete processing history of my single-cell RNA-seq data — which script generated which version of each annotated data object — and lets me query and check them against standard ontologies for cell type and tissue.",
+   "plain": "I want a system that keeps track of the full history of how each of my single-cell RNA sequencing datasets was produced — which script created which version of the resulting data object. I also want to search through that history and check the recorded cell-type and tissue labels against standard, agreed-upon reference vocabularies.",
+   "expert": "Need full provenance tracking for scRNA-seq processing — script-to-artifact-version lineage for each annotated cell-by-gene data object — plus queryable validation against standard cell-type and tissue ontologies."
+  },
+  {
+   "id": "p021",
+   "skill": "treatment-plans",
+   "synonym": "Our clinical staff has already settled on a patient's treatment plan, and I need to turn that decision into a structured document with goals, milestones, and a clear audit trail leading back to the approving clinician. I'm not making any clinical judgment myself.",
+   "plain": "The clinical team has already made the decision about how to treat a patient — I'm not involved in that choice at all. What I need is to take their already-finished decision and put it into an organized record that lists the goals, the checkpoints along the way, and a clear record of which clinician signed off on it.",
+   "expert": "Format an already-decided clinical intervention plan into a structured record — goals, checkpoints, and an audit trail to the approving clinician — with no clinical decision-making on my part."
+  },
+  {
+   "id": "p022",
+   "skill": "iso-standards-readiness",
+   "synonym": "We're getting ready for an ISO 13485 quality-management-system audit at our medical-device company and need to arrange our controlled documents, risk-management file, and CAPA records into a structured evidence package ahead of human review.",
+   "plain": "We're getting ready for a quality-system audit under a specific medical-device manufacturing standard, and I need to gather our controlled documents, our risk-management records, and our records of corrective and preventive actions into one organized package of evidence, ready for a person to review before the audit.",
+   "expert": "Compile controlled documents, the risk management file, and CAPA records into a structured evidence package ahead of an ISO 13485 QMS audit, pending human review."
+  },
+  {
+   "id": "p023",
+   "skill": "research-grants",
+   "synonym": "I'm resubmitting an NIH R01 grant application after the review panel flagged its innovation as weak, and I need help tightening the specific aims and significance narrative, along with the budget justification, ahead of the next deadline.",
+   "plain": "I'm sending back a revised major national research-grant proposal, after reviewers said it wasn't innovative enough. I need help making the stated goals and significance argument more compelling, and improving the written budget justification, all before the upcoming deadline.",
+   "expert": "Resubmitting an R01 after a weak-innovation critique from study section; need the specific aims, significance narrative, and budget justification sharpened before deadline."
+  },
+  {
+   "id": "p024",
+   "skill": "matlab",
+   "synonym": "I've taken over a codebase of numerical .m scripts and need help checking them for correctness, plus figuring out whether parts of it can safely be moved to run on a free, open-source interpreter instead.",
+   "plain": "I've taken over someone else's numerical scripts, written in a scripting language used for math and engineering, and need help checking whether the code is correct, plus figuring out whether some of it could safely switch to a free, open-source alternative interpreter.",
+   "expert": "Inherited a .m-script codebase; need a correctness review and an assessment of whether parts can safely migrate to a free, open-source interpreter."
+  },
+  {
+   "id": "p025",
+   "skill": "qutip",
+   "synonym": "I need to model the Lindblad master-equation evolution of an open quantum system — a two-level atom coupled to a lossy bath — and also perform quantum-trajectory unraveling to generate single-shot measurement records.",
+   "plain": "I want to simulate how a simple two-level quantum system behaves when coupled to an environment causing it to lose energy over time, using the standard equation for this kind of open-system decay. I also want a version producing individual, single-shot measurement outcomes, not just averaged behavior.",
+   "expert": "Simulate Lindblad master-equation dynamics for a two-level atom coupled to a dissipative bath, and run quantum-trajectory unraveling for single-shot measurement records."
+  },
+  {
+   "id": "p026",
+   "skill": "openpiv",
+   "synonym": "I have a pair of particle-seeded flow images from a wind-tunnel test and need to cross-correlate interrogation windows to derive the 2D velocity field, then check for and replace spurious vectors before calculating vorticity.",
+   "plain": "I have two images taken moments apart, showing tracer particles moving through airflow in a wind-tunnel test. I need to compare matching patches between the images to find how the flow moved in two dimensions, check the velocity map for wrong values and fix them, then calculate local rotation.",
+   "expert": "Cross-correlate interrogation windows from the paired particle-seeded flow images to extract the 2D velocity field, validate/replace spurious vectors, then compute vorticity."
+  },
+  {
+   "id": "p027",
+   "skill": "esm",
+   "synonym": "I want to produce new protein sequence variants by inpainting masked regions of a partial sequence using a multimodal generative protein model, then obtain a predicted all-atom structure for the finished sequence.",
+   "plain": "I want to create new protein sequence variants by having a model fill in blanked-out sections of a partial sequence, using a model that accepts more than one type of input. Then, for the completed sequence, I want a predicted three-dimensional structure including the position of every atom.",
+   "expert": "Generate novel sequence variants by masked-region inpainting with a multimodal generative protein model, then predict all-atom structure for the completed sequence."
+  },
+  {
+   "id": "p028",
+   "skill": "pyzotero",
+   "synonym": "I need to automatically retrieve every item and PDF attachment from a shared Zotero group library, sort them by collection, and export the metadata for a systematic review.",
+   "plain": "I need something that automatically goes through a shared reference library on Zotero, pulling every entry and its attached PDF, sorting everything by collection, then exporting the descriptive metadata for a systematic literature review.",
+   "expert": "Programmatically pull all items and PDF attachments from a shared Zotero group library, organize by collection, and export metadata for a systematic review."
+  },
+  {
+   "id": "p029",
+   "skill": "get-available-resources",
+   "synonym": "Before I kick off this big local computation, could you verify how much processing power, memory, and graphics-processing capacity I actually have available in this environment, including any scheduling or containerization limits I might be operating under?",
+   "plain": "Before I start a big computing job on this machine, can you check exactly how much processing power, working memory, and graphics-card capacity is actually available to me right now, including any limits that might be imposed by a job scheduler or by running inside a resource-limited container?",
+   "expert": "Before launching this compute-heavy job, check actual available CPU, RAM, and GPU in this environment, including any scheduler- or container-imposed resource limits."
+  },
+  {
+   "id": "p030",
+   "skill": "diffdock",
+   "synonym": "I have a protein structure and a set of candidate small molecules given as SMILES strings, and I want to predict the most probable 3D binding pose for each one, along with a confidence score indicating how much to trust that pose, as part of a virtual screening effort.",
+   "plain": "I have the 3D shape of a protein and a list of small candidate molecules written in a standard chemical-structure notation. For each, I want a prediction of how it most likely orients when bound to the protein in three dimensions, plus a score for how confident I should be in that prediction, as part of a computer-based screening process.",
+   "expert": "Predict 3D binding poses and pose-confidence scores for a SMILES-form candidate library against a given protein structure, as part of a virtual screen."
+  },
+  {
+   "id": "p031",
+   "skill": "scientific-writing",
+   "synonym": "I'm drafting the methods and results portions of a manuscript and need every quantitative statement to trace back to verified evidence, so I don't unintentionally invent a p-value or reference, all while keeping the unpublished data private from any outside service.",
+   "plain": "I'm writing the parts of a research paper describing how the study was done and what was found. Every number I state needs checking against verified evidence, so I don't accidentally invent a statistical result or a nonexistent reference. None of my not-yet-published data should be shared with any outside service.",
+   "expert": "Drafting methods/results with every numeric claim traced to verified evidence to prevent fabricated p-values or citations, while keeping unpublished data off any external service."
+  },
+  {
+   "id": "p032",
+   "skill": "statistical-analysis",
+   "synonym": "I ran a study comparing three treatment groups and need to choose the appropriate statistical test, verify that my data actually satisfies that test's assumptions, calculate effect sizes, and write up the results in a way that would hold up under a journal reviewer's scrutiny.",
+   "plain": "I compared three treatment groups in an experiment. I need help picking the right statistical test, checking whether my data fits that test's required conditions, calculating how large the differences between groups really are, then writing this up carefully enough that a journal reviewer wouldn't find a weak spot to criticize.",
+   "expert": "Select the appropriate test for a three-arm comparison, verify its assumptions, compute effect sizes, and write up results to withstand journal peer review."
+  },
+  {
+   "id": "p033",
+   "skill": "deeptools",
+   "synonym": "I have ChIP-seq BAM files from treated and control samples and need to produce normalized coverage tracks, assess sample correlation and enrichment quality, and construct a heatmap of signal centered on transcription start sites.",
+   "plain": "I have aligned sequencing files from a chromatin immunoprecipitation experiment, covering treated and control samples. I need normalized tracks showing genome-wide read coverage, a check of sample correlation and signal enrichment, and a heatmap showing signal around gene-transcription starting points.",
+   "expert": "Generate normalized coverage tracks from ChIP-seq BAM files (treatment vs. control), assess sample correlation and enrichment QC, and build a TSS-centered signal heatmap."
+  },
+  {
+   "id": "p034",
+   "skill": "pathway-enrichment",
+   "synonym": "I have a list of significantly up- and down-regulated genes from a differential-expression analysis and want to test which KEGG and Reactome pathways come up over-represented, plus run a full ranked gene-set enrichment analysis using the test statistic, and produce a clean dotplot.",
+   "plain": "I have a list of genes that came out significantly more or less active from a gene-expression comparison. I want to test which pathways from two standard pathway databases are over-represented in this list, plus run a ranked version using every gene's test statistic, and make a clean dot-style chart of the results.",
+   "expert": "Run over-representation analysis against KEGG/Reactome on the DE gene list, plus ranked GSEA on the test statistic, and produce a clean dotplot."
+  },
+  {
+   "id": "p035",
+   "skill": "scientific-schematics",
+   "synonym": "I need a publication-ready diagram of a signaling pathway, with labeled receptors and downstream effectors, for a figure in my paper. I have no design skills and don't want to construct it by hand — I'd rather describe it in words and receive a finished image.",
+   "plain": "I need a nice-looking, publication-ready picture showing a cell-signaling pathway, with the receptors and the molecules further down the chain clearly labeled, to use as a figure in my paper. I don't know how to design graphics, and I don't want to build the image manually myself. Instead, I want to describe what should be in it using words, and have a finished image made for me.",
+   "expert": "Need a publication-quality signaling-pathway diagram with labeled receptors and downstream effectors, generated from a text description rather than manually built."
+  },
+  {
+   "id": "p036",
+   "skill": "relsa-severity-assessment",
+   "synonym": "I'm conducting a mouse study and want to merge body-weight loss, temperature readings, and clinical scores into one per-animal severity score, benchmarked against a reference group of animals with known burden levels, then predict which animals are trending toward a humane endpoint before they arrive there.",
+   "plain": "I'm running a mouse experiment and want to combine weight loss, body temperature, and clinical scores into one number per animal reflecting how unwell it is, calibrated against a reference group with known suffering levels. Then I want to predict ahead of time which animals are heading toward needing humane euthanasia, before they arrive there.",
+   "expert": "Combine weight loss, temperature, and clinical scores into a per-animal composite severity score benchmarked to known-burden reference animals, then forecast trajectories toward humane-endpoint criteria."
+  },
+  {
+   "id": "p037",
+   "skill": "torchdrug",
+   "synonym": "I have a dataset of molecules encoded as graphs and want to pretrain a self-supervised graph-representation model on them, then fine-tune it for property prediction and also attempt a retrosynthesis-prediction task, all within one consistent graph-learning framework.",
+   "plain": "I have molecules represented as graphs of atoms and bonds, and want to first train a model on them without labeled targets, learning general structure. Then I want to adjust that model to predict chemical properties, and separately try predicting which starting materials could make a target molecule — all within one consistent graph-based setup.",
+   "expert": "Self-supervised pretrain a graph representation model on molecular graphs, then fine-tune for property prediction and retrosynthesis prediction within one consistent graph-learning framework."
+  },
+  {
+   "id": "p038",
+   "skill": "experimental-design",
+   "synonym": "I'm designing a screening study covering six factors that might influence my assay's yield, and I want to set up a fractional-factorial layout with a randomized run order so the effects aren't confounded, before any data collection begins.",
+   "plain": "I'm planning an experiment testing six factors that might affect my assay's yield. I want a reduced set of test combinations rather than every possible combination, with randomized run order so different factors' effects don't get mixed up, and I want this plan finished before collecting any data.",
+   "expert": "Design a six-factor fractional-factorial screen with randomized run order to avoid confounding, prior to data collection."
+  },
+  {
+   "id": "p039",
+   "skill": "pptx-posters",
+   "synonym": "I need to build an editable, macro-free PPTX conference poster using my approved figures, abstract text, and citations, and confirm it's print- and accessibility-compliant before handing it off for review.",
+   "plain": "I need to build a conference poster in an editable slide-based file format with no embedded macros, pulling in my already-approved figures, abstract text, and citations. Before sending it for review, it needs to be ready for printing and meet accessibility standards.",
+   "expert": "Build an editable, macro-free .pptx conference poster from approved figures, abstract, and citations, verified print- and accessibility-compliant before handoff for review."
+  },
+  {
+   "id": "p040",
+   "skill": "pyopenms",
+   "synonym": "I have raw LC-MS/MS proteomics spectra and need to detect and quantify peptide features across several runs, align their retention times, merge them into a consensus feature table, and produce a wide intensity matrix for downstream statistical analysis.",
+   "plain": "I have raw mass-spectrometry proteomics data across several runs. I need to identify and measure peptide features in each run, adjust for slight retention-time shifts between runs, combine everything into one shared feature table, then produce a table where rows are features and columns are each sample's intensity.",
+   "expert": "Detect/quantify peptide features across LC-MS/MS runs, align retention times, build a consensus feature table, and export a wide intensity matrix for downstream stats."
+  },
+  {
+   "id": "p041",
+   "skill": "generate-image",
+   "synonym": "I need a photorealistic illustration of a glowing deep-sea jellyfish for our outreach flyer, and I'd also like the background lighting adjusted on a reference photo I already have.",
+   "plain": "I need a realistic-looking picture of a jellyfish that glows in the dark, living deep in the ocean, for a public-outreach flyer. Separately, I have a photo I'd like to keep, but want its background lighting changed.",
+   "expert": "Need a photorealistic bioluminescent deep-sea jellyfish illustration for an outreach flyer, plus a background-lighting edit on an existing reference photo."
+  },
+  {
+   "id": "p042",
+   "skill": "geniml",
+   "synonym": "I want to plan an embedding run over my collection of BED files using a region-embedding approach similar to word-embedding methods, and confirm that my tokenizer vocabulary is actually compatible with the pretrained model before committing to training.",
+   "plain": "I want to plan a run turning each of my genomic-interval files into numeric vector representations, using an approach that treats genomic regions like word-embedding methods treat words. Before committing to training, I want to check my tokenizer's vocabulary is compatible with the pretrained model.",
+   "expert": "Plan a region-embedding run over the BED file collection and verify tokenizer-vocabulary compatibility with the pretrained model before committing to training."
+  },
+  {
+   "id": "p043",
+   "skill": "usfiscaldata",
+   "synonym": "I need up-to-date figures on the U.S. national debt and recent Treasury-securities auction results, drawn directly from an official government data source rather than estimated from memory, for a report I'm writing on federal borrowing trends.",
+   "plain": "I need the latest actual numbers for how much debt the U.S. federal government currently holds, along with results from recent auctions of government debt securities. These numbers need to come directly from an official government source, not be guessed or recalled from memory, since I'm writing a report about trends in federal borrowing.",
+   "expert": "Need current U.S. national debt figures and recent Treasury auction results pulled live from an official government source, not approximated from memory, for a federal-borrowing-trends report."
+  },
+  {
+   "id": "p044",
+   "skill": "imaging-data-commons",
+   "synonym": "I need to locate and download a public set of lung CT scans in DICOM format from the National Cancer Institute's public cancer-imaging archive, for use in training a radiology AI model, and verify the data's license terms.",
+   "plain": "I need a publicly available collection of lung CT scan images, in the standard medical-imaging format, from a well-known government cancer-imaging repository, to train a radiology AI system. I also need to check what the license terms allow me to do with that data.",
+   "expert": "Source and download a public lung CT DICOM cohort from NCI's cancer imaging archive for a radiology AI training set, and verify licensing terms."
+  },
+  {
+   "id": "p045",
+   "skill": "dask",
+   "synonym": "My dataframe-based processing script runs out of memory on a dataset far larger than my laptop's RAM, and I want to scale the same table-style operations across multiple cores or a small cluster, without rewriting the underlying logic from scratch.",
+   "plain": "My script for processing table-organized data runs out of memory on a dataset much bigger than my laptop's RAM. I want to spread the same table-based operations across multiple processor cores, or a small group of connected machines, without rewriting the underlying logic from scratch.",
+   "expert": "Dataframe-style ETL script OOMs on a dataset exceeding local RAM; need the same logic scaled across cores or a small cluster without a rewrite."
+  },
+  {
+   "id": "p046",
+   "skill": "deepspot-m",
+   "synonym": "I have whole-slide H&E-stained histology images and want to predict spatial gene expression for a specified gene list across the tissue directly from the images, without actually running a spatial-sequencing assay.",
+   "plain": "I have large, whole-slide microscope images of tissue stained with a standard two-color histology stain. I want to predict, directly from these images, how strongly a specific list of genes is expressed at different spots across the tissue, without actually running a real spatial gene-expression sequencing experiment.",
+   "expert": "Predict spatial gene expression for a target gene list directly from whole-slide H&E images, in lieu of running an actual spatial transcriptomics assay."
+  },
+  {
+   "id": "p047",
+   "skill": "paper-lookup",
+   "synonym": "I need to track down the DOI for a paper for which I only have partial citation details, check whether it's open access, retrieve the full text, and identify which later papers cited it, across whichever scholarly databases have it indexed.",
+   "plain": "I only have part of the citation for an academic paper and need to find its unique identifier using what I have. I then need to check if it's freely readable, get the full text, and find which later papers cited it, across whatever academic databases list it.",
+   "expert": "Resolve the DOI from partial citation details, check OA status, retrieve full text, and pull forward citations, across whichever indexing databases carry the record."
+  },
+  {
+   "id": "p048",
+   "skill": "ontology-term-resolution",
+   "synonym": "I'm completing a GEO submission's tissue and cell-type fields and need to convert free-text labels like 'PBMC' and 'left ventricle' into validated ontology term IDs, plus check whether a CURIE already present in my metadata table has become obsolete.",
+   "plain": "I'm filling out a public gene-expression database submission's tissue and cell-type fields. Some entries are informal text, like 'PBMC' or 'left ventricle,' and I need each matched to a validated identifier from a standard reference vocabulary. I also need to check whether an identifier already in my table has been marked outdated.",
+   "expert": "Resolve free-text tissue/cell-type labels (e.g. 'PBMC', 'left ventricle') to validated ontology term IDs for a GEO submission, and check an existing CURIE for obsolescence."
+  },
+  {
+   "id": "p049",
+   "skill": "neurokit2",
+   "synonym": "I have raw ECG and skin-conductance recordings from a physiology experiment and need to preprocess them, detect events, and calculate heart-rate variability along with other complexity metrics, all within a reproducible pipeline.",
+   "plain": "I have raw heart-electrical-activity and skin-conductance recordings from a physiology experiment. I need to clean the raw data, detect specific events, then calculate heartbeat-timing variability and other complexity measures — all through a pipeline giving the same results every rerun.",
+   "expert": "Preprocess raw ECG/EDA recordings, detect events, and compute HRV plus other complexity metrics in a reproducible pipeline."
+  },
+  {
+   "id": "p050",
+   "skill": "sympy",
+   "synonym": "I need to solve a differential equation symbolically, arriving at an exact closed-form expression rather than a numerical approximation, then convert that expression into compilable code I can drop directly into a simulation.",
+   "plain": "I need to solve an equation involving rates of change using exact algebraic methods, so I end up with a precise formula rather than an approximate numerical answer. Then I need that formula turned into code that can be compiled, ready to insert directly into a simulation program.",
+   "expert": "Solve the ODE/PDE symbolically for an exact closed-form solution (not a numerical approximation), then code-generate compilable output for direct use in a simulation."
+  },
+  {
+   "id": "p051",
+   "skill": "geomaster",
+   "synonym": "I have Sentinel-2 satellite imagery and need to compute NDVI from its spectral bands, then perform watershed delineation and hydrological terrain analysis on a raster elevation model.",
+   "plain": "I have satellite images from an Earth-imaging mission and want to calculate a vegetation-greenness index using its color bands. Then, using a grid-based elevation dataset, I want to map drainage basin boundaries and how water flows across the terrain.",
+   "expert": "Compute NDVI from Sentinel-2 bands, then run watershed delineation and hydrological terrain analysis on a DEM raster."
+  },
+  {
+   "id": "p052",
+   "skill": "molfeat",
+   "synonym": "I want to benchmark several different approaches for converting my SMILES library into numeric features for a QSAR model — including both classical fingerprints and pretrained transformer embeddings — to determine which representation best predicts activity.",
+   "plain": "I want to compare several ways of turning my chemical-structure text strings into numeric features for a structure-activity model — including traditional bit-pattern fingerprints and newer representations from a pretrained deep-learning model — to see which predicts biological activity best.",
+   "expert": "Benchmark classical fingerprint vs. pretrained transformer-embedding featurizations of the SMILES library for QSAR activity prediction."
+  },
+  {
+   "id": "p053",
+   "skill": "molecular-dynamics",
+   "synonym": "I want to run energy minimization followed by a production simulation of a protein-ligand complex, then calculate RMSD and RMSF from the resulting trajectory to evaluate binding stability.",
+   "plain": "I want to first settle a protein-drug complex into a low-energy shape, then run the dynamics simulation. From the motion data, I want to measure how much the structure moves and how much its parts wiggle, to judge binding stability.",
+   "expert": "Run energy minimization and production MD on the protein-ligand complex, then compute RMSD/RMSF from the trajectory to assess binding stability."
+  },
+  {
+   "id": "p054",
+   "skill": "analytical-method-validation",
+   "synonym": "I'm about to validate a new HPLC assay for a drug product and need to design the study along with acceptance criteria for linearity, accuracy, precision, and detection/quantitation limits, all under the appropriate regulatory framework, before any data collection begins.",
+   "plain": "I'm about to formally verify a new liquid-chromatography lab test for a drug product. I need to plan the study and set pass/fail criteria for proportional response, accuracy, repeatability, and the smallest reliably measured amounts — under the correct regulatory rules, before gathering any data.",
+   "expert": "Design the validation study and acceptance criteria (linearity, accuracy, precision, LOD/LOQ) for a new HPLC assay under the applicable regulatory framework, prior to data collection."
+  },
+  {
+   "id": "p055",
+   "skill": "ginkgo-cloud-lab",
+   "synonym": "I want to submit a cell-free protein-expression validation run to Ginkgo Bioworks' automated wet-lab platform and receive HiBiT luminescence quantification results back, without performing the bench work myself.",
+   "plain": "I want to send a test run for making protein without living cells, using Ginkgo Bioworks' automated laboratory service, and get back a light-based readout measuring how much protein was made, without doing any hands-on lab work myself.",
+   "expert": "Submit a cell-free expression validation run to Ginkgo Bioworks' automated platform and retrieve HiBiT luminescence readout, with no bench work on my end."
+  },
+  {
+   "id": "p056",
+   "skill": "markdown-mermaid-writing",
+   "synonym": "I'm putting together a methods report and want to represent my data-processing pipeline as a text-based diagram embedded directly inside a Markdown file, so that it produces clean differences under version control and displays natively on the code-hosting platform, rather than as an image I'd need to regenerate each time.",
+   "plain": "I'm writing a methods report and want my data-processing steps drawn as a plain-text diagram, placed inside a Markdown document. That way the version-tracking system shows clean differences when text changes, and the diagram displays properly on the website hosting my code, without redrawing an image every time something changes.",
+   "expert": "Represent the pipeline as a text-based diagram embedded in Markdown, so it diffs cleanly under version control and renders natively on the code-hosting platform instead of a regenerated image."
+  },
+  {
+   "id": "p057",
+   "skill": "bids",
+   "synonym": "I have raw DICOM scans from an MRI study spanning multiple subjects and sessions, and need to convert them into a standardized, validated directory structure with proper JSON metadata sidecar files, before sharing the dataset on a public imaging repository.",
+   "plain": "I have raw brain-scan images, in the standard medical-imaging format, from an MRI study across several people and sessions. I need to reorganize these into a standard, checkable folder structure, with small JSON files holding each scan's metadata, before sharing the dataset on a public imaging repository.",
+   "expert": "Convert raw multi-subject, multi-session MRI DICOM data into a standardized, validated directory layout with JSON metadata sidecars, ahead of public repository deposition."
+  },
+  {
+   "id": "p058",
+   "skill": "scvi-tools",
+   "synonym": "I'm combining single-cell RNA-seq data from several sequencing batches and want a deep generative model that corrects for batch effects while providing an uncertainty-aware differential-expression test between conditions — something I can later use to project newly collected cells onto the same reference latent space.",
+   "plain": "I'm combining single-cell RNA sequencing data collected across several different sequencing runs, which each introduce their own technical differences. I want a deep-learning model that can remove those technical differences while still letting me test, with a sense of statistical confidence, which genes differ between experimental conditions. Later on, I also want to place newly collected cells into that same learned reference space, without retraining everything from scratch.",
+   "expert": "Need a deep generative model for scRNA-seq batch integration with uncertainty-aware differential expression testing between conditions, supporting later reference-mapping of newly collected cells into the same latent space."
+  },
+  {
+   "id": "p059",
+   "skill": "polars",
+   "synonym": "I'm moving a slow dataframe-based ETL script to a tool that offers lazy query optimization and out-of-core streaming, so it can process a dataset too large for memory, using an Arrow-based expression interface.",
+   "plain": "I have a slow table-based data-processing script that can't handle a dataset bigger than memory. I want to move it to something that computes only what's needed and streams from disk instead of loading everything at once, using an interface built on a modern columnar data format.",
+   "expert": "Migrating a dataframe-style ETL script to lazy-evaluated, out-of-core execution over an Arrow-based expression API, to handle data that exceeds available memory."
+  },
+  {
+   "id": "p060",
+   "skill": "aeon",
+   "synonym": "I have multivariate sensor time-series data from a group of machines and need to classify each recording into one of several failure-mode categories, plus flag anomalous segments and change points, all through a consistent fit/predict-style estimator interface.",
+   "plain": "I have sensor readings with several measurements over time from a set of machines. I need to sort each recording into one of several failure categories, and separately flag unusual stretches and shift points, through one consistent, standard-style modeling interface common in machine-learning libraries.",
+   "expert": "Classify multivariate sensor time series into failure-mode categories, plus flag anomalous segments and change points, via a consistent fit/predict-style estimator interface."
+  },
+  {
+   "id": "p061",
+   "skill": "statistical-power",
+   "synonym": "I'm designing a new study and need to determine how many participants to enroll in order to achieve 80% power for detecting a clinically meaningful effect, so I can justify the sample size in my IRB submission and grant application.",
+   "plain": "I'm planning a new research study and need to figure out how many people I should recruit so that I have an 80% chance of detecting a real difference that would actually matter clinically, if one exists. I need this number so I can explain and defend my sample size to the ethics review board and in my grant application.",
+   "expert": "Determine enrollment needed for 80% power to detect a clinically meaningful effect, to justify sample size for IRB submission and the grant application."
+  },
+  {
+   "id": "p062",
+   "skill": "latex-posters",
+   "synonym": "I need to build a conference research poster using a professional-grade typesetting system, with a multi-column layout sized for a standard A0 board, incorporating a few AI-generated schematic figures I'll produce separately.",
+   "plain": "I need a conference research poster made with a markup-based document typesetting system rather than a drag-and-drop tool, with a clean multi-column layout sized for a standard large poster board, incorporating a few schematic figures I'll generate separately using AI.",
+   "expert": "Build an A0 conference poster in a professional multi-column typesetting-system layout, incorporating separately generated AI schematic figures."
+  },
+  {
+   "id": "p063",
+   "skill": "labarchive-integration",
+   "synonym": "Our lab uses LabArchives as its electronic notebook system, and I need help writing a script that authenticates using signed requests and retrieves a list of recent notebook entries and inventory items through its API.",
+   "plain": "Our lab keeps its research notes in an electronic lab notebook system called LabArchives. I need help writing a script that logs in using cryptographically signed requests, then automatically pulls down a list of recent notebook entries and inventory items through the system's programmatic interface.",
+   "expert": "Write a script that authenticates to LabArchives via signed requests and pulls recent notebook entries and inventory items through its API."
+  },
+  {
+   "id": "p064",
+   "skill": "anndata",
+   "synonym": "I have several h5ad files from separate single-cell experiments and need to merge them into one sparse-matrix-backed object that keeps all per-cell and per-gene metadata correctly aligned, without running any clustering or normalization yet.",
+   "plain": "I have several single-cell data files, each from a separate experiment, in a standard single-cell storage format. I need to merge them into one combined object backed by sparse-matrix storage, keeping per-cell and per-gene metadata correctly matched. I don't want clustering or normalization run yet.",
+   "expert": "Merge multiple h5ad files into one sparse-matrix-backed object with per-cell and per-gene metadata correctly aligned, with no clustering or normalization yet."
+  },
+  {
+   "id": "p065",
+   "skill": "uncertainty-and-units",
+   "synonym": "I have calibration certificates and repeatability measurements for a lab instrument and need to construct a full measurement-uncertainty budget with a defensible coverage factor, while also verifying that my unit conversions between the raw sensor output and the final reported value are dimensionally correct.",
+   "plain": "I have official calibration documents and repeated-measurement data for lab equipment. I need to build a complete accounting of measurement-error sources, combine them properly, and pick a well-justified multiplier setting my confidence level. I also want to check that converting raw sensor units to final reported units stays dimensionally consistent.",
+   "expert": "Build a full measurement uncertainty budget with a defensible coverage factor from calibration and repeatability data, and verify dimensional consistency of the raw-to-reported unit conversions."
+  },
+  {
+   "id": "p066",
+   "skill": "scanpy",
+   "synonym": "I have raw droplet-based single-cell RNA-seq counts from a 10x Genomics platform that need quality-control filtering, normalization, clustering, and marker-gene identification before I can annotate cell types. A couple of collaborators only sent me RDS files from a different single-cell analysis toolkit, which I'll need to convert first.",
+   "plain": "I have raw single-cell gene-count data from a common droplet-based sequencing platform, and need to filter out low-quality data, normalize it, cluster similar cells, and identify marker genes before labeling cell types. Collaborators also sent RDS-format files from a different single-cell analysis toolkit, which I'll need to convert first.",
+   "expert": "QC-filter, normalize, cluster, and identify marker genes on raw 10x Genomics droplet scRNA-seq counts to annotate cell types; also need to convert collaborator-supplied RDS files from another single-cell toolkit first."
+  },
+  {
+   "id": "p067",
+   "skill": "umap-learn",
+   "synonym": "I have a high-dimensional dataset and want to project it down to two dimensions for visualization, preserving both the local neighborhood structure and the broader global structure, ideally with an approach that later lets me embed new points using labels from a subset of my data.",
+   "plain": "I have a dataset with many variables per point, and want to reduce it to two dimensions for visualization while keeping both close-by relationships and the bigger-picture overall shape intact. Ideally I'd also like a version letting me later add new points into the same layout, guided by labels from part of my existing data.",
+   "expert": "Project the high-dimensional data to 2D preserving both local and global structure, ideally with a semi-supervised variant supporting later out-of-sample embedding."
+  },
+  {
+   "id": "p068",
+   "skill": "scientific-slides",
+   "synonym": "I'm giving a 15-minute conference talk next month covering my recent findings and need to build a visually engaging slide deck with a clear narrative arc, rather than just walls of bulleted text.",
+   "plain": "Next month I'm giving a short, 15-minute conference talk about my recent research findings. I need a slide presentation that looks visually interesting and tells a clear, connected story from start to finish, instead of slides full of bullet points.",
+   "expert": "Build a 15-minute conference deck with a clear narrative arc and strong visual design, not bullet-heavy slides."
+  },
+  {
+   "id": "p069",
+   "skill": "pkpd-modeling",
+   "synonym": "I have concentration-time data from a single-dose pharmacokinetic study and need to compute non-compartmental exposure metrics such as AUC and half-life, check whether the terminal elimination phase is well characterized, and then explore whether a two-compartment model provides a better fit.",
+   "plain": "I have drug-concentration-over-time data from a single-dose study. I need standard exposure measures — total exposure and how long the drug level takes to halve — without assuming a specific compartment model, a check that the late-stage decline is well captured, then a comparison against a two-compartment model.",
+   "expert": "Compute NCA exposure metrics (AUC, half-life) from single-dose PK data, assess terminal-phase characterization, and evaluate two-compartment model fit."
+  },
+  {
+   "id": "p070",
+   "skill": "genomic-intelligence",
+   "synonym": "Given this raw DNA sequence, can a remotely hosted model identify where the promoter region and the splice donor and acceptor sites are, without my having to download any model weights or use a local GPU?",
+   "plain": "Using this raw DNA sequence, I want a model running on someone else's server to tell me where the promoter region and the splicing start/stop sites are. I don't want to download any model files myself or need my own graphics card to run it.",
+   "expert": "Predict promoter and splice donor/acceptor sites from this raw sequence using a hosted model, with no local weight download or GPU required."
+  },
+  {
+   "id": "p071",
+   "skill": "clinical-decision-support",
+   "synonym": "I'm putting together an aggregate evaluation package for a risk-prediction model that our hospital's governance committee is reviewing — a GRADE-style evidence profile, subgroup fairness checks, and calibration documentation — strictly for committee review, not for treating any individual patient.",
+   "plain": "I'm assembling evidence about a patient-risk-prediction model, for a hospital committee overseeing such tools. This needs a formal evidence-quality summary in the standard medical-evidence grading style, checks for fair performance across patient subgroups, and documentation of how well predicted probabilities match reality — strictly for oversight review, not to guide any patient's treatment.",
+   "expert": "Prepare an aggregate evaluation package — GRADE-style evidence profile, subgroup fairness checks, calibration documentation — for governance-committee review of a risk-prediction model, not for individual patient care."
+  },
+  {
+   "id": "p072",
+   "skill": "rowan",
+   "synonym": "I have a new small-molecule candidate and want to predict its pKa along with a conformer and tautomer ensemble, then dock it against my target protein — all without setting up any local high-performance-computing or GPU infrastructure, just submitting the SMILES string and getting results back.",
+   "plain": "I have a new candidate drug-like molecule and want predictions of its acid-dissociation behavior, plus a set of possible 3D shapes and alternate chemical forms it could take. Then I want it docked against my target protein to predict binding. I don't want powerful local computing hardware or a graphics card myself — just submit the molecule's text description and get results back.",
+   "expert": "Predict pKa plus a conformer/tautomer ensemble for the candidate, then dock against the target protein — via SMILES submission only, no local HPC/GPU setup."
+  },
+  {
+   "id": "p073",
+   "skill": "pufferlib",
+   "synonym": "I'm adapting a custom reinforcement-learning simulation environment, built to the standard RL-environment interface, for large-scale training, and need help vectorizing environment rollouts, wiring up a policy-gradient trainer, and safely inspecting a checkpoint file before loading it.",
+   "plain": "I'm modifying a custom simulated training environment, built to a standard reinforcement-learning interface, for large-scale training. I need help running many copies in parallel, setting up a system that improves the agent's policy directly, and safely checking a saved checkpoint file before loading it.",
+   "expert": "Adapt a custom reinforcement-learning environment for large-scale training — need vectorized rollouts, a policy-gradient trainer, and safe pre-load inspection of the checkpoint file."
+  },
+  {
+   "id": "p074",
+   "skill": "scholar-evaluation",
+   "synonym": "A colleague shared their draft research-proposal outline and early findings and asked for developmental feedback on the soundness and framing of the idea. I want honest, evidence-traceable comments — not a numeric score or a verdict on fundability.",
+   "plain": "A colleague shared an early research-proposal outline and preliminary findings, asking for feedback on whether the idea is sound and well-framed. I want honest commentary tied to actual evidence — not a numeric score, and not a final judgment on whether the proposal will get funded.",
+   "expert": "Give developmental feedback on the soundness and framing of a draft proposal and early findings — evidence-traceable commentary only, no numeric score or fundability verdict."
+  },
+  {
+   "id": "p075",
+   "skill": "pydeseq2",
+   "synonym": "I have raw RNA-seq count data from treated versus control samples, with a batch covariate, and need to run differential-expression testing using a multi-factor design, apply log-fold-change shrinkage, and extract genes significant after FDR correction.",
+   "plain": "I have raw RNA-sequencing gene counts comparing treated versus control samples, processed in different batches I need to account for. I need to test which genes differ significantly while adjusting for batch, apply an adjustment pulling in noisy fold-change estimates, then extract genes significant after correcting for multiple testing.",
+   "expert": "Run multi-factor differential expression testing (treatment + batch covariate) on raw RNA-seq counts, apply LFC shrinkage, and extract genes significant after FDR correction."
+  },
+  {
+   "id": "p076",
+   "skill": "dhdna-profiler",
+   "synonym": "I have a lengthy piece of writing from a colleague and want to chart their underlying thinking style based on the text alone — how analytical versus intuitive they tend to be, how they balance ethical considerations against strategic ones, and other tensions in how they reason.",
+   "plain": "A colleague of mine wrote a long document, and just from reading that text, I want to understand their general style of thinking — for example, whether they lean more toward careful analysis or gut instinct, how they balance doing the right thing against doing the strategically smart thing, and any other contrasting tendencies in how they seem to reason.",
+   "expert": "Infer the author's reasoning-style profile from text alone — analytical-versus-intuitive orientation, ethics-versus-strategy weighting, and other cognitive tensions."
+  },
+  {
+   "id": "p077",
+   "skill": "scientific-critical-thinking",
+   "synonym": "I want to critically assess the methodology and evidence quality underlying a set of clinical trials — checking for confounders and biases and applying a formal evidence-grading framework — before deciding how much weight to give their conclusions.",
+   "plain": "I want to carefully examine how well-designed and how trustworthy a group of clinical trials actually are — looking for hidden factors that could distort the results and other sources of bias, and using a formal, standard system for grading the quality of evidence — before I decide how seriously to take what these trials conclude.",
+   "expert": "Critically appraise trial methodology and evidence quality — confounders, bias, and a formal evidence-grading framework — before weighting the trials' conclusions."
+  },
+  {
+   "id": "p078",
+   "skill": "qiskit",
+   "synonym": "I need to build a quantum circuit and first run it on a local exact simulator using the standard sampling primitive, then compile it down for an actual IBM quantum processor and execute it through a session with basic error mitigation.",
+   "plain": "I want to design a quantum circuit and test it on my own computer first, using an exact simulation and the usual measurement-sampling method. Then I want to adapt the circuit for a real IBM quantum computer, run it there through a connected session, using basic techniques to reduce hardware-error effects.",
+   "expert": "Build a circuit, validate on a local exact simulator with the standard sampler primitive, then transpile for an IBM quantum processor and execute via a session with basic error mitigation."
+  },
+  {
+   "id": "p079",
+   "skill": "parallel-web",
+   "synonym": "I need up-to-date web search results on a fast-moving regulatory topic that changed after your training cutoff, and I'd like to set up a recurring check that flags whenever a specific government webpage changes going forward.",
+   "plain": "I need to find out the latest information on a regulatory topic that's been changing quickly, likely something that changed after the point where your training data ends. I'd also like to set up something that checks a specific government webpage on a repeating schedule and lets me know whenever it changes.",
+   "expert": "Need live web-search results on a fast-moving, post-cutoff regulatory topic, plus a recurring change-detection watch on a specific government webpage."
+  },
+  {
+   "id": "p080",
+   "skill": "rdkit",
+   "synonym": "I have a list of SMILES strings and need to compute molecular descriptors such as molecular weight and TPSA, generate Morgan fingerprints, and run a substructure search using a SMARTS pattern, with fine-grained control over sanitization.",
+   "plain": "I have a list of molecules written in a standard chemical-structure text notation. I need basic descriptors like molecular weight and polar surface area, a standard type of structural fingerprint, and a search for molecules containing a substructure defined by a pattern-matching notation, with detailed control over cleanup and validation.",
+   "expert": "Compute molecular descriptors (MW, TPSA) and Morgan fingerprints, and run a SMARTS substructure search, over the SMILES list, with fine-grained sanitization control."
+  },
+  {
+   "id": "p081",
+   "skill": "primekg",
+   "synonym": "I want to explore a precision-medicine knowledge graph that integrates more than twenty biomedical databases covering genes, drugs, diseases, and phenotypes, in order to identify which existing drugs might be repurposed for a disease of interest through a shared molecular target.",
+   "plain": "I want to explore a large connected biomedical information network combining over twenty databases covering genes, drugs, diseases, and observable traits. My goal is finding existing drugs that might be repurposed for a disease I'm interested in, based on sharing a molecular target with drugs already known to work on it.",
+   "expert": "Query a precision-medicine knowledge graph integrating 20+ biomedical databases (genes, drugs, diseases, phenotypes) to identify drug-repurposing candidates for a target disease via shared molecular targets."
+  },
+  {
+   "id": "p082",
+   "skill": "vaex",
+   "synonym": "I've got one flat data table with several hundred million records — too large to fit in my system's working memory — and I need to calculate quick summary statistics and build a 2D density heatmap from it, without ever pulling the full table into memory at once.",
+   "plain": "I have one big spreadsheet-like file with hundreds of millions of rows, and it's too large to fit in my computer's working memory all at once. I need to quickly calculate summary numbers (like counts, averages, totals) across it, and also produce a picture that shows where data points cluster densely versus sparsely, all without loading the entire file into memory in one go.",
+   "expert": "Need out-of-core aggregation and 2D density-heatmap construction over a >100M-row tabular dataset that exceeds available RAM, processed without full in-memory materialization."
+  },
+  {
+   "id": "p083",
+   "skill": "research-lookup",
+   "synonym": "I'm writing the opening section of a paper about impaired mitochondrial function in Parkinson's disease, and I need a well-verified collection of recent references spanning the rival mechanistic theories, so every statement I make can be traced to a genuine source.",
+   "plain": "I'm writing the opening part of a research paper about how the energy-producing structures inside nerve cells break down in a common movement disorder involving tremor and stiffness. I need a solid set of recent, double-checked references that cover the different competing explanations for why this happens, so that every statement I make in the paper can be linked back to a real, verifiable published source.",
+   "expert": "Drafting the introduction on mitochondrial dysfunction in PD; need a curated, verified bibliography spanning competing mechanistic hypotheses with full traceability per claim."
+  },
+  {
+   "id": "p084",
+   "skill": "matchms",
+   "synonym": "I have a batch of untargeted metabolomics tandem mass spectrometry spectra saved in a common open spectral text format, and I need to clean the data, standardize the precursor mass and adduct annotations, and compare each spectrum against a reference spectral collection using cosine-similarity scoring to identify matches.",
+   "plain": "I have a collection of chemical fingerprint measurements taken with an instrument that breaks molecules apart and records the fragment masses, saved in a common shareable text file. I need to clean up this data, make the molecule-charge and parent-mass labels consistent across all the entries, and then compare each measurement against a library of known reference fingerprints, scoring how similar they are, to find which known compounds they likely match.",
+   "expert": "Need MGF-format untargeted MS/MS preprocessing with precursor/adduct metadata harmonization, then cosine-similarity spectral library matching against a reference database."
+  },
+  {
+   "id": "p085",
+   "skill": "folklore-variant-evidence",
+   "synonym": "For one clearly specified inherited variant, identified by its standard reference SNP number, I need to retrieve gene-disease validity claims along with citation-linked supporting publications; if the identifier turns out to be ambiguous, the lookup should halt cleanly and report that, rather than guessing at which variant was intended.",
+   "plain": "I have one specific inherited genetic change, identified by its standard reference number, and I want to find out what's been established about whether the gene it sits in is truly linked to a disease, plus the published studies that back up that link, with sources attached. If that reference number could actually point to more than one variant, I want the process to stop and tell me clearly, instead of just picking one and guessing.",
+   "expert": "For a single rsID-identified germline variant, retrieve gene-disease validity classifications with source-linked literature; require a hard stop with an ambiguity flag on non-unique rsID resolution rather than heuristic disambiguation."
+  },
+  {
+   "id": "p086",
+   "skill": "liteparse",
+   "synonym": "I have scanned document pages in a fixed-layout format that need text recognition, and for every recognized word I need its precise bounding-box position on the page, along with an image render of each page so a vision-capable AI system can look at them — all done on my own machine, with no calls to any remote service.",
+   "plain": "I have pictures of scanned pages that need to have their text automatically read and recognized. For each word that gets recognized, I need to know exactly where it sits on the page, given as box coordinates. I also need a plain picture-file version of each page, so that an AI system that can look at images (not just read text) can inspect them. All of this needs to run entirely on my own computer, without sending anything to an outside internet service.",
+   "expert": "Need local (no external API) OCR over scanned PDF pages with per-word bounding-box coordinates, plus per-page PNG rasterization for downstream multimodal-agent inspection."
+  },
+  {
+   "id": "p087",
+   "skill": "hypogenic",
+   "synonym": "I have a text dataset with labels, and I want to run a repeating, language-model-assisted procedure that generates and rates candidate wording patterns as hypotheses, then improves the collection of patterns using information drawn from published literature.",
+   "plain": "I have a collection of text examples that are each tagged with a category, and I want a repeated back-and-forth process, guided by a language-generating AI, that comes up with possible word or phrase patterns as guesses for what distinguishes the categories, scores how good each guess is, and then improves that set of guesses using facts pulled from published research articles.",
+   "expert": "Need an iterative LLM-in-the-loop pipeline over a labeled text corpus that proposes and scores candidate lexical/pattern hypotheses, then refines the hypothesis bank using literature-derived evidence."
+  },
+  {
+   "id": "p088",
+   "skill": "shap",
+   "synonym": "I already have a fitted model and want to understand why it produced particular outputs for a handful of unseen test cases, using rigorous credit-assignment values that I can verify actually sum to the model's true output, rather than an informal guess at which inputs mattered.",
+   "plain": "I have a model I already built and trained, and for a few examples it hasn't seen before, I want to understand why it gave the specific answers it did. I want a mathematically sound way of assigning credit to each input feature, one where I can check that the credited amounts genuinely add up to match the model's actual output — not just an informal guess about which inputs seemed important.",
+   "expert": "Need post-hoc, additive feature-attribution explanations (e.g. Shapley-consistent) for a trained model's predictions on specific held-out instances, with verifiable efficiency (attributions sum to the model output)."
+  },
+  {
+   "id": "p089",
+   "skill": "scikit-learn",
+   "synonym": "I have a dataset organized in rows and columns and want to construct and cross-validate a handful of traditional classification algorithms, optimize their hyperparameters through an exhaustive grid search, and evaluate them side by side within a tidy preprocessing workflow before settling on a final model.",
+   "plain": "I have a dataset arranged as a table and want to build a few standard, well-established prediction methods that sort items into categories, test each one carefully using repeated data splits, and systematically try out different setting combinations to find the best ones. I want to do all of this inside one clean, organized sequence of data-preparation and modeling steps, comparing the methods fairly, before choosing which one to use as my final answer.",
+   "expert": "Need cross-validated benchmarking of several classical classifiers with grid-search hyperparameter tuning inside a unified preprocessing pipeline, for final model selection."
+  },
+  {
+   "id": "p090",
+   "skill": "deepchem",
+   "synonym": "I want to train a graph-based neural network to forecast toxicity and other pharmacokinetic and safety properties for drug-like compounds, and benchmark its performance against established, publicly published molecular datasets and their standard train/test splits.",
+   "plain": "I want to train a machine-learning model that represents each drug-like molecule as a network of connected atoms, and use it to predict how toxic or otherwise pharmacologically risky the molecule might be, along with related absorption and metabolism properties. I want to test its performance against well-known, publicly available collections of molecules and the standard way those collections are divided for fair comparison.",
+   "expert": "Need to train a GNN for ADMET/toxicity prediction on drug-like molecules, benchmarked against standard published molecular datasets and their canonical splits."
+  },
+  {
+   "id": "p091",
+   "skill": "datamol",
+   "synonym": "I have a spreadsheet-style file of text-based chemical structure codes that I need to standardize into a single canonical form, calculate molecular descriptors and fingerprints for, and then group into a diverse, representative subset — all with as little repetitive setup code as possible.",
+   "plain": "I have a plain text-table file listing molecules, each written as a short text code describing its chemical structure. I need to put these codes into one consistent standard form, calculate a set of numerical properties and structural fingerprints for each molecule, and then group similar molecules together so I can pick out a smaller, varied set that still represents the whole collection well. I want to do this with very little extra setup code.",
+   "expert": "Need SMILES standardization/canonicalization, descriptor and fingerprint computation, and diversity-based clustering into a representative subset, with minimal boilerplate."
+  },
+  {
+   "id": "p092",
+   "skill": "pymoo",
+   "synonym": "I have an engineering design challenge with several objectives and restrictions that pull against each other, and I want to identify the Pareto-optimal trade-off solutions with a multi-objective evolutionary search method, then plot the resulting front for a presentation.",
+   "plain": "I have an engineering design problem where I'm trying to satisfy several goals at once, and improving one goal often makes another one worse, all while staying within certain limits. I want to use a search method inspired by natural selection, which tries out and evolves many candidate designs, to find the best set of trade-off solutions — ones where you can't improve one goal without harming another. Then I want to draw a chart of those trade-off solutions to show in a presentation.",
+   "expert": "Need multi-objective evolutionary optimization to identify the Pareto front for a constrained engineering design problem, plus a presentation-ready plot of the front."
+  },
+  {
+   "id": "p093",
+   "skill": "scikit-survival",
+   "synonym": "I have time-to-event data, including patients lost to follow-up, for a group of patients, and I want to fit a proportional-hazards regression model together with a random survival forest, then assess both using a concordance measure and a time-dependent prediction-error metric, handling the incomplete follow-up correctly throughout.",
+   "plain": "I have data tracking how long each patient was followed and whether or when something happened to them, noting that some patients dropped out of monitoring before anything happened. I want to fit two different models that predict how survival time relates to patient characteristics — one a standard statistical regression approach, the other a machine-learning approach based on many decision trees — and then judge how good each one is at ranking and predicting outcomes over time, making sure the patients who dropped out early are accounted for properly rather than treated as if nothing happened to them.",
+   "expert": "Need to fit a Cox PH model and a random survival forest on right-censored cohort follow-up data, then evaluate both via concordance and time-dependent Brier score, with proper censoring handling."
+  },
+  {
+   "id": "p094",
+   "skill": "pymc",
+   "synonym": "I want to construct a multilevel Bayesian model for my nested experimental data, sample the posterior using a No-U-Turn Hamiltonian MCMC sampler, examine convergence diagnostics, and compare it against a simpler alternative model using leave-one-out cross-validation.",
+   "plain": "I have experimental data with a nested, multi-level structure (for example, measurements grouped within subjects grouped within sites), and I want to build a probability-based model that accounts for that structure. I want to fit it using a modern sampling method that explores the space of possible parameter values efficiently, check that the fitting process actually settled on stable answers, and then compare this model against a simpler one by seeing how well each predicts data it wasn't fitted on, one point at a time.",
+   "expert": "Need a hierarchical Bayesian model for multilevel data fit via NUTS-HMC, with convergence diagnostics, then LOO-CV model comparison against a simpler baseline."
+  },
+  {
+   "id": "p095",
+   "skill": "protocolsio-integration",
+   "synonym": "I need to retrieve the currently published version of a lab protocol from our protocols.io project, verify its DOI and its history of prior versions, and preview how a suggested edit to one step would look before I actually commit any change.",
+   "plain": "I need to fetch the latest officially published version of one of our lab's written procedures from our shared protocols.io project, double-check its permanent citation identifier and see the record of earlier versions, and then look at a preview of how a proposed change to one step would appear, without actually applying that change yet.",
+   "expert": "Need to fetch the current published protocol version and DOI/version history from our protocols.io project, and preview a proposed step edit as a diff before committing it."
+  },
+  {
+   "id": "p096",
+   "skill": "consciousness-council",
+   "synonym": "I'm uncertain about which strategic path to take for my lab, and I'd like several genuinely opposing expert perspectives — one focused on systems-level thinking, one pragmatic, one ethical — to be argued against each other in a structured debate before I make my decision.",
+   "plain": "I can't decide on the right strategic direction for my lab, and I want to hear several different expert points of view that genuinely disagree with each other — someone who thinks about how all the parts of a system interact, someone focused on what's practically doable, and someone focused on what's right or fair — argued against one another in an organized way, before I make my final choice.",
+   "expert": "Need a structured multi-perspective debate (systems, pragmatist, ethicist viewpoints) on lab strategic direction prior to decision."
+  },
+  {
+   "id": "p097",
+   "skill": "database-lookup",
+   "synonym": "I need to retrieve one particular gene's entries across multiple public reference-ID systems by calling each database's own documented interface, keeping a complete record of which endpoints, filters, and pagination settings were used, rather than recalling the answer from memorized knowledge.",
+   "plain": "I need to look up one specific gene's information across several different public reference-numbering systems, going directly through each database's own official access method rather than relying on remembered facts, and I want a full written trail showing exactly which web addresses, search filters, and page-by-page settings were used to get each piece of information.",
+   "expert": "Need live, API-driven cross-referencing of a gene across multiple public identifier systems with full endpoint/filter/pagination provenance, no memorized lookups."
+  },
+  {
+   "id": "p098",
+   "skill": "gget",
+   "synonym": "I just want a fast lookup of the predicted protein structure and basic gene details for a couple of genes from the AlphaFold structure database — nothing fancy, no large automated workflow.",
+   "plain": "I just want a quick check of the computationally predicted 3D shape of the protein and some basic background information for a couple of genes — nothing elaborate, and definitely no big automated multi-step process.",
+   "expert": "Need a quick AlphaFold structure and basic gene-info lookup for a couple of genes — no pipeline needed."
+  },
+  {
+   "id": "p099",
+   "skill": "optimize-for-gpu",
+   "synonym": "My array-processing and tabular-join preprocessing workflow for a large dataset runs too slowly on the processor, and I want to shift the array computations and table-merging operations onto our graphics accelerator, without altering the numerical results.",
+   "plain": "The step-by-step process I use to clean and prepare a large dataset — involving numerical array math and combining tables together — is too slow when it runs on my computer's main processor. I want to move that same math and those same table-combining steps onto our graphics-card hardware instead, so it runs faster, while making sure the actual numbers that come out stay exactly the same.",
+   "expert": "Need to port a CPU-bound array/dataframe-join preprocessing pipeline to GPU execution with numerically identical results."
+  },
+  {
+   "id": "p100",
+   "skill": "benchling-integration",
+   "synonym": "I need to retrieve a batch of DNA construct entries from our Benchling registry and update the corresponding electronic lab notebook entries for a new set of samples, using the API.",
+   "plain": "I need to fetch a group of DNA-design records stored in our Benchling registry, and then use its programmatic interface to update the matching digital lab-notebook entries for a new batch of samples.",
+   "expert": "Need to batch-pull DNA construct records from our Benchling registry and update matching ELN entries for new samples via the API."
+  },
+  {
+   "id": "p101",
+   "skill": "ncats-arax",
+   "synonym": "I want to explore what's documented about an indirect, two-step connection between a particular gene and a disease within a structured biomedical knowledge graph, along with the supporting publications and origin-source details for each connecting link.",
+   "plain": "I want to find out what's known about an indirect link — one that goes through an intermediate step — between a specific gene and a disease, using a structured network of biomedical facts and relationships. For each connecting link in that chain, I want to see the published research that supports it and where that information originally came from.",
+   "expert": "Need two-hop gene-disease path traversal over a structured biomedical knowledge graph, with per-edge supporting literature and data-source provenance."
+  },
+  {
+   "id": "p102",
+   "skill": "datalad",
+   "synonym": "I want to obtain a copy of a large public brain-imaging dataset without fetching every single file immediately, and I need to log precisely how each analysis output is produced so that a collaborator can later re-run my entire workflow from scratch.",
+   "plain": "I want to get a working local copy of a big publicly shared set of brain-scan data, but without having to download every single file right away — just what's needed as I go. I also need to keep a precise, complete record of exactly how each result was produced, so that someone else on my team can later repeat my whole analysis from start to finish and get the same results.",
+   "expert": "Need lazy/on-demand cloning of a large public neuroimaging dataset plus full provenance capture for downstream pipeline re-execution by a collaborator."
+  },
+  {
+   "id": "p103",
+   "skill": "literature-review",
+   "synonym": "I need to conduct a systematic search of the biomedical literature database, the physics/math preprint archive, and other scholarly repositories on a research topic, organize the findings into themed sections, check every citation for accuracy, and generate a properly formatted document suitable for the background section of a manuscript.",
+   "plain": "I need to thoroughly search several major research-paper repositories — including the main biomedical-literature database and a popular preprint archive — on a given research topic, then organize what I find into themed sections, double-check that every reference is accurate and real, and put together a properly formatted write-up that I can use as the background section of a paper.",
+   "expert": "Need a systematic PubMed/arXiv (plus other databases) literature search on a topic, synthesized into thematic sections with citation verification, formatted for a manuscript background section."
+  },
+  {
+   "id": "p104",
+   "skill": "cellxgene-census",
+   "synonym": "I want to gather gene expression measurements and cell-type labels for a given tissue and disease across numerous public single-cell studies simultaneously, without fetching each underlying dataset one by one, in order to assemble a large reference set spanning multiple studies.",
+   "plain": "I want to pull together gene activity readings and cell-type labels for a specific body tissue and disease, drawing from many different publicly available single-cell studies all at once, without having to separately download each individual study's data. The goal is to build one large combined reference collection spanning many studies.",
+   "expert": "Need cross-study aggregation of expression values and cell-type metadata for a tissue/disease from multiple public single-cell datasets via a unified query, without per-dataset downloads, to build a large reference atlas."
+  },
+  {
+   "id": "p105",
+   "skill": "pathml",
+   "synonym": "I have whole-slide hematoxylin-and-eosin-stained pathology images that I need to load and cut into smaller patches, pass through a quality-control workflow, and use to construct spatial graphs from multiplex-stained cells — all running on my own machine, strictly for exploratory research and not for diagnostic use.",
+   "plain": "I have very large, full-slide microscope images of tissue stained with a standard two-color pathology stain, and I need to load them and cut them into smaller square pieces, run them through a set of quality checks, and use cell positions from separately multi-color-stained images to build maps of which cells sit near which other cells. This all needs to run entirely on my own computer, and it's strictly for exploratory research, not for making any diagnosis.",
+   "expert": "Need local WSI H&E loading/tiling into patches, a QC pipeline, and spatial-graph construction from multiplex-stained cell data, for exploratory research use only."
+  },
+  {
+   "id": "p106",
+   "skill": "tamarind",
+   "synonym": "I want to predict the three-dimensional structure of a protein bound to a small molecule, and screen a batch of candidate binding compounds through docking calculations, all running on managed cloud graphics-processing resources, since I'd rather not set up or maintain my own local GPU hardware for these structure-prediction jobs.",
+   "plain": "I want to predict what the 3D shape looks like when a protein and a small candidate drug molecule bind together, and then test a whole batch of possible binding molecules by simulating how well each one might dock into the protein. I want all of this computing to happen on graphics-processing hardware that's rented and managed in the cloud, because I don't want to buy, set up, or maintain that kind of hardware myself.",
+   "expert": "Need protein-ligand complex structure prediction and batch docking screens executed on managed cloud GPU infrastructure, with no local GPU provisioning."
+  },
+  {
+   "id": "p107",
+   "skill": "adaptyv",
+   "synonym": "I have a batch of newly designed protein sequences that I want to submit through a remote lab's automated experiment interface to run binding, thermal-stability, and expression assays, then retrieve the results once those runs are complete.",
+   "plain": "I have a set of newly designed protein sequences, and I want to send them, through a programmatic interface, to a remote laboratory service that will physically run experiments testing how well each protein binds its target, how stable it is under heat, and how well it's produced by cells. Once those experiments finish, I want to collect the results back.",
+   "expert": "Need to submit designed protein sequences via a remote/cloud lab's experiment API for binding, thermostability, and expression assays, then retrieve completed run results."
+  },
+  {
+   "id": "p108",
+   "skill": "paperclip",
+   "synonym": "I want to search complete biomedical research articles together with FDA and EMA regulatory submission documents and clinical-trial protocols, all within one unified, plain-text-searchable archive, with citations anchored to exact line numbers for verification; I've already got an access key set up for this.",
+   "plain": "I want to search the full text of biomedical research papers together with official drug-regulator filings (from both the US and European regulators) and clinical-trial protocol documents, all in one combined archive that lets me search through plain text directly, with each citation pointing to the exact line it came from so I can double-check it. I already have the access credentials set up for this.",
+   "expert": "Need unified full-text search across biomedical literature, FDA/EMA regulatory filings, and clinical-trial protocols in a plain-text-indexed archive with line-level citation provenance; API key already configured."
+  },
+  {
+   "id": "p109",
+   "skill": "open-notebook",
+   "synonym": "I want to set up a self-hosted, privacy-respecting substitute for a well-known cloud note-and-document assistant, where I can upload PDFs and recorded talks, converse with them in context, and generate a multi-speaker audio podcast summarizing my research notes.",
+   "plain": "I want to set up my own privately hosted version of a well-known online tool that lets you upload documents and audio recordings, ask it questions about their content in context, and have it produce an audio conversation between multiple simulated speakers summarizing your notes — but running entirely under my own control, without sending anything to an outside company.",
+   "expert": "Need a self-hosted, privacy-preserving analog to a well-known document-chat assistant: PDF/talk-recording ingestion, contextual chat, and multi-speaker podcast-style summary generation."
+  },
+  {
+   "id": "p110",
+   "skill": "scientific-brainstorming",
+   "synonym": "My lab has just finished a major experiment, and I want the team to independently come up with and openly evaluate several possible follow-up research directions, documenting our assumptions and points of disagreement before we settle on one path.",
+   "plain": "My lab just finished a big experiment, and now I want each team member to independently think up several possible next research directions, and then openly compare and evaluate them together as a group. I want to make sure we write down what assumptions each idea relies on and where we disagree with each other, before we commit to just one direction.",
+   "expert": "Need independent generation and transparent team evaluation of candidate follow-up research directions post-experiment, with captured assumptions and disagreements prior to path commitment."
+  },
+  {
+   "id": "p111",
+   "skill": "matplotlib",
+   "synonym": "I need to construct a fully custom chart featuring a broken axis, an inset magnified panel, and a bespoke color scale, since the higher-level charting shortcuts don't give me fine enough control over every element, and then export the result as a scalable vector PDF.",
+   "plain": "I need to build a highly customized chart that has a gap in one of its axes, a small zoomed-in inset view, and a custom set of colors, because the simpler, ready-made charting options don't let me control every visual detail precisely enough. Once it's built, I need to save it as a scalable, print-quality document rather than a fixed-resolution picture.",
+   "expert": "Need low-level, element-by-element chart construction (broken axis, inset zoom panel, custom colormap) beyond high-level plotting APIs, exported as a vector PDF."
+  },
+  {
+   "id": "p112",
+   "skill": "what-if-oracle",
+   "synonym": "Before committing resources to a single direction, I want to sketch out several branching what-if scenarios for my research program in case a critical reagent supplier suddenly fails to deliver — a best case, a worst case, a most-likely case, and a couple of wildcard outcomes — each with rough probability estimates and consequences.",
+   "plain": "Before I decide how to commit resources, I want to think through several different possible future paths for my research program, in case an important supplier of a key material suddenly can't provide it anymore. I want a best-case outcome, a worst-case outcome, the most likely outcome, and a couple of unlikely-but-possible surprise outcomes, each with a rough estimate of how likely it is and what would follow from it.",
+   "expert": "Need a branching scenario analysis (best/worst/likely/wildcard) for research-program continuity risk under key reagent-supply disruption, with rough probabilities and consequences, prior to resource commitment."
+  },
+  {
+   "id": "p113",
+   "skill": "tiledbvcf",
+   "synonym": "I have variant call files from an ongoing population-genomics cohort study, and I need to load them into a searchable data store that lets me incorporate new samples incrementally, without having to re-merge the entire collection each time, and then efficiently retrieve variant calls for particular genomic regions across thousands of samples.",
+   "plain": "I have genetic-variant result files coming from an ongoing large study of many people's genomes, and I need to load them into a system I can search, where I can add new people's data over time without having to redo the whole combination process from scratch each time. I also need to be able to quickly pull out the genetic variants found in specific stretches of the genome, across thousands of people, without it being slow.",
+   "expert": "Need incrementally updatable, queryable VCF ingestion for an ongoing population cohort, with efficient region-based variant retrieval across thousands of samples without full re-merge."
+  },
+  {
+   "id": "p114",
+   "skill": "pathogen-variant-surveillance",
+   "synonym": "I need to know which SARS-CoV-2 Pango lineages are currently spreading and expanding the quickest, and whether a particular lineage designation I encountered in an older report has since been retired or given a new name.",
+   "plain": "I want to know which strains of the pandemic coronavirus are currently spreading and increasing in frequency the fastest, using the standard naming system for viral lineages. I also want to check whether one specific strain name I saw in an older report has since been discontinued or replaced with a different name.",
+   "expert": "Need current fastest-growing SARS-CoV-2 Pango lineages, and a withdrawal/rename check for a specific historical lineage designation."
+  },
+  {
+   "id": "p115",
+   "skill": "arbor",
+   "synonym": "I want to run many cycles of automated trials to improve my automated-agent framework's accuracy on a benchmark, structuring each trial as a branch stemming from a shared hypothesis so that findings build cumulatively, and using a held-out test split that's never used during search, to keep from overfitting to the metric I'm optimizing.",
+   "plain": "I want to run many repeated rounds of automated testing to make my automated testing framework more accurate on a standard benchmark, where each individual trial branches off from a shared underlying idea, so that what's learned in one trial carries over and builds on the last. I also want to keep a separate portion of the test data completely untouched during all this searching, and only use it at the very end to check results, so I don't just end up tricking myself into a good-looking score without a real improvement.",
+   "expert": "Need iterative, hypothesis-branched automated experimentation to improve agent-harness benchmark accuracy, with a strictly held-out eval split excluded from search to prevent metric overfitting."
+  },
+  {
+   "id": "p116",
+   "skill": "pydicom",
+   "synonym": "I have a folder of local medical-imaging files, in the standard clinical imaging format, from a study I'm authorized to use for research, and I need to examine and safely remove patient-identifying metadata fields before exporting the raw pixel data for a de-identified pilot dataset.",
+   "plain": "I have a folder of medical scan files, saved in the standard hospital imaging format, from a study I have permission to use for research. I need to look through the hidden information attached to each file and safely remove anything that could identify the patient, before pulling out just the raw image data to build a de-identified sample dataset.",
+   "expert": "Need local DICOM metadata inspection and safe de-identification (stripping patient-identifying tags) prior to pixel-array export for a de-identified pilot dataset."
+  },
+  {
+   "id": "p117",
+   "skill": "waypoint-bio",
+   "synonym": "I have taxonomic abundance tables produced by a 16S ribosomal or shotgun metagenomic sequencing workflow, and I want to convert each microbiome sample into a fixed-length embedding using a pretrained microbiome foundation model, cluster the samples by similarity, and later fine-tune that same model to predict a phenotype from community composition.",
+   "plain": "I have tables showing how much of each type of microbe is present in different microbiome samples, generated using one of two standard community-profiling sequencing approaches. I want to turn each sample into a fixed-length list of numbers using an already-trained general-purpose microbiome model, group the samples by how similar those numbers are, and later further train that same model to predict a specific trait or outcome based on which microbes are present.",
+   "expert": "Need to embed 16S/shotgun-metagenomics taxonomic abundance profiles via a pretrained microbiome foundation model into fixed-size vectors for clustering, with downstream fine-tuning for phenotype prediction from community composition."
+  },
+  {
+   "id": "p118",
+   "skill": "gtars",
+   "synonym": "I need to compute pairwise overlaps and consensus coverage across a set of genomic interval files, and also tokenize those regions for a downstream machine-learning model, with everything running entirely on my own machine and no network access.",
+   "plain": "I need to figure out where multiple sets of genome location ranges overlap with each other and how much of the genome they agree on covering, and I also need to convert those location ranges into a token format usable by a downstream machine-learning model. All of this has to run entirely on my own computer, with no internet connections made at all.",
+   "expert": "Need pairwise interval-overlap and consensus-coverage computation across multiple genomic interval files, plus region tokenization for a downstream ML model — fully local, no network calls."
+  },
+  {
+   "id": "p119",
+   "skill": "pymatgen",
+   "synonym": "I have crystal-structure files produced by density-functional-theory calculations, and I want to check their symmetry, construct a phase diagram from the computed formation energies, and query the Materials Project database for comparable entries.",
+   "plain": "I have files describing the atomic structure of crystals, generated using a standard quantum-mechanical calculation method. I want to check the symmetry of these structures, build a diagram showing which combinations are stable based on their calculated formation energy, and look up the Materials Project database for similar known entries.",
+   "expert": "Need symmetry analysis of DFT-derived crystal structures, phase-diagram construction from computed formation energies, and cross-referencing against the Materials Project database."
+  },
+  {
+   "id": "p120",
+   "skill": "scvelo",
+   "synonym": "I already have separate mature and nascent transcript count layers for my single-cell dataset, produced by a splicing-aware alignment tool, and I want to infer the directionality of cell differentiation and identify the genes driving that transition, building on the embedding I've already generated in my regular single-cell analysis toolkit.",
+   "plain": "I already have two related sets of gene-count measurements for my single-cell data — one for the fully processed transcripts and one for the newly made, unprocessed ones — produced by a sequencing-alignment tool that's aware of gene splicing. I want to figure out which direction cells are moving as they change and mature over time, and identify which genes are driving that change, using the reduced-dimension map of my cells that I've already built with my usual single-cell analysis tools.",
+   "expert": "Need RNA-velocity inference (differentiation direction) and driver-gene identification from spliced/unspliced count layers, layered onto an existing single-cell embedding."
+  },
+  {
+   "id": "p121",
+   "skill": "astropy",
+   "synonym": "I have an astronomical image in the standard flexible image transport format with world-coordinate-system header keywords, and I need to convert pixel positions into sky coordinates expressed in a different reference frame, as well as compute the luminosity distance of an object at a specified redshift.",
+   "plain": "I have a standard astronomy image file that has embedded information linking pixel positions to real sky positions. I need to convert specific pixel locations in the image into celestial coordinates, but expressed using a different reference system than the one built into the file, and I also need to calculate how far away, in a specific cosmological distance measure, an object is given how much its light has been stretched by the universe's expansion.",
+   "expert": "Need WCS-based pixel-to-sky coordinate transformation (into a different reference frame) from a FITS header, plus luminosity-distance computation at a given redshift."
+  },
+  {
+   "id": "p122",
+   "skill": "simpy",
+   "synonym": "I want to build a discrete-event simulation modeling patients arriving at a clinic, waiting in line for a limited number of exam rooms, and being attended to by staff whose service durations are random, then compare average waiting times across different staffing levels using multiple simulation replications.",
+   "plain": "I want to build a computer simulation that models patients showing up at a clinic over time, waiting in a queue because there are only a limited number of exam rooms, and then being seen by staff whose time spent with each patient varies randomly. I want to try this simulation with a few different numbers of staff on duty and compare the average waiting times, running each staffing scenario multiple times to make sure the comparison is reliable.",
+   "expert": "Need a discrete-event simulation of clinic patient arrivals with resource-constrained (exam-room) queueing and stochastic service times, comparing mean wait times across staffing levels over multiple replications."
+  },
+  {
+   "id": "p123",
+   "skill": "fluidsim",
+   "synonym": "I'm setting up a turbulence simulation using a periodic pseudospectral numerical method, and I need help choosing the solver, checking my grid resolution, time step, and Courant number against my available compute budget, and validating a small-scale pilot run before scaling up to a multi-node job.",
+   "plain": "I'm setting up a fluid-turbulence simulation that uses a mathematical method based on repeating wave patterns across a periodic domain, and I need help picking the right numerical solving approach, and checking that my grid detail level, the size of my time steps, and a key stability number are all sensible given how much computing power I have available. I also want to run a tiny test version first and check that it behaves correctly before I scale the whole thing up to run across many computers at once.",
+   "expert": "Need solver selection and resolution/time-step/CFL validation against compute budget for a periodic pseudospectral turbulence simulation, plus a small-scale pilot run before multi-node scale-up."
+  },
+  {
+   "id": "p124",
+   "skill": "pacsomatic",
+   "synonym": "I have matched tumor and normal long-read sequencing alignment files with their accompanying index files, and I need to construct a compliant sample sheet, produce the necessary launch files, run a dry-run validation check, and then submit the job to our high-performance computing job-scheduling cluster.",
+   "plain": "I have paired cancer-tumor and normal-tissue sequencing files from a long-read sequencing technology, along with their matching index files. I need to put together a properly formatted sample list, generate the files needed to start the analysis job, run a test check to make sure everything's set up correctly without actually running it yet, and then send the real job off to run on our shared computing cluster.",
+   "expert": "Need to build a compliant samplesheet and launch artifacts from matched tumor-normal PacBio BAM/pbi files, run dry-run validation, then submit to our HPC job-scheduling cluster."
+  },
+  {
+   "id": "p125",
+   "skill": "omero-integration",
+   "synonym": "Our imaging facility operates an OMERO server, and I need a script that authenticates to it, retrieves region-of-interest annotations and metadata for a batch of microscopy images, and exports them to local storage.",
+   "plain": "Our imaging facility runs a shared server, called OMERO, that stores microscopy images, and I need a script that logs into it, pulls out the marked regions of interest and other descriptive information for a batch of images, and saves them onto my own computer.",
+   "expert": "Need a script to authenticate against our OMERO server and batch-export ROI annotations and metadata for a set of microscopy images locally."
+  },
+  {
+   "id": "p126",
+   "skill": "bulk-rnaseq",
+   "synonym": "I have raw paired-end sequencing reads from a bulk transcriptome experiment comparing a treated group against a control, and I want to go from quality control and read alignment all the way through to a list of differentially expressed genes and enriched biological pathways, within a single reproducible workflow.",
+   "plain": "I have raw paired sequencing read data from an experiment measuring overall gene activity in samples, comparing a treated group to an untreated control group. I want a single, reproducible, step-by-step process that starts with checking read quality and aligning the reads to the genome, and ends with a list of genes whose activity differs between groups, plus the biological pathways that are over-represented among those genes.",
+   "expert": "Need an end-to-end reproducible bulk RNA-seq pipeline: QC, alignment, differential expression, and pathway enrichment, for a treatment-vs-control paired-end design."
+  },
+  {
+   "id": "p127",
+   "skill": "depmap",
+   "synonym": "I want to determine whether a particular gene is selectively required for survival in cancer cell lines carrying KRAS mutations, using dependency scores from genome-wide CRISPR knockout screens, in order to assess it as a potential drug target.",
+   "plain": "I want to check whether a specific gene is especially important for the survival of cancer cells that carry a particular cancer-driving mutation, compared to cells without that mutation, using data from large-scale gene-editing screens that measure how much each cell line depends on each gene. The goal is to judge whether this gene could be a good target for a new drug.",
+   "expert": "Need to assess selective essentiality of a gene in KRAS-mutant lines using genome-wide CRISPR knockout dependency scores, for drug-target evaluation."
+  },
+  {
+   "id": "p128",
+   "skill": "paperzilla",
+   "synonym": "I want to check my project's literature-recommendation feed for new entries, open one to read the note explaining why it's relevant, and export the definitive version of the paper as a plain-text markup document so I can read it offline.",
+   "plain": "I want to check whether there's anything new in the feed that suggests research papers relevant to my project, open one of the suggestions to read the short note explaining why it was flagged as relevant, and then save the official version of that paper as a simple, readable text file, so I can read it later without an internet connection.",
+   "expert": "Need to check the project's paper-recommendation feed, review a relevance note, and export the canonical paper as markdown for offline reading."
+  },
+  {
+   "id": "p129",
+   "skill": "cobrapy",
+   "synonym": "I have a genome-scale metabolic model saved in the standard systems-biology model-exchange format, and I want to run flux-balance analysis together with a gene-knockout screen to identify which gene deletions are lethal or growth-limiting under a specified growth medium.",
+   "plain": "I have a computer model representing all the metabolic reactions encoded across an organism's whole genome, saved in the standard file format used for sharing these kinds of biological models. I want to simulate how nutrients flow through the network to predict growth rate, and then test, one gene at a time, which gene removals would kill the organism or severely limit its growth under a specific set of nutrient conditions.",
+   "expert": "Need FBA plus a systematic gene-knockout screen on an SBML genome-scale metabolic reconstruction, under a defined growth medium, to identify lethal/growth-limiting genes."
+  },
+  {
+   "id": "p130",
+   "skill": "arboreto",
+   "synonym": "I have a single-cell gene-expression matrix and want to infer which transcription factors control which target genes, using a scalable, tree-based ensemble method that can be distributed in parallel across multiple processor cores.",
+   "plain": "I have a table of gene-activity measurements from individual cells, and I want to figure out which master regulator genes are controlling which other genes, using a machine-learning approach based on many decision trees that can run in parallel to handle a large number of processing cores efficiently.",
+   "expert": "Need gene regulatory network inference (TF-to-target) from a single-cell expression matrix using a scalable, tree-ensemble-based method, parallelized across cores."
+  },
+  {
+   "id": "p131",
+   "skill": "bgpt-paper-search",
+   "synonym": "I'm conducting an evidence synthesis and need organized, study-by-study experimental details — methodology, sample sizes, and quality ratings — extracted from the full text of studies on a given topic, not merely their titles and abstracts.",
+   "plain": "I'm pulling together and summarizing evidence across many research studies on a topic, and for each individual study I need organized details about how the experiment was run, how many subjects were included, and how good the study quality was — and I need this pulled from the complete text of each paper, not just from the short summary or title.",
+   "expert": "Need structured, per-study data extraction (methods, sample size, quality score) from full-text articles for an evidence synthesis, not abstract-level only."
+  },
+  {
+   "id": "p132",
+   "skill": "timesfm-forecasting",
+   "synonym": "I have a single daily sales time series and want a fast, no-training forecast complete with well-calibrated prediction intervals, without having to train or fine-tune any custom model myself.",
+   "plain": "I have one simple series of daily sales numbers over time, and I want a quick prediction of future values, including a reliable range of uncertainty around each prediction, without having to build, train, or adjust any custom forecasting model myself.",
+   "expert": "Need a zero-shot univariate forecast with calibrated prediction intervals for a daily sales series, no custom model training/fine-tuning."
+  },
+  {
+   "id": "p133",
+   "skill": "biopython",
+   "synonym": "I have a directory of sequence files in the standard FASTA and GenBank formats that I need to parse programmatically, run through automated similarity searches against NCBI's sequence databases, and integrate into a custom batch-processing workflow.",
+   "plain": "I have a folder of gene and protein sequence files saved in two standard bioinformatics text formats, and I need to read them into code automatically, run automated searches comparing them against public sequence databases run by the US national biotechnology information center, and combine all of that into my own custom, repeatable batch-processing workflow.",
+   "expert": "Need programmatic parsing of FASTA/GenBank files, automated NCBI similarity searches, and integration into a custom batch pipeline."
+  },
+  {
+   "id": "p134",
+   "skill": "seaborn",
+   "synonym": "I have an in-memory tabular dataset from an experiment and want to rapidly assemble box plots, violin plots, and a correlation heatmap to explore differences between groups, before deciding what deserves refinement into a polished final figure.",
+   "plain": "I have a table of experimental results already loaded into my analysis environment, and I just want to quickly throw together some simple comparison charts — box-and-whisker plots, violin-shaped distribution plots, and a color-coded grid showing how strongly variables relate to each other — to explore differences between groups, before deciding which of these is worth turning into a polished, final figure.",
+   "expert": "Need quick exploratory box plots, violin plots, and a correlation heatmap from an in-memory tabular dataset, for group-difference exploration prior to final-figure polishing."
+  },
+  {
+   "id": "p135",
+   "skill": "pysam",
+   "synonym": "I need to open a sorted, indexed sequence-alignment file, retrieve all reads that overlap a particular genomic region, exclude secondary and supplementary alignments, and calculate per-base sequencing depth, including positions with zero coverage.",
+   "plain": "I need to open a sorted and indexed file of aligned sequencing reads, pull out every read that overlaps a specific stretch of the genome, remove any reads that are secondary or supplementary duplicate alignments, and then calculate how many reads cover each individual genomic position, making sure to include positions that have no coverage at all rather than skipping them.",
+   "expert": "Need to query a sorted/indexed BAM for reads overlapping a region, exclude secondary/supplementary alignments, and compute per-base depth including zero-coverage positions."
+  },
+  {
+   "id": "p136",
+   "skill": "alphagenome",
+   "synonym": "I have a list of noncoding single-nucleotide variants from a fine-mapped genome-wide association credible set, mapped to the standard human reference genome, and I want to rank which ones most likely disrupt regulatory function — enhancers, promoters, splicing, or chromatin accessibility — using precomputed genome-wide effect scores and their underlying feature-level contributions.",
+   "plain": "I have a shortlist of single-letter genetic variants, sitting outside of protein-coding regions, that came from narrowing down a genome-wide association study to its most likely causal candidates, all positioned according to the standard human genome map. I want to figure out which of these variants are most likely to disrupt gene-control activity — things like on-switches, promoters, splicing signals, or how open or closed the DNA packaging is — using scores that were already computed genome-wide to measure this kind of effect, along with a breakdown of which underlying features drove each score.",
+   "expert": "Need to prioritize noncoding SNVs from a fine-mapped GWAS credible set (GRCh-build coordinates) for regulatory disruption (enhancer/promoter/splicing/chromatin accessibility) using precomputed genome-wide variant-effect scores and their feature attributions."
+  },
+  {
+   "id": "p137",
+   "skill": "phylogenetics",
+   "synonym": "I have unaligned, evolutionarily related protein sequences from multiple species, and I want to align them, construct a maximum-likelihood phylogenetic tree with automated model selection, and then visualize and annotate the resulting tree.",
+   "plain": "I have protein sequences from several different species that are related by common ancestry but haven't yet been lined up against each other. I want to line them up, then build a best-fit evolutionary tree using a statistical approach that also automatically picks the most suitable underlying model, and finally draw and label that tree nicely.",
+   "expert": "Need multiple sequence alignment of homologous proteins across species, ML tree inference with model selection, and tree visualization/annotation."
+  },
+  {
+   "id": "p138",
+   "skill": "neuropixels-analysis",
+   "synonym": "I have raw wideband recordings from a high-density silicon electrode probe that I need to preprocess, correct for probe drift over the recording, run through spike-sorting to identify individual neurons, and then compute quality metrics to curate the resulting units.",
+   "plain": "I have raw electrical recordings taken from a densely packed silicon recording probe with many closely spaced electrode contacts, and I need to clean up the signal, correct for the probe having physically shifted position slightly during recording, separate the recorded signals into activity from individual neurons, and then calculate quality scores to decide which of those identified neurons are trustworthy enough to keep.",
+   "expert": "Need preprocessing and drift correction for raw high-density silicon-probe recordings, spike sorting, and unit quality-metric computation for curation."
+  },
+  {
+   "id": "p139",
+   "skill": "polars-bio",
+   "synonym": "I need to compute overlap and nearest-feature operations between two large genomic interval files in the standard BED format, and separately read per-position coverage depth directly from a sequence-alignment file, all without loading the full files into memory, ideally streaming directly from cloud object storage.",
+   "plain": "I need to figure out where the regions in two large genome-location files overlap and which is the closest feature to each region, and separately read, position by position, how much sequencing coverage there is directly from an alignment file — all without loading the entire files into memory at once, and ideally reading straight from cloud-based storage rather than downloading first.",
+   "expert": "Need overlap/nearest-feature operations between two large BED files and streaming per-position depth extraction from a BAM, without full in-memory loading, ideally reading directly from cloud object storage."
+  },
+  {
+   "id": "p140",
+   "skill": "exa-search",
+   "synonym": "I need to search the internet for recent technical write-ups on a particular method, and also retrieve and extract the full text from several specific article web addresses and academic PDF documents, all in a single batch.",
+   "plain": "I need to search online for recent, detailed explanations of a specific technical method, and also go fetch and pull out the complete text from a handful of specific web pages and academic paper documents I already have links to, all in one combined batch.",
+   "expert": "Need a web search for recent technical writeups on a method, plus batch full-text extraction from a set of specific article URLs and academic PDFs."
+  },
+  {
+   "id": "p141",
+   "skill": "histolab",
+   "synonym": "I have a small number of hematoxylin-and-eosin whole-slide images and just need a simple way to detect tissue areas, extract patches, and normalize the staining to build a quick deep-learning dataset — nothing as involved as multiplexed spatial protein analysis.",
+   "plain": "I have a few full-slide microscope images stained with the standard two-color pathology stain, and I just need an easy way to figure out where the actual tissue is on the slide, cut it into smaller square pieces, and adjust the color staining so it's consistent across images, in order to quickly build a dataset for a deep-learning model. I don't need anything as heavy-duty as a full multi-marker spatial protein-mapping analysis.",
+   "expert": "Need lightweight H&E WSI tissue detection, tiling, and stain normalization for a deep-learning dataset — no multiplexed spatial-proteomics workflow needed."
+  },
+  {
+   "id": "p142",
+   "skill": "zarr-python",
+   "synonym": "I need to store a very large multi-dimensional array so that I can read and write chunks of it in parallel, ideally directly to cloud object storage, while remaining smoothly compatible with downstream numerical array and labeled-array analysis tools.",
+   "plain": "I need to store a huge grid of numbers with many dimensions, in a way that lets different parts of it be read and written at the same time by multiple processes, ideally saved directly to cloud-based storage. It also needs to work well afterward with the standard numerical and labeled-array analysis tools I already use.",
+   "expert": "Need chunked, parallel-read/write storage for a large multi-dimensional array, ideally direct to cloud object storage, interoperable with standard array/labeled-array analysis tools."
+  },
+  {
+   "id": "p143",
+   "skill": "pyhealth",
+   "synonym": "I want to construct a clinical deep-learning pipeline that predicts in-hospital mortality from ICU electronic health record data structured like the MIMIC-III database, covering everything from the raw patient dataset through task definition, model training, and evaluation metrics.",
+   "plain": "I want to build a deep-learning pipeline for predicting whether intensive-care patients will die during their hospital stay, using electronic medical-record data structured like a well-known public intensive-care patient database. I want this to cover the whole process — starting from the raw patient records, through defining exactly what's being predicted, training the model, and measuring how well it performs.",
+   "expert": "Need an end-to-end clinical DL pipeline for in-hospital mortality prediction on MIMIC-III-structured ICU EHR data: task definition, model training, and evaluation."
+  },
+  {
+   "id": "p144",
+   "skill": "etetoolkit",
+   "synonym": "I have several already-built gene trees saved in the standard Newick tree-text format, and I want to compare their topologies using Robinson-Foulds distances, reconcile them against a species tree to identify gene duplication and loss events, and render a publication-quality figure of the results.",
+   "plain": "I have several evolutionary trees for individual genes, already built and saved in a common plain-text tree format, and I want to compare how similar their branching patterns are using a standard tree-difference measure, then compare them against an overall species tree to find out where genes were duplicated or lost during evolution, and finally produce a nicely formatted figure showing the result.",
+   "expert": "Need Robinson-Foulds topology comparison across Newick-format gene trees, gene-tree/species-tree reconciliation to identify duplication/loss events, and a publication-quality tree figure."
+  },
+  {
+   "id": "p145",
+   "skill": "peer-review",
+   "synonym": "An editor has asked me to peer-review a submitted paper, and I need help organizing a rigorous, evidence-based evaluation covering its methodology, statistical approach, and reproducibility, while keeping the unpublished material strictly confidential.",
+   "plain": "A journal editor has asked me to critically review a paper that hasn't been published yet, and I need help putting together a careful, well-supported evaluation that looks closely at how the study was conducted, how the statistics were done, and whether the results could be reproduced by someone else — all while making sure the unpublished content stays completely confidential and isn't shared anywhere.",
+   "expert": "Need to structure a rigorous peer-review assessment (methods, statistics, reproducibility) for a submitted manuscript, maintaining strict confidentiality of unpublished content."
+  },
+  {
+   "id": "p146",
+   "skill": "pytorch-lightning",
+   "synonym": "I have a neural-network training loop weighed down with repetitive code for checkpointing, logging, and multi-GPU coordination, and I want to restructure it into a clean, modular trainer design that scales cleanly to distributed training, whether using data-parallel replication or sharded-parameter strategies.",
+   "plain": "I have code that trains a deep-learning model, but it's cluttered with a lot of repeated setup code for saving progress, recording logs, and coordinating across multiple graphics cards. I want to reorganize this into a clean, well-structured design — separating the model logic from the training-management logic — in a way that scales smoothly to running across many machines, using either a strategy that copies the model to each device or one that splits the model's parameters across devices.",
+   "expert": "Need to refactor a training loop (checkpointing/logging/multi-GPU boilerplate) into a modular trainer design that scales cleanly to distributed data-parallel or parameter-sharded training."
+  },
+  {
+   "id": "p147",
+   "skill": "statsmodels",
+   "synonym": "I need to fit a generalized linear model and produce complete coefficient tables, standard errors, and diagnostic tests for non-constant error variance and serial correlation — the level of detailed statistical output required for a rigorous econometrics write-up.",
+   "plain": "I need to fit a standard regression-style statistical model and get a complete table of the estimated effect sizes with their uncertainty measures, plus formal checks for whether the error variability changes across observations and whether errors are correlated over time — the kind of thorough, detailed statistical reporting that a serious economics-style write-up would require.",
+   "expert": "Need a fitted GLM with full coefficient/SE tables and heteroskedasticity/autocorrelation diagnostic tests, at econometrics-reporting rigor."
+  },
+  {
+   "id": "p148",
+   "skill": "latchbio-integration",
+   "synonym": "I want to package my bioinformatics pipeline as a workflow on the Latch platform, set the GPU and memory allocations for each individual task, launch it through their programmatic interface, and push the resulting run metadata into their structured data-tracking system.",
+   "plain": "I want to take my bioinformatics processing pipeline and package it up as a workflow that runs on the Latch platform, set how much graphics-processing power and memory each step of the pipeline should get, start the whole thing running through Latch's programmatic interface, and then send information about the completed run into Latch's structured record-keeping system.",
+   "expert": "Need to package a bioinformatics pipeline as a Latch workflow with per-task GPU/memory configuration, launch programmatically, and push run metadata to Latch's structured registry."
+  },
+  {
+   "id": "p149",
+   "skill": "scikit-bio",
+   "synonym": "I have 16S ribosomal RNA amplicon sequences and a sample-by-organism abundance table from several soil locations, and I want to calculate within-sample and between-sample diversity measures, run a permutational multivariate analysis of variance on the community differences across sites, and construct an ordination plot from the results.",
+   "plain": "I have gene-sequence data targeting a standard marker used to identify different microbes, along with a table showing how much of each type of organism is present in soil samples from several sites. I want to calculate how diverse each individual sample is, and how different the samples are from one another, run a statistical test for whether the microbial communities genuinely differ between sites, and produce a visual map that lays out how similar or different the samples are from each other.",
+   "expert": "Need alpha/beta diversity metrics from 16S amplicon abundance tables across soil sites, a PERMANOVA on between-site community differences, and an ordination plot."
+  },
+  {
+   "id": "p150",
+   "skill": "venue-templates",
+   "synonym": "I'm preparing my manuscript for submission to a particular journal, and I need to confirm their actual current page limits, required sections, and official typesetting template files, instead of guessing based on an outdated template I found online, plus obtain a starting scaffold I can build my manuscript from.",
+   "plain": "I'm getting my paper ready to submit to a specific journal, and I need to check what that journal's current rules actually are — how many pages are allowed, which sections are required, and what formatting template files they want — rather than just guessing based on some old template I found somewhere online. I also want a basic starting document structure I can build my manuscript from.",
+   "expert": "Need to confirm a target journal's current page limits, required sections, and formatting template files (not an outdated template), plus an initial manuscript scaffold."
+  },
+  {
+   "id": "p151",
+   "skill": "modal",
+   "synonym": "I've trained a model locally and want to deploy it as a scalable web-accessible API, where GPU-backed containers spin up automatically on demand, without me having to manage my own container-orchestration cluster or write container build definitions.",
+   "plain": "I've already trained a model on my own machine, and I want to make it available online as a scalable web service that other programs can call, where computing resources with graphics processing automatically start up when needed and shut down when not, without me having to set up or manage my own cluster-management system or write low-level container build instructions myself.",
+   "expert": "Need to deploy a locally trained model as a scalable, on-demand GPU-backed web API endpoint, with no self-managed orchestration cluster or container build authoring required."
+  },
+  {
+   "id": "p152",
+   "skill": "glycoengineering",
+   "synonym": "I have the Fc region sequence of an antibody and want to scan it for N-linked glycosylation sequons and pinpoint likely O-linked glycosylation hotspots, since we're modifying the glycosylation pattern to enhance antibody-dependent cellular cytotoxicity while reducing immunogenicity.",
+   "plain": "I have the sequence of the tail-end constant region of an antibody, and I want to scan it for the specific short sequence patterns that mark where sugar chains attach to a particular type of amino acid, and also identify likely spots where a different type of sugar attachment might occur. We're changing this sugar-decoration pattern to make the antibody better at triggering immune cells to kill target cells, while also making it less likely to trigger an unwanted immune reaction against the antibody itself.",
+   "expert": "Need N-linked glycosylation sequon scanning and O-glycosylation hotspot prediction on an antibody Fc sequence, to guide glycoengineering for improved ADCC and reduced immunogenicity."
+  },
+  {
+   "id": "p153",
+   "skill": "hugging-science",
+   "synonym": "I'm working on a machine-learning project involving protein sequence-based language models, and I want to find well-curated datasets, pretrained models, and interactive demos on a major public machine-learning model-sharing hub that are specifically relevant to biology, rather than doing broad, generic searching.",
+   "plain": "I'm working on a machine-learning project that uses language-style models trained on protein sequences, and I want to find good-quality, well-organized datasets, already-trained models, and interactive demo tools hosted on a big public online hub where people share machine-learning resources — specifically the ones relevant to biology, rather than just doing a broad general search.",
+   "expert": "Need curated, biology-specific datasets, pretrained models, and demos on a major public ML model hub for a protein-language-model project, rather than generic hub-wide search."
+  },
+  {
+   "id": "p154",
+   "skill": "clinical-reports",
+   "synonym": "I need to draft a CONSORT-compliant results-report template for our randomized trial's synthetic dataset, organized around the required reporting checklist items, ready for our statistician and clinical lead to review and finalize.",
+   "plain": "I need to put together a draft results report for our randomized trial's practice dataset, organized around the standard set of items that reporting guidelines require trials to cover, so it's ready for our statistician and clinical lead to check over and finish.",
+   "expert": "Need a CONSORT-compliant results-report scaffold for the trial's synthetic dataset, structured by required checklist items, for statistician/clinical-lead review and finalization."
+  },
+  {
+   "id": "p155",
+   "skill": "networkx",
+   "synonym": "I have a set of nodes and connections representing protein-protein interactions, and I want to calculate centrality measures, identify communities within the network, and find the shortest path between two particular proteins.",
+   "plain": "I have a list of proteins and the interactions between them, treated as a network of connected points. I want to calculate which proteins are most central or influential in this network, find groups of proteins that cluster tightly together, and determine the shortest connecting path between two specific proteins.",
+   "expert": "Need centrality computation, community detection, and shortest-path analysis on a protein-protein interaction network."
+  },
+  {
+   "id": "p156",
+   "skill": "scientific-visualization",
+   "synonym": "I need to design and review a multi-panel figure for my manuscript, making sure the colors are distinguishable for colorblind readers, the error bars are clearly and honestly labeled, and the axes don't visually exaggerate the effect, before submitting it to the journal.",
+   "plain": "I need to design and carefully check a figure made of several panels for my paper before I submit it to a journal, making sure the colors chosen can still be told apart by readers with color blindness, the bars showing uncertainty or error are clearly and honestly labeled so no one is misled, and the axis scales don't make the effect look bigger than it really is.",
+   "expert": "Need to design and audit a multi-panel manuscript figure for colorblind-accessible palette choice, honest uncertainty-bar labeling, and non-exaggerating axis scaling, prior to journal submission."
+  },
+  {
+   "id": "p157",
+   "skill": "citation-management",
+   "synonym": "I'm assembling the reference list for my manuscript and need to search for a set of papers, cross-check their author, journal, and publication-year details against the original sources, and produce accurate, duplicate-free entries in a standard structured bibliography format.",
+   "plain": "I'm putting together the list of references for my paper, and I need to search for a specific set of papers, double-check that the author names, journal, and publication year are all correct by comparing against the original sources, and then produce a clean, accurate set of reference entries, with no duplicates, in a standard structured format that citation-management tools can read.",
+   "expert": "Need literature search with source-verified author/journal/year metadata, producing accurate, deduplicated entries in a standard structured bibliography format."
+  },
+  {
+   "id": "p158",
+   "skill": "onekgpd",
+   "synonym": "For a gene I'm interested in, I want to identify which individuals in the 1000 Genomes Project cohort carry homozygous missense variants in that gene, along with their gnomAD population allele frequencies and AlphaMissense pathogenicity scores.",
+   "plain": "For a specific gene, I want to find which people, in a well-known public reference cohort of sequenced genomes, carry two copies of a protein-changing variant in that gene, along with how common each variant is across a large population-frequency database, and a computationally predicted score for how likely each variant is to be harmful.",
+   "expert": "Need to identify 1000 Genomes Project individuals homozygous for missense variants in a gene of interest, with gnomAD allele frequencies and AlphaMissense pathogenicity scores."
+  },
+  {
+   "id": "p159",
+   "skill": "pennylane",
+   "synonym": "I want to build a parameterized quantum circuit and optimize its parameters with gradient-descent methods to solve a small eigenvalue problem, using automatic differentiation so I can later switch freely between a simulator and different physical hardware backends.",
+   "plain": "I want to build a quantum computing circuit whose settings can be adjusted, and train those settings using a step-by-step optimization method to solve a small problem involving finding a system's characteristic energy values. I want the training to use automatic calculus tools that compute how to adjust the settings, so that later I can freely switch between running this on a simulated quantum computer and running it on different actual quantum hardware.",
+   "expert": "Need a variational quantum circuit trained via gradient descent (with autodiff) to solve a small eigenvalue problem, portable across simulator and hardware backends."
+  },
+  {
+   "id": "p160",
+   "skill": "nextflow",
+   "synonym": "I'm writing a custom workflow-language module with its own task and data-flow logic, and I need help setting up tests using a dedicated pipeline-testing framework and configuring it to run correctly on our high-performance computing job-scheduling cluster.",
+   "plain": "I'm writing a custom module in a workflow-description language, with its own logic for defining processing steps and how data flows between them, and I need help setting up automated tests for it using a testing tool built for this kind of pipeline, and configuring it so it runs correctly on our shared computing cluster that schedules jobs.",
+   "expert": "Need to set up pipeline-level tests for a custom workflow-language module (with its own process/channel logic) using a dedicated testing framework, configured for our HPC job-scheduling cluster."
+  },
+  {
+   "id": "p161",
+   "skill": "transformers",
+   "synonym": "I want to fetch a pretrained language model, run it through a text-classification workflow on my own dataset, and then fine-tune it using a standard training loop with customized training settings.",
+   "plain": "I want to download an already-trained language-understanding model, use it to sort my own collection of text into categories, and then further train it on my data using a standard step-by-step training process, with my own custom settings for how that training runs.",
+   "expert": "Need to download a pretrained LM, run zero-shot text classification on a custom dataset, then fine-tune via a standard training loop with custom training arguments."
+  },
+  {
+   "id": "p162",
+   "skill": "opentrons-integration",
+   "synonym": "I need to write and locally simulate a liquid-handling protocol for our Opentrons Flex robot, including runtime parameters and control of a temperature module, before it ever runs on the actual physical deck.",
+   "plain": "I need to write a set of instructions for our Opentrons Flex liquid-handling robot that tells it how to move and mix liquids, including adjustable settings chosen at run time and control over a temperature-controlling attachment, and I want to test the whole thing in a local simulation first, before it actually touches the real equipment.",
+   "expert": "Need to author and locally simulate an Opentrons Flex liquid-handling protocol, including runtime parameters and temperature-module control, prior to physical deck execution."
+  }
+ ]
+}
