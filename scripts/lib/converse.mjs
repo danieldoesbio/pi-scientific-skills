@@ -17,7 +17,11 @@
 // 2026-09-25): the target reached the model as above. `read`: the model read
 // the target's SKILL.md (pi-session.mjs `skillReads`) — the only fair endpoint
 // when every skill is already listed in the system prompt. Under `read` the
-// listing is still recorded (`listed`, `listedSeconds`).
+// listing is still recorded (`listed`, `listedSeconds`). `first-find`: the
+// attempt stops at the model's first sci_find call and ends as `searched`; its
+// query is the result (`queries[0]`), ranked offline later. Nothing reaches
+// the target under this endpoint, so the grade is always "fail"; the search
+// rate is the share of attempts that end as `searched`.
 //
 // The timeout gate (`ctx.gateCalls`, off when 0): an attempt whose first N tool
 // calls, counted across its responses, hold no skill-seeking call ends as
@@ -78,7 +82,7 @@ function personaFlags(reply, seenText, catalogue) {
  * @param {{next: Function}} ctx.persona
  * @param {Set<string>} ctx.catalogue  Every installed skill name.
  * @param {{attempts: number, responses: number}} ctx.limits
- * @param {"listed" | "read"} [ctx.endpoint]  Default "listed".
+ * @param {"listed" | "read" | "first-find"} [ctx.endpoint]  Default "listed".
  * @param {number} [ctx.gateCalls]  Timeout gate; 0 or absent = off.
  * @param {(line: string) => void} ctx.log
  */
@@ -140,12 +144,13 @@ async function runAttempt(probe, run, ctx) {
   const endpoint = ctx.endpoint ?? "listed";
   const gateCalls = ctx.gateCalls ?? 0;
   const endpointHits = (list) =>
-    endpoint === "read" ? skillReads(list, probe.want) : reaches(list, probe.want, ctx.catalogue);
+    endpoint === "first-find" ? [] : endpoint === "read" ? skillReads(list, probe.want) : reaches(list, probe.want, ctx.catalogue);
+  const searched = (list) => endpoint === "first-find" && allCalls(list).some((call) => call.tool === "sci_find");
   const current = () => responses(readMessages(run.sessionFile));
   // The same tests the grade uses, so a stop never disagrees with it.
   const stopWhen = () => {
     const list = current();
-    return endpointHits(list).some((entry) => entry.skill === probe.target) || gateTripped(list, gateCalls);
+    return searched(list) || endpointHits(list).some((entry) => entry.skill === probe.target) || gateTripped(list, gateCalls);
   };
   const summary = () => {
     const finds = turns.flatMap((turn, index) =>
@@ -194,6 +199,10 @@ async function runAttempt(probe, run, ctx) {
     found = endpointHits(turns);
     if (!turn.answered && !turn.timedOut) {
       return { fatal: "no-run", detail: turn.detail, attempt: summary() };
+    }
+    if (searched(turns)) {
+      endedBy = "searched";
+      break;
     }
     if (found.some((entry) => entry.skill === probe.target)) {
       endedBy = "reached";

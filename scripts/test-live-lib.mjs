@@ -170,6 +170,15 @@ console.log("-- attempts end by the right rule --");
     { endpoint: "read", gateCalls: 10 },
   );
   check("a response that ends on an overflow ends the attempt as overflow", overflow.endedBy === "overflow");
+  const first = await attempt([[...step([["bash", { command: "ls" }]], [["a"]]), ...listing, ...reading]], { endpoint: "first-find", gateCalls: 10 });
+  check(
+    "first-find: the first sci_find ends the attempt as searched, with its query, and reaches nothing",
+    first.endedBy === "searched" && first.queries[0] === "dataframe" && !first.target && first.firstSeekCall === 1,
+  );
+  const late = await attempt([[assistant([])], listing], { endpoint: "first-find", gateCalls: 10 });
+  check("first-find: a search after a persona reply is recorded in response 2", late.endedBy === "searched" && late.firstFindResponse === 2);
+  const never = await attempt([plain], { endpoint: "first-find", gateCalls: 10 });
+  check("first-find: no search before the gate ends as gated", never.endedBy === "gated" && never.sciFindCalls === 0);
   const dead = await runSupervisedProbe(probe, {
     startAttempt: () => {
       const file = join(dir, `s${++ids}.jsonl`);

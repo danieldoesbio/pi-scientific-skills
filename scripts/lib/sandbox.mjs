@@ -36,9 +36,8 @@ export function sandboxAvailable() {
  * Any other provider is a cloud API whose addresses SBPL cannot name, so the
  * network stays open and only the filesystem is fenced.
  */
-export function networkFor(model, agentDir) {
+export function networkFor(model, agentDir, file = join(agentDir, "models.json")) {
   const provider = model.split("/")[0];
-  const file = join(agentDir, "models.json");
   if (!existsSync(file)) return { kind: "open" };
   const baseUrl = JSON.parse(readFileSync(file, "utf8")).providers?.[provider]?.baseUrl;
   if (!baseUrl) return { kind: "open" };

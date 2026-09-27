@@ -57,10 +57,17 @@
 //                      this script lives in (e.g. an older release, checked
 //                      out with `git archive`).
 //   --package-label <text>  Recorded on every result line as `package`.
-//   --endpoint <listed|read>  What counts as reaching the target. listed
-//                      (default): a sci_find result, bash output or file read
-//                      puts it in front of the model. read: the model read the
-//                      target's SKILL.md. The response stops at the endpoint.
+//   --endpoint <listed|read|first-find>  What counts as reaching the target.
+//                      listed (default): a sci_find result, bash output or file
+//                      read puts it in front of the model. read: the model read
+//                      the target's SKILL.md. The response stops at the
+//                      endpoint. first-find: no target; the attempt stops at
+//                      the first sci_find call and records its query (ends as
+//                      `searched`). Needs --attempts 1 and the extension.
+//   --find-ranker <current|bm25f>  PI_SCI_FIND_RANKER for pi. Default current.
+//   --models-json <file>  Seed the throwaway agent dir with this models.json
+//                      instead of the real one (e.g. a provider on another
+//                      port). The real agent dir is never written.
 //   --gate-calls <n>   End an attempt as `gated` (a miss) once its first n tool
 //                      calls hold no skill-seeking call (scripts/lib/pi-session.mjs
 //                      `gateTripped`). Default 0: off.
@@ -167,6 +174,8 @@ function parseArgs(argv) {
     packageLabel: null,
     endpoint: "listed",
     gateCalls: 0,
+    findRanker: "current",
+    modelsJson: null,
     warmup: false,
     archiveTo: null,
     supervisorModel: "claude-opus-5-5",
@@ -195,6 +204,8 @@ function parseArgs(argv) {
     else if (arg === "--package-label") opts.packageLabel = next();
     else if (arg === "--endpoint") opts.endpoint = next();
     else if (arg === "--gate-calls") opts.gateCalls = Number(next());
+    else if (arg === "--find-ranker") opts.findRanker = next();
+    else if (arg === "--models-json") opts.modelsJson = resolve(next());
     else if (arg === "--warmup") opts.warmup = true;
     else if (arg === "--archive-to") opts.archiveTo = resolve(next());
     else die(`unknown option ${arg}`);
@@ -204,7 +215,12 @@ function parseArgs(argv) {
     if (!Number.isInteger(opts[key]) || opts[key] < 1) die(`--${key} must be a positive integer`);
   }
   if (!["core", "none", "all"].includes(opts.promptSkills)) die("--prompt-skills must be none, core or all");
-  if (!["listed", "read"].includes(opts.endpoint)) die("--endpoint must be listed or read");
+  if (!["listed", "read", "first-find"].includes(opts.endpoint)) die("--endpoint must be listed, read or first-find");
+  if (opts.endpoint === "first-find" && (opts.attempts !== 1 || !opts.extension)) {
+    die("--endpoint first-find needs --attempts 1 and the extension (it records the first sci_find query)");
+  }
+  if (!["current", "bm25f"].includes(opts.findRanker)) die("--find-ranker must be current or bm25f");
+  if (opts.modelsJson && !existsSync(opts.modelsJson)) die(`no models.json at ${opts.modelsJson}`);
   if (!Number.isInteger(opts.gateCalls) || opts.gateCalls < 0) die("--gate-calls must be a non-negative integer");
   if (opts.packageDir && !existsSync(join(opts.packageDir, "package.json"))) die(`no package.json in ${opts.packageDir}`);
   if (opts.promptSkills === "all" && opts.endpoint === "listed") {
@@ -330,7 +346,7 @@ function stageTarball(scratch, source) {
  * run writes there — pi's own state, or a model editing settings.json — reaches
  * the next one. The seed itself is outside every sandbox.
  */
-function seedAgentDir(scratch, packageDir, promptSkills, { credentials, extension }) {
+function seedAgentDir(scratch, packageDir, promptSkills, { credentials, extension, modelsJson }) {
   const agentDir = join(scratch, "agent-seed");
   mkdirSync(agentDir, { recursive: true });
   const entry = {
@@ -346,7 +362,7 @@ function seedAgentDir(scratch, packageDir, promptSkills, { credentials, extensio
   }
   const names = credentials ? ["auth.json", "models-store.json", "models.json"] : ["models.json"];
   for (const name of names) {
-    const from = join(realAgentDir, name);
+    const from = name === "models.json" && modelsJson ? modelsJson : join(realAgentDir, name);
     if (!existsSync(from)) continue;
     const to = join(agentDir, name);
     copyFileSync(from, to);
@@ -451,7 +467,7 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), "sci-find-live-")));
 const outDir = join(scratch, "transcripts");
 mkdirSync(outDir, { recursive: true });
 
-const network = networkFor(opts.model, realAgentDir);
+const network = networkFor(opts.model, realAgentDir, opts.modelsJson ?? undefined);
 console.log(`model: ${opts.model} | thinking: ${opts.thinking ?? "default"}`);
 console.log(
   opts.sandbox
@@ -464,6 +480,7 @@ const promptSkills = { core: [...core.skills], none: [], all: null }[opts.prompt
 const seedDir = seedAgentDir(scratch, packageDir, promptSkills, {
   credentials: network.kind !== "loopback",
   extension: opts.extension,
+  modelsJson: opts.modelsJson,
 });
 const listing =
   promptSkills === null
@@ -472,7 +489,7 @@ const listing =
       ? `Core only — ${promptSkills.length} skills in the prompt`
       : "no skills in the prompt";
 console.log(
-  `package: ${opts.packageLabel ?? "this tree"} | endpoint: ${opts.endpoint} | gate: ${opts.gateCalls || "off"}\n` +
+  `package: ${opts.packageLabel ?? "this tree"} | endpoint: ${opts.endpoint} | gate: ${opts.gateCalls || "off"} | ranker: ${opts.findRanker}\n` +
     `agent dir seed: ${seedDir} (${listing}; ${opts.extension ? "extension loaded, sci_find available" : "extension NOT loaded, no sci_find"})\n`,
 );
 const skillsDir = join(packageDir, "skills");
@@ -586,7 +603,7 @@ function runPi(run, args, transcript, timeoutMs, stopWhen) {
       cwd: run.work,
       stdio: ["ignore", "pipe", "pipe"],
       detached: true,
-      env: { ...piEnv, HOME: run.home, TMPDIR: run.tmp, PI_CODING_AGENT_DIR: run.agent },
+      env: { ...piEnv, HOME: run.home, TMPDIR: run.tmp, PI_CODING_AGENT_DIR: run.agent, PI_SCI_FIND_RANKER: opts.findRanker },
     });
     currentChild = child;
     const out = createWriteStream(transcript);
@@ -676,6 +693,7 @@ const baseRecord = (probe) => ({
   package: opts.packageLabel,
   endpoint: opts.endpoint,
   gateCalls: opts.gateCalls,
+  findRanker: opts.findRanker,
   sandbox: opts.sandbox,
   date: new Date().toISOString().slice(0, 10),
 });
@@ -785,6 +803,7 @@ async function runSupervised() {
             (line.promptSkills ?? "core") === opts.promptSkills &&
             (line.extension ?? true) === opts.extension &&
             (line.endpoint ?? "listed") === opts.endpoint &&
+            (line.findRanker ?? "current") === opts.findRanker &&
             ranCurrentTask(line, taskOf),
         )
     : records;
