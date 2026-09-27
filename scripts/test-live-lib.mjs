@@ -16,6 +16,7 @@ import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/ser
 import { Z95, analysisSet, clusterBootstrapDiff, mcnemarExact, newcombePaired, pairCounts, seededRandom, wilson } from "./lib/arms-report.mjs";
 import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, replayValidity, textOf, truncateAndReplace, verdictOf } from "./lib/replay.mjs";
 import { pooledReport } from "./find-live-replay-pooled.mjs";
+import { category, panelReport } from "./find-panel-report.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -366,6 +367,25 @@ console.log("-- choice-turn replay (find-live-replay) --");
   check("pooled report: no comparison when either sample is not faithful", /not faithful: no comparison/i.test(pooledReport([faithful, broken])) && !/Pooled:/.test(pooledReport([faithful, broken])));
   check("pooled report: 158 probes with no discordant pair are non-inferior by both intervals", /Newcombe method 10: .*non-inferior/.test(pooledReport([faithful, faithful])) && /margin -5.0: non-inferior\n/.test(pooledReport([faithful, faithful])));
   check("pooled report: when the intervals disagree (20 probes: Newcombe wide, bootstrap [0, 0]) the verdict is inconclusive", /margin -5.0: inconclusive \(the two intervals disagree\)/.test(pooledReport([small, small])));
+
+  const found = (id, calls, extra = {}) => ({ id, target: "t", task: "raw", outcome: "graded", attempts: [{ endedBy: "searched", firstFind: { message: 0, calls }, ...extra }] });
+  const q = (query) => ({ query, profile: null, limit: null });
+  check(
+    "panel category: a profile-only first call with a later query is searched; gated, sought and harness errors apart",
+    category(found("a", [{ query: null, profile: "core" }, q("x")])) === "searched" &&
+      category(found("a", [{ query: null, profile: "core" }])) === "searched, no query" &&
+      category({ outcome: "graded", attempts: [{ endedBy: "gated", firstSeekCall: null }] }) === "gated" &&
+      category({ outcome: "graded", attempts: [{ endedBy: "max-responses", firstSeekCall: 2 }] }) === "sought without sci_find" &&
+      category({ outcome: "no-run", attempts: [] }) === "harness-error",
+  );
+  const rank = (query, ranker) => (query === "both" || (query === "bm" && ranker === "bm25f") ? ["t"] : ["other"]);
+  const attempts = [found("a", [q("bm")]), found("b", [q("both")]), found("c", [q("miss"), q("both")])].map((line) => ({ writer: "w", style: "plain", line, category: category(line) }));
+  const panel = panelReport(attempts, rank);
+  check(
+    "panel report: the first query is primary, the union secondary; a plain-style gain of 3 points or more keeps 4b",
+    /w +plain +current 1\/3 .*bm25f 2\/3 .*discordant 1:0/.test(panel) && /w +current 2\/3 .*bm25f 3\/3/.test(panel.split("Secondary")[1]) && /4b stays in the plan/.test(panel),
+    panel,
+  );
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

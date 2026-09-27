@@ -223,6 +223,8 @@ scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
 scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
 scripts/find-rank-bench.mjs  # offline top-k rates of the sci_find rankers on the fixed query sets
 scripts/find-probes-styled.mjs # a probe file whose tasks are one paraphrase style
+scripts/find-panel.sh        # first sci_find queries of one query writer, per style, frozen sources
+scripts/find-panel-report.mjs # the writer panel's search rate and top-8 rates, current vs bm25f
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
@@ -813,6 +815,22 @@ Options for comparing configurations (added for the 2026-09-25 three-arm run,
   dir is not written.
 - `scripts/find-probes-styled.mjs <synonym|plain|expert>` writes a probe file
   whose tasks are one paraphrase style from `testing/find-rank/`.
+- The harness refuses a probe whose task names its own skill (the name, or
+  the name with its hyphens as spaces or removed). It matches whole words
+  only, so "Shapley" in the expert paraphrase for `shap` passes.
+
+`scripts/find-panel.sh --out <dir> --writer <label> --model <id>` runs one
+query writer over one or more styles (`--styles plain,synonym,expert`, or
+`original`) with `--endpoint first-find --attempts 1`. It `git archive`s
+`--ref` into `<dir>/src/` at the first start and runs from there; running it
+again with the same `--out` continues (`--resume`). A local writer needs
+`--health-url`, checked before each style. Each invocation archives into its
+own time-stamped folder. `scripts/find-panel-report.mjs <dir>...` reads
+`results-<writer>-<style>.jsonl`: the search rate by outcome, then the target
+in the top 8 for the first query of the first `sci_find` message, paired
+bm25f − current (Newcombe method 10, McNemar exact) per writer and style,
+pooled per writer and over all writers. The union of that message's queries
+and the raw request text are secondary rows.
 
 Every attempt now also records the first request's prompt size (pi usage:
 input + cacheRead + cacheWrite), peak context, output tokens, tool calls, the

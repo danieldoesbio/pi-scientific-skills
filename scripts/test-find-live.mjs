@@ -249,10 +249,11 @@ function loadProbes(file, coreSkills) {
     for (const name of [entry.skill, ...(entry.accept ?? [])]) {
       if (!existsSync(join(skillsDir, name, "SKILL.md"))) die(`${file}: no skill named "${name}"`);
     }
-    // A task that names its own skill tests string matching, not search.
+    // A task that names its own skill tests string matching, not search. Whole
+    // words only: "Shapley" does not name shap. (Skill names are [a-z0-9-].)
     const task = entry.task.toLowerCase();
     const leaks = [entry.skill, entry.skill.replaceAll("-", " "), entry.skill.replaceAll("-", "")];
-    if (leaks.some((form) => task.includes(form))) die(`${file}: the task for "${entry.skill}" names the skill`);
+    if (leaks.some((form) => new RegExp(`\\b${form}\\b`).test(task))) die(`${file}: the task for "${entry.skill}" names the skill`);
     if (entry.untestable !== undefined && (typeof entry.untestable !== "string" || !entry.untestable.trim())) {
       die(`${file}: "untestable" for "${entry.skill}" must be a non-empty reason`);
     }
