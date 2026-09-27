@@ -2,10 +2,11 @@
 // Checks for the live harness's grading helpers (scripts/lib/pi-session.mjs,
 // scripts/lib/converse.mjs) on synthetic pi session files: the read endpoint,
 // the timeout gate, the context measures, and how an attempt ends. Also the
-// server log join (scripts/lib/server-log.mjs) and the report's paired
-// statistics and analysis set (scripts/lib/arms-report.mjs). These fail
-// silently in a live run — a wrong endpoint or gate still gives numbers — so
-// they are checked here, with no model.
+// server log join (scripts/lib/server-log.mjs), the report's paired
+// statistics and analysis set (scripts/lib/arms-report.mjs), and the
+// choice-turn replay helpers (scripts/lib/replay.mjs). These fail silently in
+// a live run — a wrong endpoint or gate still gives numbers — so they are
+// checked here, with no model.
 import { mkdtempSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +14,7 @@ import { runSupervisedProbe } from "./lib/converse.mjs";
 import { gateTripped, isSeek, responses, sessionMeasures, skillReads } from "./lib/pi-session.mjs";
 import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/server-log.mjs";
 import { Z95, analysisSet, mcnemarExact, newcombePaired, pairCounts, wilson } from "./lib/arms-report.mjs";
+import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, textOf, truncateAndReplace } from "./lib/replay.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -264,6 +266,56 @@ console.log("-- paired statistics and analysis set (find-live-arms-report) --");
   const set = analysisSet(order, [graded(["a", "b", "c", "d", "e"]), graded(["a", "b", "c", "e"], { b: { outcome: "no-run" } })]);
   check("analysis set: a chunk missing a line in any arm is left out, even when its other probes are paired", set.complete.join() === "1,3" && set.incomplete.join() === "2" && !set.ids.includes("c"), JSON.stringify(set));
   check("analysis set: a harness error in any arm drops the probe from all arms", set.harnessErrors.join() === "b" && set.ids.join() === "a,e", JSON.stringify(set));
+}
+
+console.log("-- choice-turn replay (find-live-replay) --");
+{
+  const hit = (name, description = `${name} does things. More text.`) =>
+    [`## ${name}`, description, `Load with: read ${SKILLS}/${name}/SKILL.md`, `References inside it are relative to ${SKILLS}/${name}`].join("\n");
+  const parsed = parseHits([hit("polars"), hit("dask")].join("\n\n"));
+  check("parseHits: a full-format hit list gives names, paths and folders in rank order", parsed.kind === "hits" && parsed.hits.map((h) => h.name).join() === "polars,dask" && parsed.hits[1].path === `${SKILLS}/dask/SKILL.md` && parsed.hits[1].dir === `${SKILLS}/dask`, JSON.stringify(parsed));
+  const caveat = parseHits(hit("pi-agent").replace("## pi-agent", "## pi-agent (not in any profile)"));
+  check("parseHits: a heading with a caveat after the name still parses", caveat.kind === "hits" && caveat.hits[0].name === "pi-agent", JSON.stringify(caveat));
+  check("parseHits: a profile listing or a no-match is `other`", parseHits("Profile core: 10 skills").kind === "other" && parseHits("No skills match").kind === "other");
+  const threeLines = hit("dask").split("\n").slice(0, 3).join("\n");
+  check("parseHits: a block without the 4 full-format lines is `malformed`", parseHits(`${hit("polars")}\n\n${threeLines}`).kind === "malformed" && parseHits(hit("polars", "one\ntwo")).kind === "malformed");
+
+  const entries = [
+    user("task"),
+    ...step([["bash", { command: "ls" }]], [["files"]]),
+    ...step([["sci_find", { query: "dataframes", limit: 4 }], ["sci_find", { query: "polars" }]], [[hit("polars")], [hit("dask")]]),
+    user("steer"),
+    ...step([["read", { path: `${SKILLS}/polars/SKILL.md` }]], [["body"]]),
+  ].map((entry, index) => ({ ...entry, id: `e${index}` }));
+  const turn = choiceTurn(entries);
+  check("choiceTurn: the first sci_find response, both of its results, and the next assistant message", turn.call === entries[3] && turn.results.length === 2 && turn.cut === 5 && turn.choice === entries[7], JSON.stringify({ cut: turn?.cut, results: turn?.results.length }));
+  check("choiceTurn: arguments by tool-call id; null when no response calls sci_find", [...turn.argsById.values()][0].limit === 4 && choiceTurn(entries.slice(0, 3)) === null);
+
+  const before = JSON.stringify(entries);
+  const cut = truncateAndReplace(entries, turn.cut, new Map([["e4", "short"]]));
+  check("truncateAndReplace: keeps entries up to the cut and swaps only the named result text", cut.length === 6 && textOf(cut[4].message) === "short" && textOf(cut[5].message) === hit("dask") && cut[4].message.toolCallId === entries[4].message.toolCallId);
+  check("truncateAndReplace: the input entries are not changed", JSON.stringify(entries) === before && textOf(entries[4].message) === hit("polars"));
+
+  const choose = (...calls) => assistant(calls).message;
+  const outcome = (message) => classifyChoice(message, "polars").outcome;
+  check("classifyChoice: a read of the target's SKILL.md is `target`, also next to another read", outcome(choose(["read", { path: `${SKILLS}/polars/SKILL.md` }])) === "target" && outcome(choose(["read", { path: `${SKILLS}/dask/SKILL.md` }], ["read", { path: `${SKILLS}/polars/SKILL.md` }])) === "target");
+  check("classifyChoice: a bash command that names <target>/SKILL.md is `target`", outcome(choose(["bash", { command: `cat ${SKILLS}/polars/SKILL.md | head` }])) === "target");
+  check("classifyChoice: a read of another skill only is `other-skill`; a reference file is not a skill read", outcome(choose(["read", { path: `${SKILLS}/dask/SKILL.md` }])) === "other-skill" && outcome(choose(["read", { path: `${SKILLS}/polars/references/api.md` }])) === "other-call");
+  check("classifyChoice: a new sci_find is `search`; no tool call is `no-call`", outcome(choose(["sci_find", { query: "x" }])) === "search" && outcome(choose()) === "no-call");
+  check("promptTokens: input + cacheRead + cacheWrite", promptTokens({ input: 1721, output: 9, cacheRead: 2086, cacheWrite: 0 }) === 3807);
+  check("listedNames: headings of either format in rank order", listedNames(`${hit("polars")}\n\nMore matches.\n\n## dask\nShort.\nLoad with: read x`).join() === "polars,dask");
+
+  const row = (probe, variant, extra = {}) => ({ probe, variant, status: "ok", parity: variant === "full" ? true : null, systemPromptHash: `s-${probe}`, toolsHash: "t", ...extra });
+  const set = replayAnalysisSet([
+    row("a", "full"), row("a", "compact"),
+    row("b", "full"), row("b", "compact", { status: "error", reason: "timeout" }), row("b", "compact"),
+    row("c", "full", { parity: false }), row("c", "compact"),
+    row("d", "full"), row("d", "compact", { systemPromptHash: "s-other" }),
+    row("e", "full"), row("e", "compact", { status: "error", reason: "timeout" }),
+    { probe: "f", variant: null, status: "excluded", reason: "no sci_find call" },
+  ]);
+  check("replay analysis set: system prompt hashes differ across probes, compared within a probe only", set.ids.join() === "a,b" && set.hashMismatches.join() === "d", JSON.stringify({ ids: set.ids, mismatch: set.hashMismatches }));
+  check("replay analysis set: the last line wins; parity failures, errors and exclusions leave the set", set.parityFailures.join() === "c" && set.errors.join() === "e: timeout" && set.excluded.join() === "f: no sci_find call", JSON.stringify(set));
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

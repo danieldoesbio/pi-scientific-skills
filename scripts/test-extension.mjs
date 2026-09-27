@@ -191,6 +191,62 @@ console.log("-- sci_find tool --");
   );
 }
 
+console.log("\n-- sci_find compact format (PI_SCI_FIND_FORMAT=compact) --");
+{
+  newAgentDir();
+  const { tool } = register(makeHarness());
+  const run = async (params, format) => {
+    if (format) process.env.PI_SCI_FIND_FORMAT = format;
+    else delete process.env.PI_SCI_FIND_FORMAT;
+    try {
+      return (await tool.execute("id", params)).content[0].text;
+    } finally {
+      delete process.env.PI_SCI_FIND_FORMAT;
+    }
+  };
+  const blocks = (text) => text.split("\n\n").filter((block) => block.startsWith("## "));
+  const withReferences = (text) => blocks(text).filter((block) => /\nReferences inside it are relative to /.test(block));
+  const query = { query: "statistical analysis and plotting of experimental data" };
+
+  const full = await run(query);
+  check("default format: 8 hits, every one full", blocks(full).length === 8 && withReferences(full).length === 8, full.slice(0, 200));
+  check("default format: no alternates line", !full.includes("More matches"));
+
+  const compact = await run(query, "compact");
+  const [first, second, ...alternates] = blocks(compact);
+  check("compact: 6 hits by default", blocks(compact).length === 6, compact.slice(0, 200));
+  check("compact: the top 2 are byte-identical to the default format", compact.startsWith(`${blocks(full)[0]}\n\n${blocks(full)[1]}\n\n`));
+  check("compact: one alternates line, after the top 2", compact.split("More matches").length === 2 && compact.indexOf("More matches") > compact.indexOf(second));
+  check(
+    "compact: alternates carry a heading, one sentence and a load line",
+    alternates.length === 4 && alternates.every((block) => block.split("\n").length === 3 && /\nLoad with: read \S+SKILL\.md$/.test(block)),
+    alternates.join("\n\n"),
+  );
+  check(
+    "compact: an alternate's text is the start of its full description",
+    alternates.every((block) => {
+      const [heading, sentence] = block.split("\n");
+      const same = blocks(full).find((b) => b.split("\n")[0] === heading);
+      return same === undefined || (same.split("\n")[1].startsWith(sentence) && sentence.endsWith("."));
+    }),
+  );
+  check(
+    "compact: an explicit limit keeps 2 full and shortens the rest",
+    await run({ ...query, limit: 10 }, "compact").then((text) => blocks(text).length === 10 && withReferences(text).length === 2),
+  );
+  const narrow = await run({ query: "usfiscaldata" }, "compact");
+  check(
+    "compact: 2 hits or fewer render as the default format",
+    blocks(narrow).length <= 2 && narrow === (await run({ query: "usfiscaldata" })),
+    narrow.slice(0, 160),
+  );
+  check(
+    "compact: a profile listing is unchanged",
+    (await run({ profile: "drug-discovery" }, "compact")) === (await run({ profile: "drug-discovery" })),
+  );
+  check("the flag is unset after these checks", process.env.PI_SCI_FIND_FORMAT === undefined);
+}
+
 console.log("\n-- sci_find in pi's real system prompt --");
 {
   // Not the snippet as this file sees it, but as pi renders it: pi's own

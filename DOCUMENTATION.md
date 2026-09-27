@@ -217,6 +217,8 @@ scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full),
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
 scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
 scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
+scripts/find-live-replay.mjs # replay the choice turn of a find-live run with another sci_find format
+scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
@@ -358,6 +360,16 @@ because every probe has a target.
   system prompt. That is why scoring is OR-based: requiring every term to match
   returns nothing for ordinary phrasings ("variant calling" matches no single
   description verbatim).
+- **A compact result format is under test, off by default.** With
+  `PI_SCI_FIND_FORMAT=compact`, `sci_find` shows the top 2 hits in full and
+  the others with the first sentence of their description only, and a call
+  without `limit` gets 6 hits, not 8. On 2026-09-25 the top 6 held the target
+  in 152 of 158 searches, and the choice turn after the search spent most of
+  its time in prefill of the result. The flag stays experimental until the
+  choice-turn replay
+  ([`testing/runs/2026-09-27-find-compact-replay.md`](testing/runs/2026-09-27-find-compact-replay.md))
+  and a live A/B show no loss. Profile listings and no-match results are the
+  same in both formats.
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
   than no answer. Matching is **word-boundary, not substring** — raw substring
@@ -637,7 +649,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`). A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers and the replay's analysis set (`find-live-replay.mjs`). A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -812,6 +824,27 @@ non-Core and without probe-invalid probes; the discordant probes with how the
 miss ended; and the paired time to read on probes read in both arms. With
 `--timing` (the `--jsonl` output of `find-live-timing.mjs`) it adds the
 server-exact and queue-net times, labelled post hoc.
+
+`scripts/find-live-replay.mjs <run-dir> --out <dir>` replays one turn of a
+finished run: the model response after the first `sci_find` result (the
+choice turn). It cuts each recorded session after that result and writes two
+copies: the recorded text (`full`), and the same hits rendered by the compact
+format (`compact`). A parser gate first renders each recorded hit list again
+in the full format and requires a byte-identical match. For each copy,
+`scripts/lib/replay-worker.mjs` runs in a child process with its own `HOME`
+and agent dir, opens the session with pi's SDK (`SessionManager.open`), and
+continues the agent for one turn. Every tool is a stub that throws, and the
+turn stops at the first assistant message (`--prove-stub` lets it reach
+`turn_end` to show the stub ran). The runner needs the model server; it
+checks `/health` from `models.json` and does not start the server.
+`--dry-run` prepares every probe without it and prints the target's rank,
+the recorded choices and the text sizes. `full` replays record prompt-token
+parity with the recorded request. `scripts/find-live-replay-report.mjs <out>`
+gives the pre-registered outcomes. The analysis set needs both variants ok,
+parity, and the same system prompt and tool hashes within a probe (the
+system prompt holds the recorded working directory, so it differs across
+probes). A validity line compares the `full` replay with the recorded choice
+before any comparison of the formats.
 
 Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it

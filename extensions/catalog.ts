@@ -211,11 +211,45 @@ const unassignedCaveat = (name: string): string => {
 };
 
 /**
+ * How query hits are rendered. "full" (the default): every hit with its full
+ * description. "compact" (experimental, `PI_SCI_FIND_FORMAT=compact`): the
+ * first COMPACT_FULL_HITS hits in full, the rest with the first sentence only.
+ */
+export type HitFormat = "full" | "compact";
+
+export const COMPACT_FULL_HITS = 2;
+/** Default hit count in compact mode: the top 6 held the target in 152 of 158 searches (testing/runs/2026-09-25-night-arms.md). */
+export const COMPACT_DEFAULT_LIMIT = 6;
+
+export const findFormat = (): HitFormat => (process.env.PI_SCI_FIND_FORMAT === "compact" ? "compact" : "full");
+
+/** Heading line; a skill `profiles.ts` holds out of every profile says so. */
+const hitHeading = (entry: SkillEntry): string => `## ${entry.name}${unassignedCaveat(entry.name)}`;
+
+const fullHit = (entry: SkillEntry): string =>
+  [
+    hitHeading(entry),
+    entry.description,
+    `Load with: read ${entry.path}`,
+    `References inside it are relative to ${entry.dir}`,
+  ].join("\n");
+
+const shortHit = (entry: SkillEntry): string =>
+  [hitHeading(entry), firstSentence(entry.description), `Load with: read ${entry.path}`].join("\n");
+
+export const COMPACT_ALTERNATES_LINE =
+  "More matches, with the first sentence of each description only. Paths inside a SKILL.md are relative to its folder.";
+
+/**
  * Render hits for the model.
  *
- * Full descriptions, not truncated ones: the entire design bet is that a model
- * discriminates well between eight fully-labelled options. Trimming the
- * descriptions to save a few hundred transient tokens would defeat the point.
+ * "full" rests on the design bet that a model discriminates well between
+ * eight fully-labelled options. The 2026-09-25 run measured the cost: reading
+ * a median 6.7k-character result took about 17 of the 25 seconds between the
+ * search and the read, while the target was the first hit in 78% of searches
+ * and in the top two in 87%. "compact" keeps full labels for the top two only.
+ * It is behind a flag until a replay of the recorded choices shows it keeps the
+ * model's pick (testing/runs/2026-09-27-find-compact-replay.md).
  *
  * A hit naming a skill `profiles.ts` held out of every profile gets a caveat
  * on its heading line — the model should know it is reaching for something no
@@ -223,17 +257,16 @@ const unassignedCaveat = (name: string): string => {
  * `validate.mjs` keeps PROFILES and UNASSIGNED disjoint, so a profile listing
  * never contains an unassigned skill and the caveat never fires there.
  */
-const formatHits = (hits: readonly SearchHit[]): string =>
-  hits
-    .map(({ entry }) =>
-      [
-        `## ${entry.name}${unassignedCaveat(entry.name)}`,
-        entry.description,
-        `Load with: read ${entry.path}`,
-        `References inside it are relative to ${entry.dir}`,
-      ].join("\n"),
-    )
-    .join("\n\n");
+export const formatHits = (hits: readonly SearchHit[], format: HitFormat = "full"): string => {
+  if (format === "full" || hits.length <= COMPACT_FULL_HITS) {
+    return hits.map(({ entry }) => fullHit(entry)).join("\n\n");
+  }
+  return [
+    ...hits.slice(0, COMPACT_FULL_HITS).map(({ entry }) => fullHit(entry)),
+    COMPACT_ALTERNATES_LINE,
+    ...hits.slice(COMPACT_FULL_HITS).map(({ entry }) => shortHit(entry)),
+  ].join("\n\n");
+};
 
 /** Shown when nothing scores — with the taxonomy, so the model can browse. */
 const noMatchText = (query: string): string =>
@@ -275,9 +308,9 @@ export interface ToolParams {
 /**
  * The single implementation behind both `sci_find` and `/sci find`, so the
  * model and the human can never be shown different answers to the same
- * question.
+ * question. `format` applies to query hits only; profile listings stay full.
  */
-export const runToolSearch = (params: ToolParams): string => {
+export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat()): string => {
   if (!SKILLS_DIR) {
     return `${TOOL_NAME} is unavailable: this package's skills/ directory could not be located.`;
   }
@@ -297,9 +330,11 @@ export const runToolSearch = (params: ToolParams): string => {
 
   const limit = Number.isInteger(params.limit)
     ? Math.min(Math.max(params.limit as number, 1), MAX_LIMIT)
-    : DEFAULT_LIMIT;
+    : format === "compact"
+      ? COMPACT_DEFAULT_LIMIT
+      : DEFAULT_LIMIT;
   const hits = search(catalog(), query, limit);
-  return hits.length === 0 ? noMatchText(query) : formatHits(hits);
+  return hits.length === 0 ? noMatchText(query) : formatHits(hits, format);
 };
 
 /** Inert default export; see extensions/index.ts's header comment. */
