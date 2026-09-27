@@ -12,13 +12,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { mcnemarExact, newcombePaired, pairCounts } from "./lib/arms-report.mjs";
-import { replayAnalysisSet } from "./lib/replay.mjs";
+import { REPLAY_RULES, replayAnalysisSet, replayValidity, verdictOf } from "./lib/replay.mjs";
 import { median } from "./lib/server-log.mjs";
 
 /** Fixed before the run (the pre-registration). */
-const MARGIN = -0.05;
-const VALIDITY_SLACK = 5;
-const MAX_PROMPT_FAILURES = 5;
+const { margin: MARGIN, validitySlack: VALIDITY_SLACK, maxPromptFailures: MAX_PROMPT_FAILURES } = REPLAY_RULES;
 const RANK_GROUPS = [
   ["1", (rank) => rank === 1],
   ["2", (rank) => rank === 2],
@@ -55,9 +53,6 @@ const tally = (values) => {
   return [...out].sort((p, q) => q[1] - p[1]).map(([key, n]) => `${key} ${n}`).join(", ") || "none";
 };
 
-/** Fixed before the run: above the margin, non-inferior; wholly below 0, inferior; otherwise inconclusive. */
-const verdictOf = (low, high, margin) => (low > margin ? "non-inferior" : high < 0 ? "inferior" : "inconclusive");
-
 /** One paired comparison line: first − second on a binary outcome. */
 function comparisonLine(label, ids, first, second, margin) {
   const n = ids.length;
@@ -88,10 +83,7 @@ function report(lines) {
   const full = view("full", (id) => pairs.get(id).full.outcome);
   const compact = view("compact", (id) => pairs.get(id).compact.outcome);
   const recorded = view("recorded", (id) => pairs.get(id).full.recorded.outcome);
-  const recordedHits = count(ids, recorded.hit);
-  const fullHits = count(ids, full.hit);
-  const promptFailures = set.parityFailures.length + set.hashMismatches.length;
-  const faithful = fullHits >= recordedHits - VALIDITY_SLACK && promptFailures <= MAX_PROMPT_FAILURES;
+  const { recordedHits, fullHits, promptFailures, faithful } = replayValidity(set);
   const rankOf = (id) => pairs.get(id).full.targetRank;
 
   const out = [

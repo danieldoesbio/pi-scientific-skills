@@ -78,3 +78,40 @@ export function analysisSet(order, rows) {
     harnessErrors,
   };
 }
+
+/** A seeded uniform generator on [0, 1) (mulberry32), so a bootstrap gives the same interval every run. */
+export function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Percentile 95% CI for p1 − p2 over paired binary data grouped in clusters
+ * (for example two samples of one probe): resample whole clusters with
+ * replacement and take the pooled mean of first − second over their pairs.
+ * `clusters`: arrays of [first, second] booleans.
+ */
+export function clusterBootstrapDiff(clusters, { resamples = 10000, seed = 1 } = {}) {
+  const random = seededRandom(seed);
+  const sums = clusters.map((pairs) => [pairs.reduce((s, [x, y]) => s + Number(x) - Number(y), 0), pairs.length]);
+  const means = [];
+  for (let r = 0; r < resamples; r++) {
+    let diff = 0;
+    let n = 0;
+    for (let k = 0; k < sums.length; k++) {
+      const [s, m] = sums[Math.floor(random() * sums.length)];
+      diff += s;
+      n += m;
+    }
+    means.push(diff / n);
+  }
+  means.sort((p, q) => p - q);
+  const at = (q) => means[Math.min(resamples - 1, Math.max(0, Math.round(q * (resamples - 1))))];
+  return [at(0.025), at(0.975)];
+}

@@ -11,7 +11,7 @@
 //
 //   node scripts/find-live-replay.mjs <run-dir> --out <dir> [--arm v17]
 //     [--model <id>] [--thinking medium] [--probes a,b] [--max N]
-//     [--variants full,compact] [--prove-stub] [--resume] [--timeout 900]
+//     [--variants full,compact] [--flip-order] [--prove-stub] [--resume] [--timeout 900]
 //     [--dry-run]
 //
 // --dry-run prepares every attempt and checks the parser gate without the
@@ -33,7 +33,7 @@ const WORKER = fileURLToPath(new URL("./lib/replay-worker.mjs", import.meta.url)
 
 function parseArgs(argv) {
   const opts = { runDir: null, out: null, arm: "v17", model: "prism-llama/Ternary-Bonsai-2-27B-PQ2_0", thinking: "medium",
-    probes: null, max: Infinity, variants: VARIANTS, proveStub: false, resume: false, timeout: 900, dryRun: false };
+    probes: null, max: Infinity, variants: VARIANTS, flipOrder: false, proveStub: false, resume: false, timeout: 900, dryRun: false };
   const value = (i) => argv[i] ?? usage(2, `${argv[i - 1]} needs a value`);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -45,6 +45,7 @@ function parseArgs(argv) {
     else if (arg === "--max") opts.max = Number(value(++i));
     else if (arg === "--variants") opts.variants = value(++i).split(",");
     else if (arg === "--timeout") opts.timeout = Number(value(++i));
+    else if (arg === "--flip-order") opts.flipOrder = true;
     else if (arg === "--prove-stub") opts.proveStub = true;
     else if (arg === "--resume") opts.resume = true;
     else if (arg === "--dry-run") opts.dryRun = true;
@@ -63,7 +64,7 @@ function parseArgs(argv) {
 
 function usage(code, error) {
   if (error) console.error(`error: ${error}`);
-  console.error("usage: node scripts/find-live-replay.mjs <run-dir> --out <dir> [--arm v17] [--probes a,b] [--max N] [--variants full,compact] [--prove-stub] [--resume]");
+  console.error("usage: node scripts/find-live-replay.mjs <run-dir> --out <dir> [--arm v17] [--probes a,b] [--max N] [--variants full,compact] [--flip-order] [--prove-stub] [--resume]");
   process.exit(code);
 }
 
@@ -192,7 +193,7 @@ async function main() {
       if (!done.has(`${probe}/null`)) append({ ...base, variant: null, status: prepared.error ? "error" : "excluded", reason: prepared.excluded ?? prepared.error });
       continue;
     }
-    const variants = included % 2 === 0 ? opts.variants : [...opts.variants].reverse();
+    const variants = (included + (opts.flipOrder ? 1 : 0)) % 2 === 0 ? opts.variants : [...opts.variants].reverse();
     included++;
     for (const [index, variant] of variants.entries()) {
       if (done.has(`${probe}/${variant}`)) continue;

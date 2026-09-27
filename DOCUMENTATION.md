@@ -219,6 +219,7 @@ scripts/find-live-timing.mjs # server-side prefill, generation and queue wait pe
 scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
 scripts/find-live-replay.mjs # replay the choice turn of a find-live run with another sci_find format
 scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
+scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
@@ -651,7 +652,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers and the replay's analysis set (`find-live-replay.mjs`). A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), and the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`). A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -846,7 +847,12 @@ gives the pre-registered outcomes. The analysis set needs both variants ok,
 parity, and the same system prompt and tool hashes within a probe (the
 system prompt holds the recorded working directory, so it differs across
 probes). A validity line compares the `full` replay with the recorded choice
-before any comparison of the formats.
+before any comparison of the formats. `--flip-order` starts each probe with the other arm, for a
+second sample. `scripts/find-live-replay-pooled.mjs <sample-1> <sample-2>`
+pools two samples: validity per sample, then `compact` − `full` over the
+(probe, sample) pairs with two intervals (Newcombe method 10, and a cluster
+bootstrap over probes with a fixed seed); a verdict counts only when both
+give it.
 
 Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it

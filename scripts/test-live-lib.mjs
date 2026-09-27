@@ -13,8 +13,9 @@ import { join } from "node:path";
 import { runSupervisedProbe } from "./lib/converse.mjs";
 import { gateTripped, isSeek, responses, sessionMeasures, skillReads } from "./lib/pi-session.mjs";
 import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/server-log.mjs";
-import { Z95, analysisSet, mcnemarExact, newcombePaired, pairCounts, wilson } from "./lib/arms-report.mjs";
-import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, textOf, truncateAndReplace } from "./lib/replay.mjs";
+import { Z95, analysisSet, clusterBootstrapDiff, mcnemarExact, newcombePaired, pairCounts, seededRandom, wilson } from "./lib/arms-report.mjs";
+import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, replayValidity, textOf, truncateAndReplace, verdictOf } from "./lib/replay.mjs";
+import { pooledReport } from "./find-live-replay-pooled.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -316,6 +317,36 @@ console.log("-- choice-turn replay (find-live-replay) --");
   ]);
   check("replay analysis set: system prompt hashes differ across probes, compared within a probe only", set.ids.join() === "a,b" && set.hashMismatches.join() === "d", JSON.stringify({ ids: set.ids, mismatch: set.hashMismatches }));
   check("replay analysis set: the last line wins; parity failures, errors and exclusions leave the set", set.parityFailures.join() === "c" && set.errors.join() === "e: timeout" && set.excluded.join() === "f: no sci_find call", JSON.stringify(set));
+
+  check("verdictOf: above the margin, wholly below 0, otherwise", verdictOf(-0.04, 0.01, -0.05) === "non-inferior" && verdictOf(-0.08, -0.01, -0.05) === "inferior" && verdictOf(-0.06, 0.01, -0.05) === "inconclusive");
+  const outcomes = (probe, full, compact, recorded = "target") => [
+    row(probe, "full", { outcome: full, recorded: { outcome: recorded } }),
+    row(probe, "compact", { outcome: compact }),
+  ];
+  const probes = (n, full, compact, recorded) => Array.from({ length: n }, (_, i) => outcomes(`p${i}`, full, compact, recorded)).flat();
+  const valid = replayValidity(replayAnalysisSet([...probes(10, "target", "target"), ...probes(0)]));
+  const slack = replayValidity(replayAnalysisSet([...outcomes("a", "search", "target"), ...outcomes("b", "search", "target"), ...Array.from({ length: 8 }, (_, i) => outcomes(`k${i}`, "target", "target")).flat()]), { margin: -0.05, validitySlack: 1, maxPromptFailures: 5 });
+  check("replay validity: faithful at full = recorded; rule 1 fails when full falls more than the slack below recorded", valid.faithful && valid.fullHits === 10 && !slack.rule1 && slack.rule2 && !slack.faithful, JSON.stringify(slack));
+
+  const first = seededRandom(7);
+  const again = seededRandom(7);
+  const draws = Array.from({ length: 5 }, () => first());
+  check("seededRandom: the same seed gives the same draws, all in [0, 1)", draws.every((x) => x === again() && x >= 0 && x < 1));
+  const same = clusterBootstrapDiff(Array.from({ length: 20 }, () => [[true, true], [false, false]]), { resamples: 200, seed: 3 });
+  const half = clusterBootstrapDiff(Array.from({ length: 20 }, () => [[false, true], [true, true]]), { resamples: 200, seed: 3 });
+  check("cluster bootstrap: no discordant pairs gives [0, 0]; identical clusters give their own mean", same[0] === 0 && same[1] === 0 && half[0] === -0.5 && half[1] === -0.5, JSON.stringify({ same, half }));
+  const mixed = Array.from({ length: 30 }, (_, i) => [[i % 7 !== 0, true], [i % 5 !== 0, i % 11 !== 0]]);
+  const swapped = mixed.map((pairs) => pairs.map(([x, y]) => [y, x]));
+  const [low, high] = clusterBootstrapDiff(mixed, { resamples: 500, seed: 9 });
+  const [swapLow, swapHigh] = clusterBootstrapDiff(swapped, { resamples: 500, seed: 9 });
+  check("cluster bootstrap: swapping the arms negates the interval (same seed)", Math.abs(low + swapHigh) < 1e-12 && Math.abs(high + swapLow) < 1e-12 && low < high);
+
+  const faithful = replayAnalysisSet([...probes(158, "target", "target")]);
+  const small = replayAnalysisSet([...probes(20, "target", "target")]);
+  const broken = replayAnalysisSet([...probes(20, "search", "target")]);
+  check("pooled report: no comparison when either sample is not faithful", /not faithful: no comparison/i.test(pooledReport([faithful, broken])) && !/Pooled:/.test(pooledReport([faithful, broken])));
+  check("pooled report: 158 probes with no discordant pair are non-inferior by both intervals", /Newcombe method 10: .*non-inferior/.test(pooledReport([faithful, faithful])) && /margin -5.0: non-inferior\n/.test(pooledReport([faithful, faithful])));
+  check("pooled report: when the intervals disagree (20 probes: Newcombe wide, bootstrap [0, 0]) the verdict is inconclusive", /margin -5.0: inconclusive \(the two intervals disagree\)/.test(pooledReport([small, small])));
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

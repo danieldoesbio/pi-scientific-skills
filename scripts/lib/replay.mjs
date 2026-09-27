@@ -146,3 +146,23 @@ export function replayAnalysisSet(lines) {
   }
   return set;
 }
+
+/** Fixed before the first replay (testing/runs/2026-09-27-find-compact-replay.md). */
+export const REPLAY_RULES = { margin: -0.05, validitySlack: 5, maxPromptFailures: 5 };
+
+/** Above the margin, non-inferior; wholly below 0, inferior; otherwise inconclusive. */
+export const verdictOf = (low, high, margin) => (low > margin ? "non-inferior" : high < 0 ? "inferior" : "inconclusive");
+
+/**
+ * The two validity rules of a replay on its analysis set: the full replay reads
+ * the target at least as often as the recorded run minus the slack, and parity
+ * failures plus hash mismatches stay within the limit.
+ */
+export function replayValidity(set, rules = REPLAY_RULES) {
+  const recordedHits = set.ids.filter((id) => set.pairs.get(id).full.recorded.outcome === "target").length;
+  const fullHits = set.ids.filter((id) => set.pairs.get(id).full.outcome === "target").length;
+  const promptFailures = set.parityFailures.length + set.hashMismatches.length;
+  const rule1 = fullHits >= recordedHits - rules.validitySlack;
+  const rule2 = promptFailures <= rules.maxPromptFailures;
+  return { recordedHits, fullHits, promptFailures, rule1, rule2, faithful: rule1 && rule2 };
+}
