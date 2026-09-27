@@ -46,10 +46,14 @@ const textOf = (content) =>
 /**
  * One entry per user message: what the user sent, what the assistant showed
  * (text parts only — thinking is not visible to a user), and the tool calls.
+ * Each call carries `message`, the 0-based index of the assistant message
+ * that made it, counted over the whole session: calls with the same index
+ * were written together, before any of their results.
  */
 export function responses(messages) {
   const out = [];
   const byId = new Map();
+  let assistantMessages = 0;
   for (const message of messages) {
     if (message.role === "user") {
       out.push({ prompt: textOf(message.content), at: message.entryTime, texts: [], calls: [] });
@@ -58,11 +62,12 @@ export function responses(messages) {
     const current = out.at(-1);
     if (!current) continue;
     if (message.role === "assistant") {
+      const index = assistantMessages++;
       const text = textOf(message.content).trim();
       if (text) current.texts.push(text);
       for (const part of message.content ?? []) {
         if (part?.type !== "toolCall") continue;
-        const call = { id: part.id, tool: part.name, args: part.arguments ?? {}, result: "", isError: false };
+        const call = { id: part.id, tool: part.name, args: part.arguments ?? {}, result: "", isError: false, message: index };
         current.calls.push(call);
         byId.set(part.id, call);
       }

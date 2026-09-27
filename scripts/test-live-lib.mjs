@@ -177,6 +177,14 @@ console.log("-- attempts end by the right rule --");
   );
   const late = await attempt([[assistant([])], listing], { endpoint: "first-find", gateCalls: 10 });
   check("first-find: a search after a persona reply is recorded in response 2", late.endedBy === "searched" && late.firstFindResponse === 2);
+  const pair = step([["sci_find", { query: "a" }], ["sci_find", { query: "b", limit: 3 }]], [["## dask\nd\nLoad with: read x"], ["## dask\nd\nLoad with: read x"]]);
+  const follow = step([["sci_find", { query: "c" }]], [["## polars\nd\nLoad with: read x"]]);
+  const both = await attempt([[...pair, ...follow]], { endpoint: "first-find", gateCalls: 10 });
+  check(
+    "first-find: firstFind holds the calls of the first sci_find message only, not a later one",
+    both.firstFind?.calls.map((call) => call.query).join() === "a,b" && both.firstFind.calls[1].limit === 3 && both.queries.join() === "a,b,c",
+    JSON.stringify(both.firstFind),
+  );
   const never = await attempt([plain], { endpoint: "first-find", gateCalls: 10 });
   check("first-find: no search before the gate ends as gated", never.endedBy === "gated" && never.sciFindCalls === 0);
   const dead = await runSupervisedProbe(probe, {

@@ -167,6 +167,9 @@ async function runAttempt(probe, run, ctx) {
     const listed = reaches(turns, [probe.target], ctx.catalogue)[0];
     const calls = allCalls(turns);
     const firstSeek = calls.findIndex(isSeek);
+    // The sci_find calls of the first message that made one: written together,
+    // before any sci_find result, so none of them saw a hit list.
+    const firstFind = calls.find((call) => call.tool === "sci_find");
     return {
       responses: response,
       endedBy,
@@ -185,6 +188,14 @@ async function runAttempt(probe, run, ctx) {
       sciFindCalls: finds.length,
       firstFindResponse: finds[0]?.response ?? null,
       queries: finds.map(({ call }) => call.args?.query ?? (call.args?.profile ? `profile:${call.args.profile}` : "")),
+      firstFind: firstFind
+        ? {
+            message: firstFind.message,
+            calls: calls
+              .filter((call) => call.tool === "sci_find" && call.message === firstFind.message)
+              .map((call) => ({ query: call.args?.query ?? null, profile: call.args?.profile ?? null, limit: call.args?.limit ?? null })),
+          }
+        : null,
       readSkills: readSkills(turns),
       tools: [...new Set(turns.flatMap((turn) => turn.calls.map((call) => call.tool)))],
       persona,
