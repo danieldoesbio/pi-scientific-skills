@@ -825,12 +825,15 @@ query writer over one or more styles (`--styles plain,synonym,expert`, or
 `--ref` into `<dir>/src/` at the first start and runs from there; running it
 again with the same `--out` continues (`--resume`). A local writer needs
 `--health-url`, checked before each style. Each invocation archives into its
-own time-stamped folder. `scripts/find-panel-report.mjs <dir>...` reads
+own time-stamped folder. `<dir>/src/scripts/find-panel-report.mjs <dir>...`
+(the frozen copy, so the rankers match the run) reads
 `results-<writer>-<style>.jsonl`: the search rate by outcome, then the target
 in the top 8 for the first query of the first `sci_find` message, paired
-bm25f − current (Newcombe method 10, McNemar exact) per writer and style,
-pooled per writer and over all writers. The union of that message's queries
-and the raw request text are secondary rows.
+bm25f − current (Newcombe method 10, McNemar exact) per writer and style.
+Pooled rows repeat each target once per style, so they add a cluster
+bootstrap by target. A writer with fewer than 50 searched attempts (30 in
+the plain style, for the 4b rule) counts toward no rule. The union of that
+message's queries and the raw request text are secondary rows.
 
 Every attempt now also records the first request's prompt size (pi usage:
 input + cacheRead + cacheWrite), peak context, output tokens, tool calls, the

@@ -16,7 +16,7 @@ import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/ser
 import { Z95, analysisSet, clusterBootstrapDiff, mcnemarExact, newcombePaired, pairCounts, seededRandom, wilson } from "./lib/arms-report.mjs";
 import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, replayValidity, textOf, truncateAndReplace, verdictOf } from "./lib/replay.mjs";
 import { pooledReport } from "./find-live-replay-pooled.mjs";
-import { category, panelReport } from "./find-panel-report.mjs";
+import { category, paired, panelReport } from "./find-panel-report.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -380,11 +380,25 @@ console.log("-- choice-turn replay (find-live-replay) --");
   );
   const rank = (query, ranker) => (query === "both" || (query === "bm" && ranker === "bm25f") ? ["t"] : ["other"]);
   const attempts = [found("a", [q("bm")]), found("b", [q("both")]), found("c", [q("miss"), q("both")])].map((line) => ({ writer: "w", style: "plain", line, category: category(line) }));
-  const panel = panelReport(attempts, rank);
+  const panel = panelReport(attempts, rank, { skipGain: 0.03, minSearched: 1, minPlain: 1 });
   check(
     "panel report: the first query is primary, the union secondary; a plain-style gain of 3 points or more keeps 4b",
-    /w +plain +current 1\/3 .*bm25f 2\/3 .*discordant 1:0/.test(panel) && /w +current 2\/3 .*bm25f 3\/3/.test(panel.split("Secondary")[1]) && /4b stays in the plan/.test(panel),
+    /w +plain +current 1\/3 .*bm25f 2\/3 .*discordant 1:0/.test(panel) && /w +current 2\/3 .*bm25f 3\/3/.test(panel.split("Secondary")[1]) && /w 33\.3 pts → 4b stays in the plan/.test(panel),
     panel,
+  );
+  const sparse = panelReport([...attempts, { writer: "silent", style: "plain", line: { id: "a", outcome: "graded", attempts: [{ endedBy: "gated" }] }, category: "gated" }], rank);
+  check(
+    "panel report: a writer under the minimum counts toward no rule; with none counted the rules say no data and 4b stays",
+    /counted: w no \(3\), silent no \(0\)/.test(sparse) && /pooled point estimate >= 0\): no data/.test(sparse) && /lower bounds > 0\): no data/.test(sparse) && /no data: 4b stays in the plan/.test(sparse),
+    sparse,
+  );
+  const cluster = (target, bm25f, current) => ({ line: { target }, hit: { bm25f, current } });
+  const once = [...Array.from({ length: 12 }, (_, i) => cluster(`t${i}`, true, true)), cluster("g1", true, false), cluster("g2", true, false), cluster("l1", false, true), cluster("m1", false, false)];
+  const [one, four] = [once, [...once, ...once, ...once, ...once]].map((rows) => paired(rows, "hit", true));
+  check(
+    "panel pooled rows: a target repeated four times leaves the bootstrap by target unchanged; Newcombe narrows",
+    one.bootstrap[0] === four.bootstrap[0] && one.bootstrap[1] === four.bootstrap[1] && four.newcombe[1] - four.newcombe[0] < one.newcombe[1] - one.newcombe[0],
+    JSON.stringify({ one: [one.newcombe, one.bootstrap], four: [four.newcombe, four.bootstrap] }),
   );
 }
 

@@ -211,9 +211,130 @@ node scripts/find-live-replay-report.mjs <main-checkout>/testing/transcripts/fin
 
 Not run yet.
 
+## Step 3: first queries from a panel of query writers (pre-registered)
+
+### Why
+
+The development results use Bonsai's recorded queries and the raw request
+text. The goal is older and smaller models in general, so this step asks
+other models to write the first query and ranks each query offline under
+both rankers. No writer's queries change the ranker: its settings stay as
+committed in 5123f67.
+
+### Writers and styles
+
+| Writer | Model | Styles |
+|---|---|---|
+| `haiku` | Claude Haiku 4.5 (OpenRouter, through pi) | original, plain, synonym, expert |
+| `gemma12b` | Gemma 4 12B (`gemma4:12b-mlx`, Ollama) | original, plain, synonym, expert |
+| `gemma-e4b` | Gemma 4 E4B (`gemma4:e4b`, Ollama) | original, plain, synonym, expert |
+| `bonsai` | Ternary Bonsai 2 27B (llama-server, the usual script and flags) | plain, synonym, expert |
+
+- Bonsai has no `original` cell: its 425 recorded queries on the original
+  tasks are the development data, and a fresh run would repeat them.
+- Not qwen3.8:27b: it is Bonsai's base model.
+- **Local writers join on setup facts only**, checked on a smoke of 3–5
+  probes before their run, never on outcomes: (1) `sci_find` calls arrive as
+  structured tool calls, with no response that ends in a parse error;
+  (2) the thinking level is accepted (no provider error); (3) the prompt is
+  not cut (pi's first-request prompt tokens within 10% of the expected size,
+  and no truncation line in the server log). E4B joins by the same rules.
+  If a smoke forces a setup change (the thinking level, the context length),
+  a dated addendum here names it before that writer runs.
+
+### Design
+
+- `scripts/find-panel.sh`, one `--out` for every writer:
+  `testing/transcripts/find-live/2026-09-27-find-panel/` in the main
+  checkout (gitignored). At the first start it `git archive`s this commit
+  into `<out>/src/`; every writer runs the harness from that copy.
+- Per attempt: `--endpoint first-find --attempts 1 --responses 5
+  --gate-calls 10 --timeout 600 --thinking medium`, the usual persona. The
+  attempt stops at the model's first `sci_find` call; nothing it returns
+  reaches the model. The ranker the model sees is `current` (the default)
+  but plays no part: the query is written before any result.
+- Probe files: `testing/find-probes.json` (original, 162) and
+  `scripts/find-probes-styled.mjs` (synonym 161, plain 161, expert 160).
+- One attempt per probe per style, at each provider's default sampling
+  (the harness sets no temperature).
+- Harness errors (`no-run`) are run again once with `--resume`; the rest
+  are listed and left out.
+- **Disclosure.** Commit 7a4c7e3 changed the harness's names-the-skill rule
+  to whole words. The only probe it lets in is the expert paraphrase for
+  `shap` ("Shapley-consistent"), a strong hint at SHAP. It stays in: the
+  bench already includes it. The step 4a replay does not load probes through
+  that rule, so its registered design is unchanged.
+
+### Rules fixed before this run
+
+- **Unit and denominator.** One attempt. It counts when its first
+  `sci_find` message has a query ("searched"). Profile-only messages,
+  gated attempts and attempts that sought a skill another way are tallied
+  in the search rate, not scored.
+- **Primary.** The target in the top 8 for the first query of the first
+  `sci_find` message, ranked by `search()` with each ranker's own no-match
+  rule; `bm25f` − `current`, paired by attempt. Per writer and style:
+  Newcombe method 10. Pooled per writer and over the counted writers:
+  Newcombe and a cluster bootstrap by target (10,000 resamples, seed
+  20260927), because a target repeats once per style.
+- **Counted writers.** A writer counts toward a rule with 50 or more
+  searched attempts over its styles; toward the 4b rule with 30 or more in
+  the plain style. Fewer: "no data" for that writer.
+- **Rule A, no worse for every writer.** Each counted writer's pooled point
+  estimate is 0 or more. A loss for any writer is examined before anything
+  ships.
+- **Rule B, better on average.** Over the counted writers, both lower
+  bounds are above 0: met. Both at 0 or below: not met. They disagree:
+  inconclusive, and Daniel decides.
+- **4b skip rule.** If the plain-style gain is under 3 points for every
+  counted writer, step 4b does not run. With no counted writer, 4b stays.
+- **Secondary.** The search rate by outcome, per writer and style; the
+  union of the first message's queries in the top 8; the raw request text
+  as the query (model-free). Top 1 and top 3 are not in the rules.
+- **Report:** `node <out>/src/scripts/find-panel-report.mjs <out>` (the
+  frozen copy, so the rankers are this commit's; the report says so).
+
+### Limits
+
+- The tasks are development data. The synonym, plain and expert texts were
+  the development bench (raw text as the query), and the original tasks
+  gave Bonsai's recorded queries. The writers' queries are new, but a gain
+  here is not a clean test. The held-out set (novice and terse styles, step
+  1) is the clean test, run once at step 5.
+- One attempt per probe, and the sampling defaults differ by provider.
+- Haiku runs through OpenRouter, and the route may change between calls.
+- D (rewritten descriptions) is not scored here; it stays deferred.
+
+### Predictions
+
+- Search rate: Haiku 95% or more in every style; Bonsai 85–95%; Gemma 12B
+  70–95%; E4B 40–90% (little evidence for the Gemma models).
+- Top 8 under `current`: Haiku and Bonsai 90–97%; the Gemma models lower.
+  The writers' queries are keyword lists more than requests, so the gap is
+  much smaller than on the raw plain text (77.0 → 95.0).
+- Pooled gain per writer: +1 to +5 points; larger for the smaller writers.
+- Rule A met: about 80%. Rule B met: about 60%; most of the rest
+  inconclusive (few discordant attempts per target).
+- The plain-style gain is 3 points or more for at least one counted writer
+  (4b stays): about 60%.
+- Cost: Haiku about 640 attempts at about $0.004, about $2.5.
+
+### Commands
+
+The Haiku run needs no GPU and can run at any time:
+
+```bash
+scripts/find-panel.sh --out <main-checkout>/testing/transcripts/find-live/2026-09-27-find-panel --writer haiku --model openrouter/anthropic/claude-haiku-4.5 --styles original,plain,synonym,expert
+```
+
+Local writers add `--health-url` (and `--models-json` for Ollama) and never
+run while another model server holds the GPU.
+
+### Results
+
+Not run yet.
+
 ## Next
 
-- Step 3: first queries from a panel of small models (Bonsai 2 27B, Gemma 4
-  12B, Gemma 4 E4B, Claude Haiku 4.5), current vs bm25f offline on each
-  writer's queries. Pre-registered here after the setup smokes, before it
-  runs.
+- Step 4b (live A/B on the full attempt), if step 3 does not skip it.
+- Step 5: ship 1.8.0 when the rules hold; the held-out set runs once first.
