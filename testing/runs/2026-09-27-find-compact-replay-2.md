@@ -108,4 +108,40 @@ node scripts/find-live-replay-pooled.mjs <main-checkout>/testing/transcripts/fin
 
 ## Results
 
-Not run yet.
+Run 2026-09-27, 16:28–19:15 (local), `--flip-order`. Raw output in the main
+checkout's gitignored `testing/transcripts/find-live/2026-09-27-find-compact-replay-2/`
+(`report.txt`, `pooled.txt`).
+
+**Sample 2 on its own.** Analysis set 158 (3 excluded: no `sci_find` call;
+0 errors, 0 parity failures, 0 hash mismatches). Faithful: `full` read the
+target in 158, the recorded run in 157.
+
+| | `full` | `compact` | Diff (Newcombe 95% CI) | Discordant |
+|---|---|---|---|---|
+| Target read in the choice turn | 158/158 | 158/158 | 0.0 (−2.4 to 2.4) | 0:0 |
+
+Paired medians: `sci_find` characters −3,534; prompt tokens −951 (lower on
+153); output tokens −2. Seconds at position 1: `full` 42.1, `compact` 31.2.
+
+**Pooled (primary).** 316 (probe, sample) pairs.
+
+| | `compact` | `full` | Diff | Newcombe 95% CI | Bootstrap by probe 95% CI | Verdict |
+|---|---|---|---|---|---|---|
+| Target read | 313/316 | 316/316 | −0.9 | −2.8 to 0.4 | −2.2 to 0.0 | **non-inferior** |
+
+Discordant 0:3, McNemar exact p 0.25. All three losses are in sample 1
+(`esm`, `molfeat`, `pytorch-lightning`); none repeats in sample 2.
+
+**Predictions.**
+
+- Faithful (`full` 153 or more): met, 158.
+- `compact` loses 0–4 in sample 2: met, 0. At least one of `esm` and
+  `molfeat` loses again: not met. Neither lost.
+- Pooled verdict non-inferior (about 70%): met, by both intervals.
+- Prompt tokens as in sample 1 (−951): met, −951. Output tokens about −10:
+  −2.
+
+**Decision.** Non-inferior. By the decision rule, the next step is a live
+A/B together with the ranker work (step 4b of
+[`2026-09-27-find-ranker.md`](2026-09-27-find-ranker.md)), so it runs on
+the ranker that step keeps. The flag stays experimental until then.
