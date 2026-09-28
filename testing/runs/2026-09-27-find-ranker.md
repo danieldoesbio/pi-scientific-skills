@@ -341,6 +341,20 @@ run while another model server holds the GPU.
   are thereby replaced. Haiku has no entry: pi's default for that provider.
   This changes no rule.
 
+### Addendum 2026-09-27 19:35: setup smokes (no setup change)
+
+Five plain-style probes per local writer (diffdock, polars, pymc, scanpy,
+shap), through `scripts/find-panel.sh`, outside the panel directory.
+
+| Writer | Tool calls | Thinking `medium` | Prompt (first request) | Context | Joins |
+|---|---|---|---|---|---|
+| Bonsai 2 27B | structured | accepted | 1,954–1,997 tokens | 65,536 | yes |
+| Gemma 4 12B | structured | accepted, no provider error | 1,731–1,773; the server processed all of it | 131,072 | yes |
+| Gemma 4 E4B | structured | accepted, no provider error | 1,732–1,774; `truncated = 0` | 32,768 (the tag's `num_ctx`) | yes |
+
+Timing: a searched attempt takes 8–56 s. An attempt that does not search
+runs 5 responses (270–350 s for the Gemma models on polars).
+
 ### Results
 
 **Haiku 4.5** (2026-09-27, 17:04–18:48, 640 attempts; `autoskill` is
