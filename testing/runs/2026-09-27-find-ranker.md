@@ -330,6 +330,17 @@ scripts/find-panel.sh --out <main-checkout>/testing/transcripts/find-live/2026-0
 Local writers add `--health-url` (and `--models-json` for Ollama) and never
 run while another model server holds the GPU.
 
+### Addendum 2026-09-27 17:10 (before any local writer ran)
+
+- **Sampling (a correction).** "Each provider's default sampling" is not
+  exact. pi sends the `samplingParams` of the model's models.json entry.
+  Bonsai: temperature 1.0, top_p 0.95, top_k 20 (the usual entry). Gemma
+  12B and E4B: temperature 1.0, top_p 0.95, top_k 64 (Google's defaults,
+  the 12B tag's own defaults) in a `--models-json` override that is not
+  committed. The E4B tag's own defaults (temperature 0.2, a system line)
+  are thereby replaced. Haiku has no entry: pi's default for that provider.
+  This changes no rule.
+
 ### Results
 
 Not run yet.
