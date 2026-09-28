@@ -355,6 +355,16 @@ shap), through `scripts/find-panel.sh`, outside the panel directory.
 Timing: a searched attempt takes 8–56 s. An attempt that does not search
 runs 5 responses (270–350 s for the Gemma models on polars).
 
+- E4B: the override replaces temperature, top_p and top_k; the tag's
+  `repeat_penalty` 1.05 still applies. The tag's own system line is not
+  used: on every probe the E4B prompt is exactly 1 token longer than the
+  12B prompt (1,746 vs 1,745, 1,732 vs 1,731, ...), where a prepended
+  system line would add about 15.
+- Step 4a runs from the launch commit, which `commit.txt` records. The diff
+  of `scripts/find-live-replay.mjs`, `scripts/lib/`, `extensions/` and
+  `skills/` since 945684d is empty, and the replay does not import
+  `scripts/test-find-live.mjs`.
+
 ### Results
 
 **Haiku 4.5** (2026-09-27, 17:04–18:48, 640 attempts; `autoskill` is
