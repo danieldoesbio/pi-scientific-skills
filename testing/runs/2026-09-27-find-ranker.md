@@ -343,7 +343,31 @@ run while another model server holds the GPU.
 
 ### Results
 
-Not run yet.
+**Haiku 4.5** (2026-09-27, 17:04–18:48, 640 attempts; `autoskill` is
+untestable and not run). Report from the frozen copy (c816e82).
+
+| Style | Searched | Top 8, current | Top 8, bm25f | Diff (Newcombe 95% CI) | Discordant |
+|---|---|---|---|---|---|
+| original | 155/161 | 152/155 (98.1%) | 154/155 (99.4%) | +1.3 (−1.9 to 4.9) | 3:1 |
+| synonym | 153/160 | 145/153 (94.8%) | 152/153 (99.3%) | +4.6 (0.6 to 9.4) | 8:1 |
+| plain | 153/160 | 144/153 (94.1%) | 149/153 (97.4%) | +3.3 (−0.3 to 7.6) | 6:1 |
+| expert | 154/159 | 151/154 (98.1%) | 154/154 (100%) | +1.9 (−0.8 to 5.6) | 3:0 |
+| pooled | 615/640 | 592/615 (96.3%) | 609/615 (99.0%) | +2.8 (1.3 to 4.5; bootstrap by target 0.8 to 5.2) | 20:3 |
+
+- Not searched: 13 gated, 11 persona-end, 1 max-responses. No harness
+  errors. The probe-check judge flagged 10 attempts; the rules do not drop
+  them (the query comes before any result).
+- Secondary: any query of the first message in the top 8: current 98.5%,
+  bm25f 99.2% (+0.7, −0.4 to 1.9). A second query in the same message
+  recovers most of the current ranker's misses.
+- Model-free: the request text as the query, same attempts: current 89.1%,
+  bm25f 98.7% (+9.6, 7.3 to 12.3). This is development data.
+- For Haiku alone, rules A and B are met. The plain-style gain is 3.3
+  points, so 4b stays in the plan whatever the other writers show. The
+  rules are decided over all counted writers, after the local writers run.
+- Predictions: search rate 95% or more in every style, met (95.6–96.9%).
+  Current 90–97%: pooled 96.3%, in range (original and expert 98.1%, just
+  above). Pooled gain +1 to +5: +2.8, in range.
 
 ## Next
 
