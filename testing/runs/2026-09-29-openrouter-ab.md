@@ -1,8 +1,8 @@
 # Run notebook: old search against new search, Gemma 4 26B-A4B on OpenRouter
 
-**Status: pre-registered.** This section was written and committed before the
-first request of the run. Results go below it; the rules above them do not
-change.
+**Status: done (2026-09-29). Verdict: non-inferior.** The pre-registration was
+written and committed before the first request of the run. Results are at the
+end; the rules above them do not change.
 
 ## Why
 
@@ -223,3 +223,112 @@ cents.
   and `package.json` are unchanged since 713d6e8.
 - **Output:** `testing/transcripts/find-live/2026-09-29-openrouter-ab-3/`.
   Everything else is as pre-registered and as the 11:55 addendum.
+
+## Results (third run, 2026-09-29 12:27–15:17)
+
+All 17 chunks completed in 169 minutes. The run had 0 harness errors, so the
+second pass had nothing to retry. The analysis set is all 319 units (161
+probes). `node <out>/src/new/scripts/find-ab-report.mjs <out>` gives the
+numbers below. `MPLBACKEND=Agg` worked: one `plt.show()` (pylabrobot, chunk
+7) printed the Agg warning and returned.
+
+### Primary
+
+| | new | old | new − old | Newcombe 95% CI | Bootstrap over probes 95% CI |
+|---|---|---|---|---|---|
+| Read, pooled | 244/319 (76.5%) | 225/319 (70.5%) | **+6.0 pts** | 1.0 to 10.9 | 0.6 to 11.2 |
+
+Discordant units: 42 read by `new` only, 23 by `old` only (McNemar exact p
+0.025). Both lower bounds are above −5, so the verdict is **non-inferior**.
+Both lower bounds are also above 0, but no superiority test was
+pre-registered, so "better" is an observation only. The paraphrases are
+development data, and that favors `new` (Limits).
+
+### Secondary
+
+| Subset | n | new | old | new − old (Newcombe 95% CI) | Discordant, McNemar p |
+|---|---|---|---|---|---|
+| plain | 160 | 126 (78.8%) | 118 (73.8%) | +5.0 (−1.7 to 11.7) | 19:11, 0.20 |
+| expert | 159 | 118 (74.2%) | 107 (67.3%) | +6.9 (−0.3 to 14.1) | 23:12, 0.090 |
+| searched in both arms | 226 | 218 | 209 | +4.0 (−0.2 to 8.5) | 16:7, 0.093 |
+| without probe-invalid | 290 | 239 | 222 | +5.9 (0.8 to 11.0) | 37:20, 0.033 |
+| without provider error or timeout | 313 | 241 | 224 | +5.4 (0.6 to 10.3) | 39:22, 0.040 |
+
+| Per arm | new | old |
+|---|---|---|
+| Searched | 255/319 (79.9%) | 245/319 (76.8%) |
+| Read when searched | 244/255 (95.7%) | 225/245 (91.8%) |
+| Two or more searches, of searching attempts | 12/255 (4.7%) | 6/245 (2.4%) |
+| First list: hits | 3 in 243 of 255 | 8 in 110 of 245; 1–7 in 133; 0 in 2 |
+| First list: characters, median | 2,072 | 5,316 |
+| Target in the first list | 236/255 (92.5%) | 228/245 (93.1%) |
+| Listed first, not read | 2/236 | 7/228 |
+| Not listed first: searched again, read | 12 and 10 of 19 | 6 and 4 of 17 |
+| `limit` set by the model | not in the schema | 0 of 251 calls |
+| Endings: persona-end, gated, max-responses, timeout | 40, 23, 10, 2 | 40, 31, 19, 4 |
+| Provider errors | 0 | 0 |
+| Probe-invalid (judge) | 23 | 20 |
+
+| Paired medians | n | new | old | new − old |
+|---|---|---|---|---|
+| First-request prompt tokens | 319 | 1,723 | 1,722 | 0 |
+| **Choice-turn prompt tokens** | 226 | 2,789 | 3,735 | **−867.5** (new lower on 172) |
+| First-result characters | 226 | 2,082 | 5,270 | −3,063 |
+| Time to read, s (both read) | 202 | 5 | 6 | 0 |
+
+**Where the difference comes from.** The net +19 discordant units split in
+two. In 23 of the discordant units, the arm that missed had searched: 16
+favor `new`, 7 favor `old` (p 0.093). This part is the effect of the list.
+In the other 42, the arm that missed never called `sci_find`: 26 favor
+`new`, 16 favor `old` (exact binomial p 0.16). There the arms differ only in
+the tool description, so that part is noise at temperature 1.0 or an effect
+of the description. It is not the ranker. Among searches, `new` did not put
+the target in the first list more often (92.5% against 93.1%). It did better
+after the list: it read a listed target more often (234/236 against
+221/228), and when the target was not listed it searched again more often
+(12/19 against 6/17).
+
+**The weak point is the decision to search.** 64 of 319 `new` attempts and 74
+of 319 `old` attempts never called `sci_find`, and none of them read the
+target: 64 of the 75 `new` misses and 74 of the 94 `old` misses never
+searched. This is a property of the model and of the tool description.
+The ranker cannot fix it.
+
+### Predictions
+
+| Prediction | Result | |
+|---|---|---|
+| Read rate 80–95% in both arms | new 76.5%, old 70.5% | miss |
+| Expert at or above plain in both arms | expert lower in both (new 74.2 vs 78.8, old 67.3 vs 73.8) | miss |
+| new − old between −3 and +5 | +6.0 | miss |
+| Verdict non-inferior | non-inferior | hit |
+| Choice-turn tokens −800 to −1,300 | −867.5 | hit |
+| First-result characters: old 5,000–7,000, new 2,000–3,000 | 5,316 and 2,072 | hit |
+| First-request prompt tokens within 50 | 0 | hit |
+| Target in the first list: new ≥ old | 92.5% against 93.1% | miss (small) |
+| Search rate within 3 points | 3.1 points | miss (small) |
+| Two or more searches: new 3–15%, old 1–10% | 4.7%, 2.4% | hit |
+| `limit` set in under 20% of `old` first calls | 0% | hit |
+| Timeouts under 5% per arm | new 0.6%, old 1.3% | hit |
+| Some retried 429s | 0 provider errors recorded | miss |
+
+### Notes
+
+- **Arms table correction.** The `old` hit count is "up to 8", not "8
+  unless the model sets `limit`". The current ranker has a score floor
+  (`MIN_SCORE`, higher for a one-term query), and 133 of 245 first lists had
+  1–7 hits. No `old` call set `limit`. The comparison stays product against
+  product.
+- **Disclosure.** During the run I saw pooled counts for both arms together:
+  endings at chunk 3 (73 of 118 read) and at chunk 6 (161 of 233 read, 61 of
+  72 misses without a search). I also saw per-arm token and cost totals for
+  chunks 1 and 2. I did not see per-arm read counts before the report.
+- **Cost.** Gemma, from pi's price table: $1.47 in total, `new` $0.60,
+  `old` $0.87. No request had a cache read. The persona and judge calls
+  (`claude -p`) were not recorded.
+
+### Decision
+
+Non-inferior, so, by the decision rule, release prep for 1.7.0 goes ahead.
+The search decision (20–23% of attempts never searched) is a separate
+problem for the tool description.
