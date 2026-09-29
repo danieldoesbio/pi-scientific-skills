@@ -168,3 +168,34 @@ cents.
   plain only, `peer-review` in expert only. So there are **17 chunks**, the
   last with one id (`hypogenic`). The unit count, 319, is right. The bootstrap
   resamples 161 probes.
+
+### Addendum 2026-09-29 11:55: run stopped and restarted behind a key proxy (before the restart's first request)
+
+- **Why.** The harness copied the OpenRouter key (`auth.json`) into each
+  attempt's agent dir, where the model can read it with bash, and for a cloud
+  model the network was open. In the stopped run, 3 attempts listed the agent
+  dir and saw `auth.json`, and 4 ran `env`. None read the file. No transcript
+  or workspace holds the key's prefix, and no `env` output held a variable
+  named like a secret.
+- **Stopped** at 11:45 in chunk 2 of 17. That run
+  (`2026-09-29-openrouter-ab`) is void; its data are not analysed.
+- **Fix** (e338327, from a parallel session, reviewed here): the key stays in
+  a loopback proxy in the harness process, and pi gets a placeholder token.
+  No `auth.json` is seeded, and no key is in pi's environment. The sandbox
+  fences the network to the proxy's port in both arms.
+- **Condition change, the same in both arms:** the model has no network but
+  the proxy, as in the local Bonsai runs. `pip`, `curl` and downloads fail
+  fast. This can change how misses end (fewer hung installs, so fewer
+  timeouts). It does not favor either arm.
+- **The new arm** is the commit of this addendum. `extensions/`, `skills/`
+  and `package.json` are unchanged since 713d6e8; the packed tarball differs
+  from bec393a in DOCUMENTATION.md only.
+- **Disclosure.** During a health check at 11:36 I saw chunk 1's read counts
+  per arm in the void run: old plain 7/10, new plain 5/10, old expert 5/9,
+  new expert 8/9 (25 of 38, below the predicted 80–95%). Those data are
+  discarded. No rule or prediction changes.
+- **Proxy smoke** (diffdock, polars, scanpy × 2 styles × 2 arms, HTTPS to
+  openrouter.ai): 0 harness errors, 0 provider errors; 4 of 6 read in each
+  arm; choice-turn prompt tokens paired median −988 (n 4).
+- **Output:** `testing/transcripts/find-live/2026-09-29-openrouter-ab-2/`.
+  Everything else is as pre-registered.
