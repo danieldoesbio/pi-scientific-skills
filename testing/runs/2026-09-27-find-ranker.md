@@ -505,6 +505,33 @@ Written before the held-out set is read and before any Gemma run.
 node scripts/find-rank-heldout.mjs <main-checkout>/test-artifacts/find-rank-heldout
 ```
 
+**Results** (2026-09-29, once, from 69eea24; the three hashes matched the
+table above).
+
+| Style | n | bm25f top 3 | current top 8 | Diff (Newcombe 95% CI) | Discordant | Bar |
+|---|---|---|---|---|---|---|
+| novice | 161 | 151 (93.8%) | 130 (80.7%) | +13.0 (6.9 to 19.7) | 25:4 | met |
+| terse | 160 | 159 (99.4%) | 153 (95.6%) | +3.8 (0.9 to 8.0) | 6:0 | met |
+| pooled | 321 | 310 (96.6%) | 283 (88.2%) | +8.4 (5.0 to 12.2) | 31:4 | met |
+
+Target in the top k (%), request text as the query:
+
+| Style | Ranker | Top 1 | Top 2 | Top 3 | Top 5 | Top 8 | No hit |
+|---|---|---|---|---|---|---|---|
+| novice | current | 47.8 | 57.8 | 64.6 | 77.0 | 80.7 | 0.0 |
+| novice | bm25f | 77.0 | 91.9 | 93.8 | 94.4 | 96.9 | 0.0 |
+| terse | current | 62.5 | 78.8 | 85.6 | 91.3 | 95.6 | 0.0 |
+| terse | bm25f | 94.4 | 98.1 | 99.4 | 100.0 | 100.0 | 0.0 |
+
+- The bar is met for both styles. bm25f top 3 is above current top 8 even
+  with no model writing the query.
+- Predictions: bm25f top 3 above both ranges (novice 93.8 against 80–92,
+  terse 99.4 against 88–98). Current top 8 in range for novice (80.7), just
+  above for terse (95.6). "bm25f lower than on the development paraphrases"
+  was not met: novice 93.8 against plain 88.8, terse 99.4 against synonym
+  98.1 (different styles, so a loose comparison).
+- The set is now development data.
+
 ## Next
 
 - Step 4b (live A/B on the full attempt), if step 3 does not skip it.
