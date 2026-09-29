@@ -209,7 +209,31 @@ node scripts/find-live-replay-report.mjs <main-checkout>/testing/transcripts/fin
 
 ### Results
 
-Not run yet.
+Run 2026-09-28, 18:09–21:44 (local), from dec0c5f (the night queue; see
+the provenance note in the step 3 addendum). Raw output in the main
+checkout's gitignored `testing/transcripts/find-live/2026-09-27-find-ranker-replay/`
+(`report.txt`).
+
+- **Analysis set.** 158 (3 excluded: no `sci_find` call; 0 errors, 0 parity
+  failures, 0 hash mismatches).
+- **Validity.** Faithful: `full` read the target in 156, the recorded run
+  in 157 (rule 1 met; rule 2 met, 0).
+
+| | `bm25f` | `full` | Diff (Newcombe 95% CI) | Discordant | Verdict (margin −5) |
+|---|---|---|---|---|---|
+| Target read in the choice turn | 158/158 | 156/158 | +1.3 (−1.3 to 4.5) | 2:0, McNemar p 0.50 | **non-inferior** |
+
+- Discordant, both for `bm25f`: `datalad` (rank 2; `full` made another
+  call) and `deepchem` (rank 1; `full` read `torchdrug` and `pytdc`).
+- Paired medians, `bm25f` − `full`: `sci_find` characters −333; prompt
+  tokens −65.5; output tokens +3.5. Seconds at position 1: 46.4 vs 43.8.
+- **Predictions.** Faithful (153 or more): met, 156. `bm25f` 155–158 with
+  0–3 discordant: met, 158 and 2. Non-inferior (about 75%): met. Prompt
+  tokens about 100 lower: −65.5, smaller than predicted. The run took
+  3.6 h, not the 3 h expected.
+- **Decision.** 4a passes. By the decision rule, bm25f can become the
+  default in 1.8.0 when step 3's rules hold over all writers (and 4b shows
+  no loss); the held-out set runs once first.
 
 ## Step 3: first queries from a panel of query writers (pre-registered)
 
