@@ -561,8 +561,8 @@ Target in the top k (%), request text as the query:
   default, 3 hits for the first search after a prompt, then 5 (713d6e8).
   The held-out run is done (bar met).
 - **The live test:** an A/B of the old search (0a8ddfd, current ranker, 8
-  hits) against the new one on Gemma 4 26B-A4B through OpenRouter, plain
-  probes, endpoint `read`. It needs Daniel's go and its own
-  pre-registration first.
+  hits) against the new one on Gemma 4 26B-A4B through OpenRouter, endpoint
+  `read`. Pre-registered in testing/runs/2026-09-29-openrouter-ab.md (plain
+  and expert probes).
 - Then release prep: the upgrade notice gets a line on the new search; the
   usual release process; `npm publish` is Daniel's step.
