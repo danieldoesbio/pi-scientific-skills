@@ -766,7 +766,10 @@ a fake `HOME`, `TMPDIR`, working directory and session file), the staged
 package read-only, and the network limited to one loopback port: the local
 provider's, or the key proxy's for a cloud provider. pi gets an allowlisted
 environment, not the caller's, with no API keys: the model can run `printenv`,
-and a shell environment carries tokens and paths into the real home.
+and a shell environment carries tokens and paths into the real home. It also
+sets `MPLBACKEND=Agg`: the profile does not fence the window server, and with
+matplotlib's macOS backend a model's `plt.show()` opened windows on the
+user's screen and blocked until someone closed them (2026-09-29).
 The profile also denies programs that act through another process, outside the
 sandbox: `launchctl` (launchd starts a loaded job unsandboxed), `open`,
 `osascript`, `automator` and `shortcuts`, and it blocks Apple events. A model

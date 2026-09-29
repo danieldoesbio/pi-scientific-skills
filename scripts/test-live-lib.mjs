@@ -486,7 +486,7 @@ console.log("-- provider keys stay out of the model's reach (key-proxy, agent-se
   );
 
   const env = piEnvironment({ PATH: "/usr/bin", OPENROUTER_API_KEY: KEY, ANTHROPIC_API_KEY: KEY, SSH_AUTH_SOCK: "/tmp/agent", HOME: "/Users/x" });
-  check("piEnvironment: no key or other secret passes", JSON.stringify(env) === '{"PATH":"/usr/bin"}', JSON.stringify(env));
+  check("piEnvironment: no key or other secret passes; matplotlib draws no window (Agg)", JSON.stringify(env) === '{"PATH":"/usr/bin","MPLBACKEND":"Agg"}', JSON.stringify(env));
 
   // A fake upstream. The second chunk waits until the client has the first,
   // so a proxy that buffered the response would stall here, not pass.

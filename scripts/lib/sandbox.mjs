@@ -37,10 +37,15 @@ export function sandboxAvailable() {
  * SSH agent socket and paths into the real home. No run needs a key here: a
  * local model takes none, and a cloud model's key stays in the harness
  * (scripts/lib/key-proxy.mjs).
+ *
+ * MPLBACKEND=Agg: the sandbox does not fence the window server, and with
+ * matplotlib's macOS backend a model's `plt.show()` opens a window on the
+ * user's screen and blocks until someone closes it (2026-09-29, the seaborn
+ * and matplotlib probes). Under Agg it warns and returns.
  */
 export function piEnvironment(env) {
   const names = ["PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "SHELL"];
-  return Object.fromEntries(Object.entries(env).filter(([name]) => names.includes(name)));
+  return { ...Object.fromEntries(Object.entries(env).filter(([name]) => names.includes(name))), MPLBACKEND: "Agg" };
 }
 
 /**
