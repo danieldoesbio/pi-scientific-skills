@@ -532,6 +532,29 @@ Target in the top k (%), request text as the query:
   98.1 (different styles, so a loose comparison).
 - The set is now development data.
 
+### Addendum 2026-09-29: OpenRouter smoke, Gemma 4 26B-A4B (no setup change)
+
+- **Model.** `openrouter/google/gemma-4-26b-a4b-it` (mixture of experts,
+  25.2B parameters in total, 3.8B active per token), thinking `medium`,
+  sampling 1.0 / 0.95 / top_k 64 in a `--models-json` override (not
+  committed).
+- **Provider.** A pin failed: with `only: ["deepinfra"]` (with and without
+  the fp8 and require-parameters filters) OpenRouter answered 404, "No
+  allowed providers". With no routing preferences the model runs. pi's
+  session file does not record the serving provider, so routing is a limit
+  of any run on this model.
+- **New search** (713d6e8, bm25f, 3 then 5), five plain probes (diffdock,
+  polars, pymc, scanpy, shap), endpoint `read`: structured tool calls,
+  thinking blocks present, no error stops, first prompt 1,734–1,751 tokens.
+  Four read the target in response 1 (8–10 s). polars never called
+  `sci_find`; the model wrote the code itself. Every first search showed 3
+  hits with the target among them (scanpy 2nd).
+- **Later searches.** A scripted task with two searches in two turns: the
+  first showed 3 hits, the second 5. The event wiring works in pi 0.84.3.
+- **Control** (a `git archive` of 0a8ddfd, whose `extensions/` equals
+  d75588b's; `--find-ranker current`): shap and scanpy read in response 1;
+  8 hits, 5,690–7,400 characters per result.
+
 ## Next
 
 - Step 4b (live A/B on the full attempt), if step 3 does not skip it.
