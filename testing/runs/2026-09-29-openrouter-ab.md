@@ -199,3 +199,27 @@ cents.
   arm; choice-turn prompt tokens paired median −988 (n 4).
 - **Output:** `testing/transcripts/find-live/2026-09-29-openrouter-ab-2/`.
   Everything else is as pre-registered.
+
+### Addendum 2026-09-29 12:35: second run stopped; restart with `MPLBACKEND=Agg` (before the restart's first request)
+
+- **Why.** The sandbox does not fence the window server, pi's environment set
+  no matplotlib backend, and the Python on PATH (miniforge) defaults to the
+  macOS backend. A test model's `plt.show()` (seaborn, matplotlib and aeon
+  probes) opened windows on Daniel's screen and blocked the bash call until
+  the window closed or the 300 s response timeout. So a person closing a
+  window could change an attempt's outcome and time. The macOS log shows the
+  backend loaded at 11:51 (matplotlib probe).
+- **Stopped** at 12:24 in chunk 3 of 17. The second run
+  (`2026-09-29-openrouter-ab-2`) is void; its data are not analysed. Its
+  health checks showed me harness errors, one timeout line (`pptx-posters`,
+  new expert) and two `plt.show()` tool calls (`seaborn`), not read counts.
+- **Fix** (8aaae45): pi's environment sets `MPLBACKEND=Agg` in both arms, so
+  `plt.show()` warns and returns at once (checked with the same Python: 0.01
+  s). The model sees one more warning line; nothing else changes.
+- **Earlier live runs** had the same exposure. At night nobody closed a
+  window, so a `plt.show()` blocked until the timeout, in any arm. Not
+  examined here.
+- **The new arm** is the commit of this addendum. `extensions/`, `skills/`
+  and `package.json` are unchanged since 713d6e8.
+- **Output:** `testing/transcripts/find-live/2026-09-29-openrouter-ab-3/`.
+  Everything else is as pre-registered and as the 11:55 addendum.
