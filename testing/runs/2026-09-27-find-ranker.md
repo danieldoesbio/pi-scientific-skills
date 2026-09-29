@@ -557,5 +557,12 @@ Target in the top k (%), request text as the query:
 
 ## Next
 
-- Step 4b (live A/B on the full attempt), if step 3 does not skip it.
-- Step 5: ship 1.8.0 when the rules hold; the held-out set runs once first.
+- **Release 1.7.0**, not 1.8.0 (1.7.0 was never published): bm25f the
+  default, 3 hits for the first search after a prompt, then 5 (713d6e8).
+  The held-out run is done (bar met).
+- **The live test:** an A/B of the old search (0a8ddfd, current ranker, 8
+  hits) against the new one on Gemma 4 26B-A4B through OpenRouter, plain
+  probes, endpoint `read`. It needs Daniel's go and its own
+  pre-registration first.
+- Then release prep: the upgrade notice gets a line on the new search; the
+  usual release process; `npm publish` is Daniel's step.
