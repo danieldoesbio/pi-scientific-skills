@@ -442,6 +442,69 @@ for every writer): met. Rule B (better on average): current 96.7%, bm25f
 Plain-style gain: Bonsai 3.8, Haiku 3.3, so 4b stays. These verdicts are
 final only when the Gemma writers have run.
 
+### Addendum 2026-09-29: two writers, and the design to ship
+
+Written before the held-out set is read and before any Gemma run.
+
+- **Gemma 4 12B and E4B do not run.** Daniel decided this on 2026-09-29,
+  after the Haiku and Bonsai results were in. The step 3 rules are final
+  over the two counted writers: rule A met, rule B met (+2.6, Newcombe 1.6
+  to 3.8, bootstrap by target 0.8 to 4.9), and the plain-style gain is 3
+  points or more (Bonsai 3.8, Haiku 3.3), so a live test stays in the plan.
+  The Gemma predictions are not scored.
+- **What this loses.** Whether a 4B-class model calls `sci_find` at all. No
+  ranker changes that. Both counted writers are larger than the smallest
+  models in the goal (Bonsai 2 is a 27B dense model; Haiku's size is not
+  public). The case that the ranker result holds for weaker writers rests on
+  the raw request text, the worst query a writer can give: bm25f top 3 is
+  equal to or above current top 8 in every development set (for example
+  plain, 88.8 against 77.0).
+- **The design to ship (changes step 5).** bm25f becomes the default
+  (`PI_SCI_FIND_RANKER=current` keeps the old ranker for one release). The
+  first `sci_find` search after a user prompt shows 3 results; later
+  searches show 5. The `limit` parameter goes. The compact format stays
+  experimental and does not ship.
+- **Why a fixed count.** The goal is fewer result tokens (shorter prefill).
+  In the panel's first messages, Haiku set `limit` in 415 of 813 calls (322
+  asked for 10, 40 for 12 to 20) and Bonsai in 163 of 528 (77 asked for 10,
+  62 for 12 to 20). A default alone would leave those calls at 10 or more.
+- **Why 3, then 5.** The panel's first queries under bm25f: top 3 98.7%
+  (Bonsai), 96.4% (Haiku; plain 92.8%); top 5 99.4% and 98.2%. Top 1 to 5
+  are secondary measures, outside the step 3 rules.
+- **Not yet tested.** Top 3 at the model's choice. The finding that the
+  model reads a listed target that is not first (32 of 32) comes from lists
+  of 8. When the target is not in the 3, the model must search again with
+  other words. The form of the live test is decided after the held-out run.
+
+### Held-out run (pre-registered 2026-09-29, before the set is read)
+
+- **Data.** The locked set: 162 probes × novice and terse, less the 3 leak
+  cells, 321 cells. The SHA-256 of the three files is checked against the
+  table above before the run.
+- **Query.** The request text of the cell, with no model (as in the
+  development table). This is harsher than a model's query.
+- **Script.** `scripts/find-rank-heldout.mjs <dir>` prints counts only. A dry
+  run on a copy built from the development paraphrases (plain as novice,
+  synonym as terse) gave the development table's values exactly.
+- **Primary bar: the first search's 3 results against today's 8.** Per
+  style, bm25f top 3 − current top 8, paired by cell: the point estimate is
+  0 or more and the Newcombe lower bound is above −5 points. Met for both
+  styles: the work goes on to the code change and the live test. Not met for
+  either style: stop; Daniel decides; no default changes on this evidence.
+- **Secondary.** Top 1, 2, 3, 5 and 8 and the no-hit share, both rankers.
+  Top 5 is the size of later searches. An absolute 95% for top 3 applies to
+  model queries (the panel); on raw text it is reported, not a bar.
+- **Predictions.** Novice: bm25f top 3 80–92%, current top 8 70–85%.
+  Terse: bm25f top 3 88–98%, current top 8 80–95%. The bar is met for both
+  styles: about 85%. bm25f top 3 is lower than on the development
+  paraphrases (the settings were chosen there): about 75%.
+- **Used once.** The result is reported whatever it is. After this run the
+  set is development data.
+
+```bash
+node scripts/find-rank-heldout.mjs <main-checkout>/test-artifacts/find-rank-heldout
+```
+
 ## Next
 
 - Step 4b (live A/B on the full attempt), if step 3 does not skip it.

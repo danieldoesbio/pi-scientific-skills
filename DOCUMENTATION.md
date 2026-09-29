@@ -222,6 +222,7 @@ scripts/find-live-replay.mjs # replay the choice turn of a find-live run with an
 scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
 scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
 scripts/find-rank-bench.mjs  # offline top-k rates of the sci_find rankers on the fixed query sets
+scripts/find-rank-heldout.mjs # the locked held-out set, scored once (counts only, never the texts)
 scripts/find-probes-styled.mjs # a probe file whose tasks are one paraphrase style
 scripts/find-panel.sh        # first sci_find queries of one query writer, per style, frozen sources
 scripts/find-panel-report.mjs # the writer panel's search rate and top-8 rates, current vs bm25f
