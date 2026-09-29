@@ -157,3 +157,14 @@ node <out>/src/new/scripts/find-ab-report.mjs <out>
 
 Estimate: 16 chunks of about 5–10 minutes, 1.5–3 hours. OpenRouter cost:
 cents.
+
+### Addendum 2026-09-29 11:30 (after launch; no rule change)
+
+- The run started at 11:25 from bec393a (the token-measure fix on top of the
+  pre-registration commit; `extensions/`, `skills/` and `package.json`
+  unchanged since 713d6e8).
+- The setup above has a counting error. The two styles hold **161** probe
+  ids, not 160: 158 in both, `citation-management` and `glycoengineering` in
+  plain only, `peer-review` in expert only. So there are **17 chunks**, the
+  last with one id (`hypogenic`). The unit count, 319, is right. The bootstrap
+  resamples 161 probes.
