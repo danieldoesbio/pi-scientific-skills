@@ -63,14 +63,15 @@ When the bet is wrong, the skill you needed is simply invisible.
 
 `/sci search` removes the bet. It keeps every skill out of the system prompt —
 **~0 tokens instead of ~23k** — and the model reaches all 162 through a
-`sci_find` tool, listed in the system prompt, that searches them by description
-and returns the path to load:
+`sci_find` tool, listed in the system prompt, that searches their names,
+descriptions and SKILL.md text and returns the 3 best matches with the path to
+load (5 on a follow-up search):
 
 ```
 > I have a sorted BAM and need to call variants from it
 
   sci_find("variant calling from a bam file")
-    → pysam, pathogen-variant-surveillance, genomic-intelligence …
+    → pysam, tiledbvcf, polars-bio
   read .../skills/pysam/SKILL.md
 ```
 
@@ -150,7 +151,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   GunPoint, a live CELLxGENE Census query. Coverage grows by a batch every
   release. The per-skill record is `testing/ledger.json`, with the notes in
   [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 137 behavioural checks
+- **`/sci` and `sci_find`, automated on every change:** 143 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
   `sci_find` renders under "Available tools" in pi's real system-prompt builder;
   `/sci all` preserves hand-written `!pattern` overrides; a seeded prior-version config leaves

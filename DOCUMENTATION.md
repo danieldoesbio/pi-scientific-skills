@@ -199,7 +199,7 @@ extensions/picker.ts    # the /sci profiles checkbox list (focused multiselect +
 extensions/commands.ts  # /sci's subcommands and bare-menu dispatch (status, search, all/none/reset)
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 extensions/search.ts    # sci_find's catalogue + ranking, and skills/ root resolution
-extensions/bm25f.ts     # the experimental BM25F ranker (PI_SCI_FIND_RANKER=bm25f)
+extensions/bm25f.ts     # the BM25F ranker, the default (PI_SCI_FIND_RANKER=current for the old one)
 extensions/aliases.ts   # curated query→skill aliases, each from an observed miss
 extensions/frontmatter.ts    # the one YAML parser, shared with validate.mjs
 extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guards the drift
@@ -362,26 +362,41 @@ because every probe has a target.
   a trade worth a config toggle,
   and someone running all 162 still benefits from looking a skill up by need
   rather than by name. `/sci status` says so.
-- **Recall beats precision.** `sci_find` does not have to pick the right skill,
-  only get it into a list of eight with full descriptions attached. Even a small
-  model discriminates well among eight labelled options and badly among 162 in a
-  system prompt. That is why scoring is OR-based: requiring every term to match
-  returns nothing for ordinary phrasings ("variant calling" matches no single
-  description verbatim).
-- **A compact result format is under test, off by default.** With
-  `PI_SCI_FIND_FORMAT=compact`, `sci_find` shows the top 2 hits in full and
-  the others with the first sentence of their description only, and a call
-  without `limit` gets 6 hits, not 8. On 2026-09-25 the top 6 held the target
+- **Recall beats precision, in a short list.** `sci_find` does not have to
+  pick the right skill, only get it into a short list with full descriptions
+  attached. Even a small model discriminates well among a few labelled options
+  and badly among 162 in a system prompt. That is why scoring is OR-based:
+  requiring every term to match returns nothing for ordinary phrasings
+  ("variant calling" matches no single description verbatim).
+- **3 hits, then 5.** The first turn that searches after a user prompt gets
+  the top 3 (parallel calls in that turn too); later turns get the top 5
+  (`createSearchStage` in `catalog.ts`, fed by pi's `agent_start` and
+  `turn_start` events). Profile listings do not count as a search. The result
+  text is most of the prefill of the turn after a search, so a shorter list is
+  a faster turn: about 850 characters per hit, and 8 hits took about 17 of the
+  25 seconds on 2026-09-25. Under bm25f the target is in the top 3 for 96–99%
+  of the first queries two models wrote, above the old ranker's top 8. There
+  is no `limit` argument: in the same data the models set one in 578 of 1,341
+  calls, mostly 10 to 20. `/sci find` and callers that pass no count get 8.
+  Not yet measured: what a model does when the target is not in the 3 (the
+  tool description tells it to search again with other words).
+- **A compact result format is experimental, off by default, and not in
+  1.7.0.** With `PI_SCI_FIND_FORMAT=compact`, `sci_find` shows the top 2 hits
+  in full and the others with the first sentence of their description only
+  (with 3, then 5 hits, that is 1 or 3 short ones); `runToolSearch` with no
+  count gives 6 hits, not 8. On 2026-09-25 the top 6 held the target
   in 152 of 158 searches, and the choice turn after the search spent most of
   its time in prefill of the result. The first choice-turn replay
   ([`testing/runs/2026-09-27-find-compact-replay.md`](testing/runs/2026-09-27-find-compact-replay.md))
   was inconclusive: the target was read in 155 of 158 choice turns with
   `compact` and 158 of 158 with `full` (95% CI −5.4 to 0.8 points, margin −5),
-  and `compact` saved a median 951 prompt tokens. The flag stays experimental
-  until a second replay sample and a live A/B show no loss. Profile listings and no-match results are the
+  and `compact` saved a median 951 prompt tokens. The second sample, pooled
+  with the first, was non-inferior
+  ([`testing/runs/2026-09-27-find-compact-replay-2.md`](testing/runs/2026-09-27-find-compact-replay-2.md)).
+  The shorter list (3, then 5) took its place as the way to cut result
+  tokens. Profile listings and no-match results are the
   same in both formats.
-- **A second ranker is under test, off by default.** With
-  `PI_SCI_FIND_RANKER=bm25f`, `sci_find` ranks with BM25F over three fields
+- **The ranker is BM25F (since 1.7.0).** `sci_find` ranks with BM25F over three fields
   per skill: name, description and SKILL.md body (`extensions/bm25f.ts`). A
   word's weight falls with the number of skills that use it, and the body lets
   a query reach a skill through words its description does not use. The
@@ -397,9 +412,16 @@ because every probe has a target.
   boost, so a query made only of common words can miss ("write the methods
   section of my paper" ranks `scientific-writing` 11th; `test-search.mjs`
   lists it as a known miss). The index is built on the first call (about
-  120 ms) and later calls take under 3 ms. It becomes the default only after
-  the checks in
+  120 ms) and later calls take under 3 ms. Before it became the default:
+  a choice-turn replay (the model read the target in 158 of 158 turns with
+  bm25f lists, against 156 of 158), a panel of two query writers (Claude
+  Haiku 4.5 and Bonsai 2 27B; top 8 99.3% against 96.7%), and one run on a
+  locked held-out set of 321 requests no setting was chosen on (top 3 96.6%
+  against the old ranker's top 8, 88.2%). All in
   [`testing/runs/2026-09-27-find-ranker.md`](testing/runs/2026-09-27-find-ranker.md).
+  With 3 hits, the "methods section" miss above shows no writing skill; a
+  query that names the kind of writing ("scientific manuscript methods")
+  does. `PI_SCI_FIND_RANKER=current` restores the old ranker for one release.
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
   than no answer. Matching is **word-boundary, not substring** — raw substring
@@ -674,7 +696,7 @@ is therefore a hard prerequisite for `npm test`.
 | Script | What it proves |
 |---|---|
 | `validate.mjs` | All 162 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
-| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`current` and `bm25f`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |

@@ -89,6 +89,7 @@ const register = (harness) => {
   let sessionStart;
   let inputHandler;
   let tool;
+  const events = {};
   const pi = {
     registerCommand: (_name, options) => {
       commandHandler = options.handler;
@@ -99,6 +100,7 @@ const register = (harness) => {
     on: (event, handler) => {
       if (event === "session_start") sessionStart = handler;
       if (event === "input") inputHandler = handler;
+      events[event] = handler;
     },
     // Only ever called from inside the input handler; the extension must not
     // call it during registration, when a real pi would throw "not initialized".
@@ -111,7 +113,7 @@ const register = (harness) => {
     },
   };
   extension.default(pi);
-  return { commandHandler, sessionStart, inputHandler, tool };
+  return { commandHandler, sessionStart, inputHandler, tool, events };
 };
 
 const startup = async (hooks, harness) =>
@@ -191,15 +193,57 @@ console.log("-- sci_find tool --");
   );
 }
 
+console.log("\n-- sci_find hit count: 3 for the first search after a prompt, then 5 --");
+{
+  newAgentDir();
+  const harness = makeHarness();
+  const { tool, events } = register(harness);
+  const headings = async (params) =>
+    (await tool.execute("id", params)).content[0].text.split("\n").filter((line) => line.startsWith("## ")).length;
+  const properties = Object.keys(tool.parameters?.properties ?? {});
+  check("no limit parameter: the model cannot ask for a longer list", !properties.includes("limit"), properties.join(", "));
+  check(
+    "the description states the counts",
+    /first search returns the best 3 matches and later searches the best 5/.test(tool.description),
+  );
+  check(
+    "agent_start and turn_start are handled",
+    typeof events.agent_start === "function" && typeof events.turn_start === "function",
+  );
+
+  const query = "single cell rna-seq clustering";
+  await events.agent_start({ type: "agent_start" });
+  await events.turn_start({ type: "turn_start", turnIndex: 0, timestamp: 0 });
+  await tool.execute("id", { profile: "drug-discovery" });
+  await tool.execute("id", {});
+  await events.turn_start({ type: "turn_start", turnIndex: 1, timestamp: 0 });
+  const first = await headings({ query });
+  const parallel = await headings({ query: "protein structure prediction" });
+  check(
+    "the first turn that searches shows 3, parallel calls too; listings before it do not count",
+    first === 3 && parallel === 3,
+    `${first}, ${parallel}`,
+  );
+  await events.turn_start({ type: "turn_start", turnIndex: 2, timestamp: 0 });
+  const later = await headings({ query });
+  const stray = await headings({ query, limit: 20 });
+  check("a later turn shows 5, and a stray limit argument is ignored", later === 5 && stray === 5, `${later}, ${stray}`);
+  await events.agent_start({ type: "agent_start" });
+  await events.turn_start({ type: "turn_start", turnIndex: 0, timestamp: 0 });
+  check("a new prompt starts again at 3", (await headings({ query })) === 3);
+}
+
 console.log("\n-- sci_find compact format (PI_SCI_FIND_FORMAT=compact) --");
 {
   newAgentDir();
-  const { tool } = register(makeHarness());
+  // The format belongs to runToolSearch, which the replay tooling also calls
+  // with a recorded count; the tool's own count (3, then 5) is checked above.
+  const { runToolSearch } = await loadExtensionModule("extensions/catalog.ts");
   const run = async (params, format) => {
     if (format) process.env.PI_SCI_FIND_FORMAT = format;
     else delete process.env.PI_SCI_FIND_FORMAT;
     try {
-      return (await tool.execute("id", params)).content[0].text;
+      return runToolSearch(params);
     } finally {
       delete process.env.PI_SCI_FIND_FORMAT;
     }

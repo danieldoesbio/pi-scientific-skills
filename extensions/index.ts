@@ -30,6 +30,7 @@
 import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
+  createSearchStage,
   expandFilteredSkill,
   formatTokens,
   parseSkillCommand,
@@ -41,7 +42,7 @@ import { dispatch, hasSkillsFilter } from "./commands";
 import { PACKAGE_NAME, PACKAGE_VERSION } from "./package-info";
 import { describeError, report, settingsPath } from "./paths";
 import { BASELINE_TOKEN_COST, TOTAL_SKILL_COUNT } from "./profiles";
-import { DEFAULT_LIMIT, MAX_LIMIT } from "./search";
+import { FIRST_SEARCH_LIMIT, LATER_SEARCH_LIMIT } from "./search";
 import { findPackageEntry, readConfig, readSettings, writeConfig } from "./settings";
 import {
   COMMAND_NAME,
@@ -310,6 +311,10 @@ export default function (pi: ExtensionAPI): void {
   // misses on valid probes were attempts that never called it. Guidelines are
   // appended flat to pi's own list, so each one names the tool.
   if (SKILLS_DIR) {
+    // A new prompt starts a new first search; see createSearchStage.
+    const searchStage = createSearchStage();
+    pi.on("agent_start", async () => searchStage.agentStart());
+    pi.on("turn_start", async (event) => searchStage.turnStart(event.turnIndex));
     pi.registerTool({
       name: TOOL_NAME,
       label: "Find scientific skill",
@@ -331,7 +336,9 @@ export default function (pi: ExtensionAPI): void {
         `way to discover them. Call it with a natural-language description of the task ` +
         `("variant calling from a bam file", "fit a survival model"). Omit all arguments ` +
         `to list the profiles, or pass a profile id to list its skills. Returns skill ` +
-        `names, full descriptions, and the SKILL.md path to read.`,
+        `names, full descriptions, and the SKILL.md path to read. The first search ` +
+        `returns the best ${FIRST_SEARCH_LIMIT} matches and later searches the best ` +
+        `${LATER_SEARCH_LIMIT}; if none fits, search again with other words.`,
       parameters: Type.Object({
         query: Type.Optional(
           Type.String({ description: "What you are trying to do, in natural language." }),
@@ -339,16 +346,16 @@ export default function (pi: ExtensionAPI): void {
         profile: Type.Optional(
           Type.String({ description: "Profile id to list instead of searching." }),
         ),
-        limit: Type.Optional(
-          Type.Integer({
-            minimum: 1,
-            maximum: MAX_LIMIT,
-            description: `Maximum results (default ${DEFAULT_LIMIT}), 1 to ${MAX_LIMIT}.`,
-          }),
-        ),
       }),
       async execute(_toolCallId: string, params: ToolParams) {
-        const text = runToolSearch(params);
+        // No `limit` argument: in the 2026-09-27 panel the models set one in
+        // 578 of 1,341 calls, mostly 10 to 20, which undoes a short list. A
+        // stray `limit` from a model is ignored.
+        const text = runToolSearch({
+          query: params.query,
+          profile: params.profile,
+          limit: searchStage.limitFor(params),
+        });
         return { content: [{ type: "text" as const, text }], details: {} };
       },
     });

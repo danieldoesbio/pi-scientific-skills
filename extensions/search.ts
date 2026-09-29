@@ -314,17 +314,28 @@ const EXACT_NAME_BONUS = 10;
  */
 const MIN_SCORE = 2;
 
+/** Hit count when the caller gives none (`/sci find`, the offline tools). */
 export const DEFAULT_LIMIT = 8;
-/** Caller-supplied ceiling for `limit` — index.ts clamps to this. */
+/** Ceiling for a caller-supplied count — catalog.ts clamps to this. */
 export const MAX_LIMIT = 20;
 
 /**
- * Which ranker `sci_find` uses. "current" (the default) is the scoring below;
- * "bm25f" (experimental, `PI_SCI_FIND_RANKER=bm25f`) is `bm25f.ts`.
+ * Hits `sci_find` shows the model: the first search after a user prompt, then
+ * every later one. Chosen from the top-k rates in
+ * testing/runs/2026-09-27-find-ranker.md: under bm25f the target is in the
+ * top 3 for 96–99% of first queries, above the current ranker's top 8.
+ */
+export const FIRST_SEARCH_LIMIT = 3;
+export const LATER_SEARCH_LIMIT = 5;
+
+/**
+ * Which ranker `sci_find` uses. "bm25f" (the default) is `bm25f.ts`;
+ * "current" (`PI_SCI_FIND_RANKER=current`, kept for one release) is the
+ * scoring below.
  */
 export type Ranker = "current" | "bm25f";
 
-export const findRanker = (): Ranker => (process.env.PI_SCI_FIND_RANKER === "bm25f" ? "bm25f" : "current");
+export const findRanker = (): Ranker => (process.env.PI_SCI_FIND_RANKER === "current" ? "current" : "bm25f");
 
 /**
  * One BM25F index per catalogue array. It reads every SKILL.md body (about

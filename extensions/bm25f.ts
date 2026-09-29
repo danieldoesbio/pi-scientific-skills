@@ -1,5 +1,6 @@
 /**
- * BM25F ranking for `sci_find` (experimental, `PI_SCI_FIND_RANKER=bm25f`).
+ * BM25F ranking for `sci_find`, the default (`PI_SCI_FIND_RANKER=current`
+ * selects the older ranker in search.ts).
  *
  * Three fields per skill: its name, its description and its SKILL.md body.
  * A term's weight falls with the number of skills that use it (IDF), so a
@@ -10,7 +11,7 @@
  * The settings are fixed. They came from a 2-fold cross-validation on 425
  * recorded first `sci_find` queries (split by target skill) and were then
  * tested, unchanged, on paraphrased requests written blind to the skill
- * names (testing/runs/2026-09-27-find-ranker.md).
+ * names, and once on a locked held-out set (testing/runs/2026-09-27-find-ranker.md).
  */
 
 import { readFileSync } from "node:fs";

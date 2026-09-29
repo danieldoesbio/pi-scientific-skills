@@ -101,7 +101,7 @@ const NEGATIVES = [
 ];
 
 /**
- * Golden queries that the experimental bm25f ranker misses, each with its
+ * Golden queries that the bm25f ranker (the default) misses, each with its
  * reason. They are reported under bm25f, not checked. bm25f has no alias boost
  * (development data set it to 0), and the words below are in most SKILL.md
  * bodies, so they carry almost no weight (testing/runs/2026-09-27-find-ranker.md).
@@ -143,9 +143,9 @@ for (const entry of catalog) {
   }
 }
 
-// Every check runs under both rankers: "current" (the default) and "bm25f"
-// (experimental, PI_SCI_FIND_RANKER=bm25f). Neither may regress the other's
-// obligations while both ship.
+// Every check runs under both rankers: "bm25f" (the default) and "current"
+// (PI_SCI_FIND_RANKER=current, kept for one release). Neither may regress the
+// other's obligations while both ship.
 for (const ranker of ["current", "bm25f"]) {
   const run = (query) => search.search(catalog, query, TOP_N, ranker);
   const tag = ranker === "current" ? "" : ` [${ranker}]`;
@@ -196,13 +196,17 @@ for (const ranker of ["current", "bm25f"]) {
 note("\n-- ranker switch and bm25f specifics --");
 {
   const before = process.env.PI_SCI_FIND_RANKER;
-  process.env.PI_SCI_FIND_RANKER = "bm25f";
+  process.env.PI_SCI_FIND_RANKER = "current";
   const on = search.findRanker();
   process.env.PI_SCI_FIND_RANKER = "something-else";
   const other = search.findRanker();
-  if (before === undefined) delete process.env.PI_SCI_FIND_RANKER;
-  else process.env.PI_SCI_FIND_RANKER = before;
-  suite.record(on === "bm25f" && other === "current", `PI_SCI_FIND_RANKER: "bm25f" selects bm25f, anything else the current ranker (got ${on}, ${other})`);
+  delete process.env.PI_SCI_FIND_RANKER;
+  const unset = search.findRanker();
+  if (before !== undefined) process.env.PI_SCI_FIND_RANKER = before;
+  suite.record(
+    on === "current" && other === "bm25f" && unset === "bm25f",
+    `PI_SCI_FIND_RANKER: "current" selects the current ranker, anything else or unset bm25f (got ${on}, ${other}, ${unset})`,
+  );
   const exact = search.search(catalog, "pytorch lightning", TOP_N, "bm25f").map((hit) => hit.entry.name);
   suite.record(exact[0] === "pytorch-lightning", `bm25f: a query equal to a skill name lists it first, got [${exact.join(", ")}]`);
   const limited = search.search(catalog, "single cell rna-seq clustering", 3, "bm25f");

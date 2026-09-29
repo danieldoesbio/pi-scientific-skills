@@ -15,6 +15,8 @@ import {
 } from "./profiles";
 import {
   DEFAULT_LIMIT,
+  FIRST_SEARCH_LIMIT,
+  LATER_SEARCH_LIMIT,
   MAX_LIMIT,
   loadCatalog,
   resolveSkillsDir,
@@ -298,7 +300,11 @@ const formatProfileIndex = (): string =>
     `Call ${TOOL_NAME} with a query to search, or with a profile id to list one.`,
   ].join("\n");
 
-/** Arguments accepted by `sci_find`. All optional: no args lists the profiles. */
+/**
+ * A search request. `query` and `profile` are `sci_find`'s arguments; all
+ * optional, and no args lists the profiles. `limit` is the caller's hit count
+ * (the tool's search stage, or a replayed call), not a model argument.
+ */
 export interface ToolParams {
   query?: string;
   profile?: string;
@@ -335,6 +341,37 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
       : DEFAULT_LIMIT;
   const hits = search(catalog(), query, limit);
   return hits.length === 0 ? noMatchText(query) : formatHits(hits, format);
+};
+
+/**
+ * How many hits `sci_find` shows the model. Every call in the first turn that
+ * searches after a user prompt gets FIRST_SEARCH_LIMIT (parallel calls in that
+ * turn included); every later turn gets LATER_SEARCH_LIMIT. Profile listings
+ * and empty calls are not searches and do not use up the first turn.
+ * index.ts feeds it pi's agent_start (a new prompt) and turn_start events.
+ */
+export interface SearchStage {
+  agentStart: () => void;
+  turnStart: (turnIndex: number) => void;
+  limitFor: (params: ToolParams) => number | undefined;
+}
+
+export const createSearchStage = (): SearchStage => {
+  let turn = 0;
+  let firstSearchTurn: number | undefined;
+  return {
+    agentStart: () => {
+      firstSearchTurn = undefined;
+    },
+    turnStart: (turnIndex) => {
+      turn = turnIndex;
+    },
+    limitFor: (params) => {
+      if (params.profile?.trim() || !params.query?.trim()) return undefined;
+      firstSearchTurn ??= turn;
+      return turn === firstSearchTurn ? FIRST_SEARCH_LIMIT : LATER_SEARCH_LIMIT;
+    },
+  };
 };
 
 /** Inert default export; see extensions/index.ts's header comment. */
