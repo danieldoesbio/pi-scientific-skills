@@ -6,10 +6,17 @@
 // statistics and analysis set (scripts/lib/arms-report.mjs), and the
 // choice-turn replay helpers (scripts/lib/replay.mjs). These fail silently in
 // a live run — a wrong endpoint or gate still gives numbers — so they are
-// checked here, with no model.
-import { mkdtempSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
+// checked here, with no model. Last, that no provider key reaches the model's
+// side of the sandbox (scripts/lib/key-proxy.mjs, scripts/lib/agent-seed.mjs):
+// a key in the agent dir costs nothing until a model reads it.
+import { execFile, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { seedAgentDir } from "./lib/agent-seed.mjs";
+import { PROXY_TOKEN, providerKey, proxiedModels, startKeyProxy, upstreamBaseUrl } from "./lib/key-proxy.mjs";
+import { piEnvironment, SANDBOX_EXEC, sandboxAvailable, sandboxProfile } from "./lib/sandbox.mjs";
 import { runSupervisedProbe } from "./lib/converse.mjs";
 import { gateTripped, isSeek, responses, sessionMeasures, skillReads } from "./lib/pi-session.mjs";
 import { joinRequests, parseDriverLog, parseServerLog, stampMs } from "./lib/server-log.mjs";
@@ -416,6 +423,155 @@ console.log("-- choice-turn replay (find-live-replay) --");
     one.bootstrap[0] === four.bootstrap[0] && one.bootstrap[1] === four.bootstrap[1] && four.newcombe[1] - four.newcombe[0] < one.newcombe[1] - one.newcombe[0],
     JSON.stringify({ one: [one.newcombe, one.bootstrap], four: [four.newcombe, four.bootstrap] }),
   );
+}
+
+console.log("-- provider keys stay out of the model's reach (key-proxy, agent-seed) --");
+{
+  const KEY = "sk-or-v1-FAKE-test-key-0123456789";
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "live-lib-keys-")));
+  const auth = join(dir, "auth.json");
+  const read = (file) => readFileSync(file, "utf8");
+
+  writeFileSync(auth, JSON.stringify({ openrouter: { type: "api_key", key: KEY } }));
+  check("providerKey: auth.json api_key entry", providerKey("openrouter", auth, {}) === KEY);
+  check("providerKey: no entry falls back to <PROVIDER>_API_KEY", providerKey("deepseek", auth, { DEEPSEEK_API_KEY: KEY }) === KEY);
+  const refusal = (fn) => {
+    try {
+      fn();
+      return "";
+    } catch (error) {
+      return error.message;
+    }
+  };
+  writeFileSync(auth, JSON.stringify({ anthropic: { type: "oauth", access: KEY, refresh: KEY } }));
+  const oauth = refusal(() => providerKey("anthropic", auth, {}));
+  check("providerKey: an OAuth credential is refused, without its token in the message", /not an API key/.test(oauth) && !oauth.includes(KEY), oauth);
+  writeFileSync(auth, `{"openrouter": {"type": "api_key", "key": "${KEY}"`);
+  const broken = refusal(() => providerKey("openrouter", auth, {}));
+  check("providerKey: a broken auth.json is refused without quoting it", /not valid JSON/.test(broken) && !broken.includes(KEY), broken);
+
+  const store = join(dir, "models-store.json");
+  writeFileSync(store, JSON.stringify({ openrouter: { models: [{ id: "google/gemma-4-26b-a4b-it", baseUrl: "https://openrouter.ai/api/v1" }] } }));
+  check("upstreamBaseUrl: from the catalogue cache", upstreamBaseUrl("openrouter/google/gemma-4-26b-a4b-it", {}, store) === "https://openrouter.ai/api/v1");
+  check(
+    "upstreamBaseUrl: models.json wins over the cache",
+    upstreamBaseUrl("openrouter/google/gemma-4-26b-a4b-it", { providers: { openrouter: { baseUrl: "https://example.test/v1" } } }, store) === "https://example.test/v1",
+  );
+  check("upstreamBaseUrl: an unknown provider is refused", /no baseUrl for nowhere/.test(refusal(() => upstreamBaseUrl("nowhere/m", {}, store))));
+
+  const source = {
+    providers: {
+      openrouter: { apiKey: "$OPENROUTER_API_KEY", compat: { supportsDeveloperRole: false } },
+      other: { baseUrl: "https://other.test/v1", apiKey: KEY },
+    },
+  };
+  const proxied = proxiedModels(source, "openrouter", "http://127.0.0.1:9/api/v1");
+  check(
+    "proxiedModels: only the provider under test, at the proxy, with the token as its key",
+    JSON.stringify(Object.keys(proxied.providers)) === '["openrouter"]' &&
+      proxied.providers.openrouter.baseUrl === "http://127.0.0.1:9/api/v1" &&
+      proxied.providers.openrouter.apiKey === PROXY_TOKEN &&
+      proxied.providers.openrouter.compat.supportsDeveloperRole === false &&
+      source.providers.openrouter.apiKey === "$OPENROUTER_API_KEY",
+    JSON.stringify(proxied),
+  );
+  check("proxiedModels: custom headers are refused", /headers is not supported/.test(refusal(() => proxiedModels({ providers: { openrouter: { headers: { x: "y" } } } }, "openrouter", "http://127.0.0.1:9"))));
+
+  const seed = seedAgentDir(join(dir, "seed"), { packageDir: "/pkg", promptSkills: [], extension: true, models: proxied, catalogue: store });
+  const seeded = readdirSync(seed).sort();
+  check(
+    "seedAgentDir: no auth.json, and no seeded file holds the key",
+    JSON.stringify(seeded) === '["models-store.json","models.json","settings.json"]' && seeded.every((name) => !read(join(seed, name)).includes(KEY)),
+    JSON.stringify(seeded),
+  );
+
+  const env = piEnvironment({ PATH: "/usr/bin", OPENROUTER_API_KEY: KEY, ANTHROPIC_API_KEY: KEY, SSH_AUTH_SOCK: "/tmp/agent", HOME: "/Users/x" });
+  check("piEnvironment: no key or other secret passes", JSON.stringify(env) === '{"PATH":"/usr/bin"}', JSON.stringify(env));
+
+  // A fake upstream. The second chunk waits until the client has the first,
+  // so a proxy that buffered the response would stall here, not pass.
+  let firstChunkSeen;
+  const firstChunk = new Promise((resolve) => (firstChunkSeen = resolve));
+  const seen = [];
+  const upstream = createServer((req, res) => {
+    seen.push({ url: req.url, auth: req.headers.authorization, title: req.headers["x-title"], host: req.headers.host });
+    req.resume();
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write("data: 1\n\n");
+    firstChunk.then(() => res.end("data: 2\n\n"));
+  });
+  await new Promise((resolve) => upstream.listen(0, "127.0.0.1", resolve));
+  const upstreamUrl = `http://127.0.0.1:${upstream.address().port}/api/v1`;
+  const proxy = await startKeyProxy({ upstream: upstreamUrl, key: KEY });
+  const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error(`no response in ${ms} ms`)), ms).unref());
+  let streamed = "";
+  try {
+    const response = await Promise.race([
+      fetch(`${proxy.baseUrl}/chat/completions?key=${PROXY_TOKEN}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${PROXY_TOKEN}`, "x-title": PROXY_TOKEN },
+        body: "{}",
+      }),
+      timeout(5000),
+    ]);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const first = await Promise.race([reader.read(), timeout(5000)]);
+    streamed += decoder.decode(first.value);
+    firstChunkSeen();
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) streamed += decoder.decode(chunk.value);
+  } catch (error) {
+    streamed = `error: ${error.message}`;
+  }
+  check("key proxy: a streamed response arrives chunk by chunk", streamed === "data: 1\n\ndata: 2\n\n", JSON.stringify(streamed));
+  check(
+    "key proxy: upstream gets the real key in the auth header, and its own host",
+    seen.length === 1 && seen[0].auth === `Bearer ${KEY}` && seen[0].host === new URL(upstreamUrl).host,
+    JSON.stringify(seen),
+  );
+  // The model can read the token in models.json: swapped anywhere an upstream
+  // may echo it (the path, the query, an app-name header), it would return the key.
+  check(
+    "key proxy: the token in the query or another header reaches upstream as the token, not the key",
+    seen.length === 1 && seen[0].url === `/api/v1/chat/completions?key=${PROXY_TOKEN}` && seen[0].title === PROXY_TOKEN,
+    JSON.stringify(seen),
+  );
+  await new Promise((resolve) => {
+    upstream.closeAllConnections();
+    upstream.close(resolve);
+  });
+  const down = await fetch(`${proxy.baseUrl}/chat/completions`, { method: "POST", headers: { authorization: `Bearer ${PROXY_TOKEN}` }, body: "{}" });
+  const downBody = await down.text();
+  check("key proxy: an unreachable upstream is a 502 that does not hold the key", down.status === 502 && !downBody.includes(KEY), `${down.status} ${downBody}`);
+
+  // The sandbox half, macOS only (CI is Linux): a key outside the attempt dir
+  // is unreadable, and the network reaches the proxy's port and no other.
+  if (sandboxAvailable()) {
+    const run = join(dir, "run");
+    mkdirSync(run);
+    writeFileSync(auth, JSON.stringify({ openrouter: { type: "api_key", key: KEY } }));
+    const profile = join(dir, "profile.sb");
+    writeFileSync(profile, sandboxProfile({ readWrite: [run], readOnly: [], network: { kind: "loopback", port: String(proxy.port) } }));
+    const inSandbox = (...argv) => spawnSync(SANDBOX_EXEC, ["-f", profile, ...argv], { cwd: run, encoding: "utf8" });
+    const cat = inSandbox("/bin/cat", auth);
+    check("sandbox: a cat of a key file outside the attempt dir fails", cat.status !== 0 && !cat.stdout.includes(KEY), `exit ${cat.status}: ${cat.stderr.trim()}`);
+    // Not spawnSync: the proxy runs in this process and must answer meanwhile.
+    const curl = (url) =>
+      new Promise((resolve) =>
+        execFile(SANDBOX_EXEC, ["-f", profile, "/usr/bin/curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "5", url], { cwd: run }, (_, stdout) =>
+          resolve(stdout),
+        ),
+      );
+    const other = createServer((req, res) => res.end("reached"));
+    await new Promise((resolve) => other.listen(0, "127.0.0.1", resolve));
+    const [toProxy, toOther] = await Promise.all([curl(`${proxy.baseUrl}/models`), curl(`http://127.0.0.1:${other.address().port}/`)]);
+    other.close();
+    check("sandbox: the proxy's port answers, another loopback port does not", toProxy === "502" && toOther === "000", `proxy ${toProxy}, other ${toOther}`);
+  } else {
+    console.log("  skip    sandbox checks: no sandbox-exec on this platform");
+  }
+  await proxy.close();
+  rmSync(dir, { recursive: true, force: true });
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

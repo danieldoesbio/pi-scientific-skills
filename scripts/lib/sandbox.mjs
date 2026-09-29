@@ -4,7 +4,8 @@
 // probe tasks read like real requests ("review my recent screen activity"). A
 // model that acts on one will search the real home directory. The profile
 // keeps every read and write inside the run's own directories, and keeps the
-// network on the model's own endpoint when that endpoint is local.
+// network on one loopback port: the model's own endpoint when it is local, or
+// the harness's key proxy for a cloud provider (scripts/lib/key-proxy.mjs).
 //
 // SBPL matches real paths, so every path is resolved first: /var and /tmp are
 // symlinks into /private, and a rule on the symlink matches nothing.
@@ -31,10 +32,23 @@ export function sandboxAvailable() {
 }
 
 /**
+ * pi's environment: an allowlist, not a copy of ours. The model can run
+ * `printenv`, and the parent environment carries API keys, session tokens, an
+ * SSH agent socket and paths into the real home. No run needs a key here: a
+ * local model takes none, and a cloud model's key stays in the harness
+ * (scripts/lib/key-proxy.mjs).
+ */
+export function piEnvironment(env) {
+  const names = ["PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "SHELL"];
+  return Object.fromEntries(Object.entries(env).filter(([name]) => names.includes(name)));
+}
+
+/**
  * The network the model needs, read from models.json. A provider declared
  * there with a loopback baseUrl (Ollama, an MLX server) needs only that port.
- * Any other provider is a cloud API whose addresses SBPL cannot name, so the
- * network stays open and only the filesystem is fenced.
+ * Any other provider is a cloud API whose addresses SBPL cannot name: `open`.
+ * The live harness answers that with its key proxy, and fences the network to
+ * the proxy's port.
  */
 export function networkFor(model, agentDir, file = join(agentDir, "models.json")) {
   const provider = model.split("/")[0];

@@ -18,7 +18,10 @@
 // The model keeps pi's default tools, bash included, so every pi run happens
 // inside a macOS sandbox-exec profile (scripts/lib/sandbox.mjs): reads and
 // writes only in its own attempt directory, a fake HOME, and the network only
-// to the model's endpoint when that endpoint is local.
+// to one loopback port. That port is the model's endpoint when it is local;
+// for a cloud model it is a proxy in this process that holds the API key
+// (scripts/lib/key-proxy.mjs). No key is ever in the agent dir or in pi's
+// environment, where the model could read it.
 //
 // Usage:
 //   node scripts/test-find-live.mjs [--model <id>] [--timeout <s>] [--keep]
@@ -70,7 +73,9 @@
 //                      it, so the result lines record what ran.
 //   --models-json <file>  Seed the throwaway agent dir with this models.json
 //                      instead of the real one (e.g. a provider on another
-//                      port). The real agent dir is never written.
+//                      port). The real agent dir is never written. For a cloud
+//                      model, only its provider's entry is kept, pointed at
+//                      the key proxy.
 //   --gate-calls <n>   End an attempt as `gated` (a miss) once its first n tool
 //                      calls hold no skill-seeking call (scripts/lib/pi-session.mjs
 //                      `gateTripped`). Default 0: off.
@@ -118,9 +123,11 @@ import { chmodSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { seedAgentDir } from "./lib/agent-seed.mjs";
 import { runSupervisedProbe, summarizeSupervised } from "./lib/converse.mjs";
+import { providerKey, proxiedModels, startKeyProxy, upstreamBaseUrl } from "./lib/key-proxy.mjs";
 import { hitNames, readEntries, sessionMeasures } from "./lib/pi-session.mjs";
-import { networkFor, SANDBOX_EXEC, sandboxAvailable, sandboxProfile } from "./lib/sandbox.mjs";
+import { networkFor, piEnvironment, SANDBOX_EXEC, sandboxAvailable, sandboxProfile } from "./lib/sandbox.mjs";
 import { createPersona } from "./lib/supervisor.mjs";
 import { checkProbe, createJudge } from "./lib/probe-check.mjs";
 
@@ -327,54 +334,6 @@ function stageTarball(scratch, source) {
   return named;
 }
 
-/**
- * An agent dir holding nothing but this package, its skills filter set to
- * `promptSkills`: empty (the configuration `/sci search` writes since 1.7.0,
- * so the run tests the shipped default; sci_find the only way in), the Core
- * profile (what `/sci search` wrote before 1.7.0), or `null` for no filter
- * (every skill listed). `extension: false` loads no extension (`extensions:
- * []`, pi's "none of this type"), so sci_find, /sci and the input hook are
- * absent — a plain skills install.
- *
- * Credentials and the model catalogue are copied in because isolating the agent
- * dir also isolates them: without this, every probe fails with "No API key
- * found" and the script reports a model that declined to call the tool, when in
- * fact no model ran. Copied at 0600 and deleted at exit, including under --keep.
- * models.json goes with them: it is where custom providers (a local Ollama or
- * MLX server) are declared, and without it a local model is not found at all.
- *
- * A model served on loopback needs no credentials, and the model can read
- * anything in its own agent dir, so for one the API keys are not copied at all.
- *
- * This is the SEED: each attempt gets its own copy (startAttempt), so nothing a
- * run writes there — pi's own state, or a model editing settings.json — reaches
- * the next one. The seed itself is outside every sandbox.
- */
-function seedAgentDir(scratch, packageDir, promptSkills, { credentials, extension, modelsJson }) {
-  const agentDir = join(scratch, "agent-seed");
-  mkdirSync(agentDir, { recursive: true });
-  const entry = {
-    source: packageDir,
-    ...(promptSkills !== null && { skills: promptSkills }),
-    ...(!extension && { extensions: [] }),
-  };
-  writeFileSync(join(agentDir, "settings.json"), `${JSON.stringify({ packages: [entry] }, null, 2)}\n`);
-
-  const auth = join(realAgentDir, "auth.json");
-  if (credentials && !existsSync(auth)) {
-    die(`no credentials at ${auth} — run \`pi\` and /login first`, 1);
-  }
-  const names = credentials ? ["auth.json", "models-store.json", "models.json"] : ["models.json"];
-  for (const name of names) {
-    const from = name === "models.json" && modelsJson ? modelsJson : join(realAgentDir, name);
-    if (!existsSync(from)) continue;
-    const to = join(agentDir, name);
-    copyFileSync(from, to);
-    chmodSync(to, 0o600);
-  }
-  return agentDir;
-}
-
 /** Pull the tool calls out of a `--mode json` transcript. */
 function toolCalls(rawText) {
   const calls = [];
@@ -471,20 +430,42 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), "sci-find-live-")));
 const outDir = join(scratch, "transcripts");
 mkdirSync(outDir, { recursive: true });
 
-const network = networkFor(opts.model, realAgentDir, opts.modelsJson ?? undefined);
+// A cloud model's key stays in this process (scripts/lib/key-proxy.mjs): pi
+// reaches the provider through a proxy on loopback, so the sandbox fences the
+// network to that one port, as for a local model.
+const modelsFile = opts.modelsJson ?? join(realAgentDir, "models.json");
+const sourceModels = existsSync(modelsFile) ? JSON.parse(readFileSync(modelsFile, "utf8")) : null;
+const storeFile = join(realAgentDir, "models-store.json");
+let network = networkFor(opts.model, realAgentDir, opts.modelsJson ?? undefined);
+let seedModels = sourceModels;
+let upstreamHost = null;
+if (network.kind === "open") {
+  const provider = opts.model.split("/")[0];
+  try {
+    const upstream = upstreamBaseUrl(opts.model, sourceModels ?? {}, storeFile);
+    const proxy = await startKeyProxy({ upstream, key: providerKey(provider, join(realAgentDir, "auth.json"), process.env) });
+    seedModels = proxiedModels(sourceModels ?? {}, provider, proxy.baseUrl);
+    network = { kind: "loopback", port: String(proxy.port) };
+    upstreamHost = new URL(upstream).host;
+  } catch (error) {
+    die(error.message, 1);
+  }
+}
 console.log(`model: ${opts.model} | thinking: ${opts.thinking ?? "default"}`);
 console.log(
   opts.sandbox
-    ? `sandbox: on | network: ${network.kind === "loopback" ? `localhost:${network.port} only` : "open (cloud provider)"}`
+    ? `sandbox: on | network: localhost:${network.port} only${upstreamHost ? ` (key proxy to ${upstreamHost})` : ""}`
     : "sandbox: OFF — the model can read and write as you",
 );
 console.log("staging tarball…");
 const packageDir = stageTarball(scratch, opts.packageDir ?? root);
 const promptSkills = { core: [...core.skills], none: [], all: null }[opts.promptSkills];
-const seedDir = seedAgentDir(scratch, packageDir, promptSkills, {
-  credentials: network.kind !== "loopback",
+const seedDir = seedAgentDir(join(scratch, "agent-seed"), {
+  packageDir,
+  promptSkills,
   extension: opts.extension,
-  modelsJson: opts.modelsJson,
+  models: seedModels,
+  catalogue: upstreamHost ? storeFile : null,
 });
 const listing =
   promptSkills === null
@@ -499,10 +480,9 @@ console.log(
 const skillsDir = join(packageDir, "skills");
 const catalogue = new Set(readdirSync(skillsDir).filter((name) => existsSync(join(skillsDir, name, "SKILL.md"))));
 
-// Every agent dir may hold a copy of the real API key (seedAgentDir). A kill
-// mid-run — Ctrl-C, a CI job timeout's SIGTERM — must not let a copy outlive
-// the process, so clean up on every exit path, not only the successful one at
-// the bottom of the script.
+// The agent dirs hold pi's state for each attempt, and none is worth keeping.
+// Clean up on every exit path — Ctrl-C, a CI job timeout's SIGTERM — not only
+// the successful one at the bottom of the script.
 const agentDirs = new Set([seedDir]);
 const cleanupAgentDirs = () => {
   for (const dir of agentDirs) rmSync(dir, { recursive: true, force: true });
@@ -569,26 +549,13 @@ function startAttempt(probeId, label) {
   return run;
 }
 
-/**
- * pi's environment: an allowlist, not a copy of ours. The model can run
- * `printenv`, and the parent environment carries session tokens, an SSH agent
- * socket and paths into the real home. A cloud provider may read its key from
- * the environment, so `*_API_KEY` passes through for one — never for a
- * loopback model, which needs none.
- */
-const piEnv = Object.fromEntries(
-  Object.entries(process.env).filter(
-    ([name]) =>
-      ["PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "SHELL"].includes(name) ||
-      (network.kind !== "loopback" && /^[A-Z0-9_]+_API_KEY$/.test(name)),
-  ),
-);
+const piEnv = piEnvironment(process.env);
 
 /**
  * One pi run, awaited rather than spawnSync'd: a synchronous loop never yields
  * to the event loop, so the SIGINT/SIGTERM handlers above could not run until
  * the whole batch finished — a kill only ended the current probe and the batch
- * moved on to the next, with the credential copy still on disk.
+ * moved on to the next.
  *
  * stdout is piped to the transcript, not handed over as a file descriptor:
  * under sandbox-exec, node aborts at startup when its stdout is a file outside

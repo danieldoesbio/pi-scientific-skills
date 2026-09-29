@@ -741,12 +741,20 @@ because it spends tokens. It installs the packed tarball into a throwaway agent
 dir in search mode (no skill in the prompt) and asks a small model three
 questions whose skills are not loaded, then checks the transcript for a `sci_find` call. If a weak model does
 not reach for the tool, the tool description and `aliases.ts` are the fix — not
-the test. It copies `auth.json` into the throwaway dir (deleted at exit,
-including under `--keep`): without that, every probe fails with "No API key
-found" and the run reports a model that declined to call the tool when in fact
-no model ran. It separates "never ran" from "declined" for exactly that reason.
-It copies `models.json` too, so a local provider (Ollama, MLX) resolves; a
-model served on loopback gets no copy of `auth.json` at all.
+the test. It never copies `auth.json` into the throwaway dir: the model can
+read anything there (Gemma 4 26B-A4B listed `../agent/auth.json` with `ls -R ..`,
+2026-09-29). For a cloud model the harness reads the API key itself (from
+`auth.json`, else `<PROVIDER>_API_KEY`) and holds it in a proxy on 127.0.0.1
+(`scripts/lib/key-proxy.mjs`); the throwaway `models.json` points the provider
+at that proxy with a placeholder key, and the proxy swaps in the real one on
+the way upstream, in the auth header only (swapped in the path or another
+header, the model could make the upstream echo the key back). Neither a deny rule for the file nor an environment variable
+works instead: pi and its bash tool run under one sandbox profile, so a deny
+would block pi too, and the bash tool inherits pi's whole environment. Without
+a key pi fails every probe with "No API key found", so the harness separates
+"never ran" from "declined". It copies `models.json` too, so a local provider
+(Ollama, MLX) resolves, and for a cloud model `models-store.json`, pi's cached
+model list, which holds no credentials.
 
 The model keeps pi's default tools: restricting them to `read,sci_find` leaves
 it little else to do but search, which inflates the score. Some probe tasks
@@ -755,17 +763,18 @@ try — an unsandboxed run once searched the whole home directory. So every pi
 run happens under a macOS `sandbox-exec` profile (`scripts/lib/sandbox.mjs`):
 reads and writes only inside that attempt's own directory (its agent-dir copy,
 a fake `HOME`, `TMPDIR`, working directory and session file), the staged
-package read-only, and for a loopback provider the network limited to that one
-port. pi gets an allowlisted environment, not the caller's: the model can run
-`printenv`, and a shell environment carries tokens and paths into the real home.
+package read-only, and the network limited to one loopback port: the local
+provider's, or the key proxy's for a cloud provider. pi gets an allowlisted
+environment, not the caller's, with no API keys: the model can run `printenv`,
+and a shell environment carries tokens and paths into the real home.
 The profile also denies programs that act through another process, outside the
 sandbox: `launchctl` (launchd starts a loaded job unsandboxed), `open`,
 `osascript`, `automator` and `shortcuts`, and it blocks Apple events. A model
 asked for "a recurring check" tried `launchctl load` (parallel-web,
 2026-09-23); it failed, probably on a wrong path. Limits that remain: the model
 can reach its own inference server on the allowed port (one model sent itself
-chat completions with `curl`), and it can see host process names (`pgrep`,
-`lsof`). `--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
+chat completions with `curl`); through the key proxy that bills the key but
+does not show it. It can also see host process names (`pgrep`, `lsof`). `--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
 so no attempt can read another's.
 
 With `--probes testing/find-probes.json` it runs one supervised probe per skill
