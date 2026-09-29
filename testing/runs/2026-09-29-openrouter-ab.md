@@ -351,6 +351,27 @@ panel gave the same direction for the first queries of Bonsai (bm25f top 3
 98.7%, current top 8 97.2%) and Haiku (96.4%, 96.3%). Gemma's queries are
 weaker under both rankers.
 
+### Finding: when Gemma searches, it reads the right skill
+
+| | new | old |
+|---|---|---|
+| Read the target, all attempts | 244/319 (76.5%) | 225/319 (70.5%) |
+| Read the target, when it searched | 244/255 (95.7%) | 225/245 (91.8%) |
+| Misses without a `sci_find` call | 64 of 75 | 74 of 94 |
+| Read the target, probe-invalid units left out (either arm) | 239/290 (82.4%) | 222/290 (76.6%) |
+
+With 162 skills installed and 3.8B active parameters, Gemma 4 26B-A4B reads
+the right skill in 96% of the attempts where it calls `sci_find` (new
+search). Most misses are attempts that never search: the model starts the
+task itself. It searched in 80% of attempts. In the panel, Haiku searched in
+615 of 640 (96.1%) and Bonsai in 462 of 479 (96.5%); that harness and those
+probe styles differ, so the comparison is loose.
+
+So, for small models, the next gain is in the decision to search: the tool
+description and prompt wording, not the ranker. Limit: there is no Gemma run
+with all 162 skills listed in the prompt (the normal install), so this run
+does not compare the extension with that baseline for this model.
+
 ### Decision
 
 Non-inferior, so, by the decision rule, release prep for 1.7.0 goes ahead.
