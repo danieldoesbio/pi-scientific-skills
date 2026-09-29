@@ -417,6 +417,31 @@ untestable and not run). Report from the frozen copy (c816e82).
   Current 90–97%: pooled 96.3%, in range (original and expert 98.1%, just
   above). Pooled gain +1 to +5: +2.8, in range.
 
+**Bonsai 2 27B** (2026-09-28 21:43 – 2026-09-29 05:22, 479 attempts, the
+night queue from dec0c5f; the harness from the frozen c816e82 copy).
+
+| Style | Searched | Top 8, current | Top 8, bm25f | Diff (Newcombe 95% CI) | Discordant |
+|---|---|---|---|---|---|
+| synonym | 154/160 | 151/154 (98.1%) | 153/154 (99.4%) | +1.3 (−1.9 to 5.0) | 3:1 |
+| plain | 156/160 | 149/156 (95.5%) | 155/156 (99.4%) | +3.8 (0.9 to 8.2) | 6:0 |
+| expert | 152/159 | 149/152 (98.0%) | 152/152 (100%) | +2.0 (−0.8 to 5.6) | 3:0 |
+| pooled | 462/479 | 449/462 (97.2%) | 460/462 (99.6%) | +2.4 (0.9 to 4.3; bootstrap by target 0.6 to 4.7) | 12:1 |
+
+- Not searched: 7 timeouts (a response past 600 s; Bonsai sometimes spends
+  its whole 8,192-token thinking budget), 6 persona-end, 4 gated. No
+  harness errors; the second pass ran nothing.
+- Secondary: any query of the first message: current 97.6%, bm25f 99.6%
+  (+1.9, 0.6 to 3.7). Model-free: current 86.8%, bm25f 98.3% (+11.5).
+- Predictions: search rate 85–95%: 95.6–97.5%, above the range. Current
+  90–97%: 97.2%, just above. Pooled gain +1 to +5: +2.4, in range.
+- The panel took 7.6 h (the smoke suggested about 4 h).
+
+**Two writers so far (Haiku, Bonsai).** Counted: both. Rule A (no worse
+for every writer): met. Rule B (better on average): current 96.7%, bm25f
+99.3%, +2.6 (Newcombe 1.6 to 3.8; bootstrap by target 0.8 to 4.9): met.
+Plain-style gain: Bonsai 3.8, Haiku 3.3, so 4b stays. These verdicts are
+final only when the Gemma writers have run.
+
 ## Next
 
 - Step 4b (live A/B on the full attempt), if step 3 does not skip it.
