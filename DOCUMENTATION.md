@@ -218,6 +218,8 @@ scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full),
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
 scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
 scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
+scripts/find-ab.sh           # two package commits through a cloud model, both arms at once, frozen sources
+scripts/find-ab-report.mjs   # the pre-registered outcomes of a find-ab run
 scripts/find-live-replay.mjs # replay the choice turn of a find-live run with another sci_find format
 scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
 scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
@@ -701,7 +703,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), and the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`). A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`), and the first-search facts of `find-ab-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -909,6 +911,23 @@ non-Core and without probe-invalid probes; the discordant probes with how the
 miss ended; and the paired time to read on probes read in both arms. With
 `--timing` (the `--jsonl` output of `find-live-timing.mjs`) it adds the
 server-exact and queue-net times, labelled post hoc.
+
+`scripts/find-ab.sh --out <dir> --models-json <file>` compares two package
+commits (`--old-ref`, default 0a8ddfd, the last commit before the 3-then-5
+search; `--new-ref`, default HEAD) through a cloud model (default Gemma 4
+26B-A4B on OpenRouter). It `git archive`s both into `<dir>/src/` and runs the
+harness and probes from `src/new`. The probes are paraphrase styles
+(`--styles plain,expert`); each chunk of probe ids starts every arm × style
+invocation at the same moment, so both arms of a probe meet the same provider
+routing and load. A second pass retries the chunks with a harness error; the
+same `--out` continues. `scripts/find-ab-report.mjs <dir>` gives the
+read-rate difference new − old pooled over styles (Newcombe method 10, and a
+bootstrap over probes, since the styles of one probe share a target), then
+per style, among attempts that searched in both arms, and without
+provider errors or timeouts. Per arm it gives the search rate, `sci_find`
+calls, the first result's hits and characters, whether it listed the target,
+the `limit` the model set, and the prompt tokens of the choice turn (the
+request after the first result), from the archived session files.
 
 `scripts/find-live-replay.mjs <run-dir> --out <dir>` replays one turn of a
 finished run: the model response after the first `sci_find` result (the

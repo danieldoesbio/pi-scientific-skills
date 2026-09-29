@@ -17,6 +17,7 @@ import { Z95, analysisSet, clusterBootstrapDiff, mcnemarExact, newcombePaired, p
 import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, replayValidity, textOf, truncateAndReplace, verdictOf } from "./lib/replay.mjs";
 import { pooledReport } from "./find-live-replay-pooled.mjs";
 import { category, paired, panelReport } from "./find-panel-report.mjs";
+import { firstFindFacts } from "./find-ab-report.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -323,6 +324,9 @@ console.log("-- choice-turn replay (find-live-replay) --");
   check("classifyChoice: a new sci_find is `search`; no tool call is `no-call`", outcome(choose(["sci_find", { query: "x" }])) === "search" && outcome(choose()) === "no-call");
   check("promptTokens: input + cacheRead + cacheWrite", promptTokens({ input: 1721, output: 9, cacheRead: 2086, cacheWrite: 0 }) === 3807);
   check("listedNames: headings of either format in rank order", listedNames(`${hit("polars")}\n\nMore matches.\n\n## dask\nShort.\nLoad with: read x`).join() === "polars,dask");
+  const facts = firstFindFacts(entries, "dask");
+  check("find-ab firstFindFacts: hits and characters over all first results, target listed, choice-turn prompt tokens", facts.hits === 2 && facts.chars === hit("polars").length + hit("dask").length && facts.targetListed && facts.choiceTokens === 100, JSON.stringify(facts));
+  check("find-ab firstFindFacts: a target not in the results is not listed; null without a sci_find", !firstFindFacts(entries, "pandas").targetListed && firstFindFacts(entries.slice(0, 3), "dask") === null);
 
   const row = (probe, variant, extra = {}) => ({ probe, variant, status: "ok", parity: variant === "full" ? true : null, systemPromptHash: `s-${probe}`, toolsHash: "t", ...extra });
   const set = replayAnalysisSet([
