@@ -282,9 +282,11 @@ favor `new`, 7 favor `old` (p 0.093). This part is the effect of the list.
 In the other 42, the arm that missed never called `sci_find`: 26 favor
 `new`, 16 favor `old` (exact binomial p 0.16). There the arms differ only in
 the tool description, so that part is noise at temperature 1.0 or an effect
-of the description. It is not the ranker. Among searches, `new` did not put
-the target in the first list more often (92.5% against 93.1%). It did better
-after the list: it read a listed target more often (234/236 against
+of the description. It is not the ranker. Live, the two arms listed the
+target in the first list about equally often (92.5% against 93.1%), but each
+arm ranked its own queries, so this compares query sets as well as rankers.
+The paired re-rank below separates the two. `new` also did better after the
+list: it read a listed target more often (234/236 against
 221/228), and when the target was not listed it searched again more often
 (12/19 against 6/17).
 
@@ -326,6 +328,28 @@ The ranker cannot fix it.
 - **Cost.** Gemma, from pi's price table: $1.47 in total, `new` $0.60,
   `old` $0.87. No request had a cache read. The persona and judge calls
   (`claude -p`) were not recorded.
+
+### Post hoc: both rankers on the same Gemma queries
+
+Not pre-registered. It answers whether the equal listing rate above means
+that bm25f lists the target less well for Gemma. The first query of each
+searching attempt (500: 245 `old`, 255 `new`) runs through both rankers
+offline, from the frozen `src/new` copy. It reproduces the live rates: `old`
+queries, current top 8, 93.1%; `new` queries, bm25f top 3, 92.5%.
+
+| Queries | n | current top 8 | current top 3 | bm25f top 3 | bm25f top 5 | bm25f top 8 | bm25f top 3 only : current top 8 only |
+|---|---|---|---|---|---|---|---|
+| `old` arm | 245 | 93.1% | 82.0% | 95.9% | 97.1% | 98.4% | 12:5 |
+| `new` arm | 255 | 90.2% | 82.0% | 92.5% | 94.9% | 96.5% | 16:10 |
+| both | 500 | 91.6% | 82.0% | 94.2% | 96.0% | 97.4% | 28:15 (McNemar exact p 0.066) |
+
+On the same queries, bm25f top 3 lists the target more often than current
+top 8 (+2.6 points). The live arms were about equal because the `new` arm's
+queries were harder: current top 8 lists 90.2% of them and 93.1% of the
+`old` arm's. At temperature 1.0 the two arms write different queries. The
+panel gave the same direction for the first queries of Bonsai (bm25f top 3
+98.7%, current top 8 97.2%) and Haiku (96.4%, 96.3%). Gemma's queries are
+weaker under both rankers.
 
 ### Decision
 
