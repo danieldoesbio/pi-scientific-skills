@@ -81,7 +81,9 @@ can set `limit` (578 of 1,341 panel calls did).
     (input + cacheRead + cacheWrite of the first assistant message after the
     first `sci_find` results, from the archived session file; units with a
     choice turn in both arms); first-result characters; time to read (units
-    read in both arms);
+    read in both arms). Both token measures skip provider-error messages
+    (their usage is all zero; pi retries them with the same context), and the
+    choice turn must come before any user message, or the unit has none;
   - provider errors, timeouts, gated attempts.
 - Seconds are secondary only. On a fast provider they measure latency and
   retries, not prefill. Prompt tokens are the measure that carries over to a

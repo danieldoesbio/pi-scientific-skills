@@ -17,7 +17,7 @@ import { Z95, analysisSet, clusterBootstrapDiff, mcnemarExact, newcombePaired, p
 import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, replayAnalysisSet, replayValidity, textOf, truncateAndReplace, verdictOf } from "./lib/replay.mjs";
 import { pooledReport } from "./find-live-replay-pooled.mjs";
 import { category, paired, panelReport } from "./find-panel-report.mjs";
-import { firstFindFacts } from "./find-ab-report.mjs";
+import { firstFindFacts, firstPromptOf } from "./find-ab-report.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -325,8 +325,20 @@ console.log("-- choice-turn replay (find-live-replay) --");
   check("promptTokens: input + cacheRead + cacheWrite", promptTokens({ input: 1721, output: 9, cacheRead: 2086, cacheWrite: 0 }) === 3807);
   check("listedNames: headings of either format in rank order", listedNames(`${hit("polars")}\n\nMore matches.\n\n## dask\nShort.\nLoad with: read x`).join() === "polars,dask");
   const facts = firstFindFacts(entries, "dask");
-  check("find-ab firstFindFacts: hits and characters over all first results, target listed, choice-turn prompt tokens", facts.hits === 2 && facts.chars === hit("polars").length + hit("dask").length && facts.targetListed && facts.choiceTokens === 100, JSON.stringify(facts));
+  check("find-ab firstFindFacts: hits and characters over all first results, target listed; no choice turn when the user speaks before the next answer", facts.hits === 2 && facts.chars === hit("polars").length + hit("dask").length && facts.targetListed && facts.choiceTokens === null, JSON.stringify(facts));
   check("find-ab firstFindFacts: a target not in the results is not listed; null without a sci_find", !firstFindFacts(entries, "pandas").targetListed && firstFindFacts(entries.slice(0, 3), "dask") === null);
+  const zero = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  const failed = () => assistant([], zero, { stopReason: "error", errorMessage: "429: rate-limited upstream" });
+  const retried = [
+    user("task"),
+    failed(),
+    ...step([["sci_find", { query: "dataframes" }]], [[hit("polars")]]),
+    failed(),
+    assistant([["read", { path: `${SKILLS}/polars/SKILL.md` }]], { input: 300, output: 10, cacheRead: 0, cacheWrite: 0 }),
+  ];
+  check("find-ab: a provider error (zero usage) before the first request or the choice turn is skipped", firstPromptOf(retried) === 100 && firstFindFacts(retried, "polars").choiceTokens === 300, JSON.stringify({ first: firstPromptOf(retried), choice: firstFindFacts(retried, "polars").choiceTokens }));
+  const endedOnError = [...retried.slice(0, 5), user("steer"), retried[5]];
+  check("find-ab: no choice turn when the response ends on an error and the user speaks next", firstFindFacts(endedOnError, "polars").choiceTokens === null);
 
   const row = (probe, variant, extra = {}) => ({ probe, variant, status: "ok", parity: variant === "full" ? true : null, systemPromptHash: `s-${probe}`, toolsHash: "t", ...extra });
   const set = replayAnalysisSet([

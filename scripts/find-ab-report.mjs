@@ -81,17 +81,38 @@ function sessionFiles(runDir, arm, styles) {
   return files;
 }
 
-/** What the first sci_find turn of a session shows: hits, characters, target listed, choice-turn prompt tokens. */
+/**
+ * An assistant message that is not a provider error. pi retries an error (for
+ * example a 429) with the same context, and the error's usage is all zero, so
+ * token measures skip it.
+ */
+const isAnswer = (entry) => entry.type === "message" && entry.message?.role === "assistant" && entry.message.stopReason !== "error";
+const isUser = (entry) => entry.type === "message" && entry.message?.role === "user";
+
+/** Prompt tokens of the first request of a session that the provider answered. */
+export function firstPromptOf(entries) {
+  const first = entries.find(isAnswer);
+  return first ? promptTokens(first.message.usage) : null;
+}
+
+/**
+ * What the first sci_find turn of a session shows: hits, characters, target
+ * listed, and the choice-turn prompt tokens (the first answer after the
+ * results, before any user message; null when there is none).
+ */
 export function firstFindFacts(entries, target) {
   const turn = choiceTurn(entries);
   if (!turn) return null;
   const texts = turn.results.map((entry) => textOf(entry.message));
   const names = texts.flatMap(listedNames);
+  const after = entries.slice(turn.cut + 1);
+  const stop = after.findIndex(isUser);
+  const choice = (stop < 0 ? after : after.slice(0, stop)).find(isAnswer);
   return {
     hits: names.length,
     chars: texts.reduce((total, text) => total + text.length, 0),
     targetListed: names.includes(target),
-    choiceTokens: turn.choice ? promptTokens(turn.choice.message?.usage) : null,
+    choiceTokens: choice ? promptTokens(choice.message.usage) : null,
   };
 }
 
@@ -117,7 +138,7 @@ function comparisonLine(label, ids, x, y) {
   );
 }
 
-function armLines(arm, rows, facts, ids) {
+function armLines(arm, rows, facts, firstPrompt, ids) {
   const attempts = ids.map((id) => rows.get(id).attempts[0]);
   const searched = ids.filter((id) => rows.get(id).attempts[0].sciFindCalls > 0);
   const found = ids.map((id) => facts.get(id)).filter(Boolean);
@@ -130,7 +151,7 @@ function armLines(arm, rows, facts, ids) {
     `  first search: hits ${tally(found.map((f) => f.hits))} | characters median ${round(median(found.map((f) => f.chars)))} | target listed ${share(count(found, (f) => f.targetListed), found.length)}`,
     `  target not in the first list: ${missedFirst.length}; searched again ${count(missedFirst, (id) => rows.get(id).attempts[0].sciFindCalls >= 2)}, read anyway ${count(missedFirst, (id) => rows.get(id).attempts[0].endedBy === "reached")}`,
     `  limit set in the first search call: ${tally(limits)}`,
-    `  medians: first prompt ${round(median(attempts.map((a) => a.firstPromptTokens)))} | choice-turn prompt ${round(median(found.map((f) => f.choiceTokens).filter(Number.isFinite)))} | peak context ${round(median(attempts.map((a) => a.peakContext)))} | output tokens ${round(median(attempts.map((a) => a.outputTokens)))} | tool calls ${median(attempts.map((a) => a.toolCalls))}`,
+    `  medians: first prompt ${round(median(ids.map((id) => firstPrompt.get(id)).filter(Number.isFinite)))} | choice-turn prompt ${round(median(found.map((f) => f.choiceTokens).filter(Number.isFinite)))} | peak context ${round(median(attempts.map((a) => a.peakContext)))} | output tokens ${round(median(attempts.map((a) => a.outputTokens)))} | tool calls ${median(attempts.map((a) => a.toolCalls))}`,
     `  provider errors ${attempts.reduce((t, a) => t + (a.providerErrors?.length ?? 0), 0)} | timeouts ${count(attempts, (a) => a.timedOut)} | probe-invalid ${ids.filter((id) => rows.get(id).probeCheck?.invalid).join(", ") || "none"}`,
   ];
 }
@@ -150,17 +171,18 @@ export function report(runDir) {
   const rows = Object.fromEntries(ARMS.map((arm) => [arm, lastRows(runDir, arm, styles)]));
   const set = analysisSet(order, ARMS.map((arm) => rows[arm]));
   const unit = new Map(order.map((entry) => [entry.id, entry]));
-  const facts = Object.fromEntries(
-    ARMS.map((arm) => {
-      const files = sessionFiles(runDir, arm, styles);
-      const out = new Map();
-      for (const id of set.ids) {
-        if (!files.has(id)) continue;
-        out.set(id, firstFindFacts(jsonLines(files.get(id)), rows[arm].get(id).target));
-      }
-      return [arm, out];
-    }),
-  );
+  const facts = {};
+  const firstPrompt = {};
+  for (const arm of ARMS) {
+    const files = sessionFiles(runDir, arm, styles);
+    facts[arm] = new Map();
+    firstPrompt[arm] = new Map();
+    for (const id of set.ids.filter((id) => files.has(id))) {
+      const entries = jsonLines(files.get(id));
+      facts[arm].set(id, firstFindFacts(entries, rows[arm].get(id).target));
+      firstPrompt[arm].set(id, firstPromptOf(entries));
+    }
+  }
   const read = (arm) => (id) => rows[arm].get(id).attempts[0].endedBy === "reached";
   const probes = [...new Set(set.ids.map((id) => unit.get(id).probe))];
   const clusters = probes.map((probe) => set.ids.filter((id) => unit.get(id).probe === probe).map((id) => [read("new")(id), read("old")(id)]));
@@ -207,9 +229,9 @@ export function report(runDir) {
         .join("; ") || "none"
     }`,
     "",
-    ...ARMS.flatMap((arm) => [...armLines(arm, rows[arm], facts[arm], set.ids), ""]),
+    ...ARMS.flatMap((arm) => [...armLines(arm, rows[arm], facts[arm], firstPrompt[arm], set.ids), ""]),
     "Secondary: paired medians",
-    pairedMedianLine("first prompt tokens", set.ids, (arm, id) => rows[arm].get(id).attempts[0].firstPromptTokens, ""),
+    pairedMedianLine("first prompt tokens", set.ids, (arm, id) => firstPrompt[arm].get(id), ""),
     pairedMedianLine("choice-turn prompt tokens", set.ids, (arm, id) => facts[arm].get(id)?.choiceTokens, ""),
     pairedMedianLine("first search characters", set.ids, (arm, id) => facts[arm].get(id)?.chars, ""),
     pairedMedianLine("time to read (both read)", set.ids.filter((id) => read("new")(id) && read("old")(id)), (arm, id) => rows[arm].get(id).attempts[0].endpointSeconds, " s"),
