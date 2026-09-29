@@ -64,7 +64,10 @@
 //                      endpoint. first-find: no target; the attempt stops at
 //                      the first sci_find call and records its query (ends as
 //                      `searched`). Needs --attempts 1 and the extension.
-//   --find-ranker <current|bm25f>  PI_SCI_FIND_RANKER for pi. Default current.
+//   --find-ranker <current|bm25f>  PI_SCI_FIND_RANKER for pi. Default bm25f,
+//                      the package default since 1.7.0. A package older than
+//                      5123f67 has no bm25f and runs current: pass current for
+//                      it, so the result lines record what ran.
 //   --models-json <file>  Seed the throwaway agent dir with this models.json
 //                      instead of the real one (e.g. a provider on another
 //                      port). The real agent dir is never written.
@@ -174,7 +177,7 @@ function parseArgs(argv) {
     packageLabel: null,
     endpoint: "listed",
     gateCalls: 0,
-    findRanker: "current",
+    findRanker: "bm25f",
     modelsJson: null,
     warmup: false,
     archiveTo: null,

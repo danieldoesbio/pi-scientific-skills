@@ -832,7 +832,9 @@ Options for comparing configurations (added for the 2026-09-25 three-arm run,
   `--gate-calls`, an attempt with no search in its first n calls ends as
   `gated`). It needs `--attempts 1`. The queries are ranked offline.
 - `--find-ranker <current|bm25f>` sets `PI_SCI_FIND_RANKER` for pi, and is
-  recorded on every line.
+  recorded on every line. The default is `bm25f`, the package default since
+  1.7.0. A package older than 5123f67 has no bm25f and runs `current`: pass
+  `current` for it, so the lines record what ran.
 - `--models-json <file>` seeds the throwaway agent dir with that models.json
   instead of the real one (a provider on another port, say); the real agent
   dir is not written.
