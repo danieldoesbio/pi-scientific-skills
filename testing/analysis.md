@@ -158,9 +158,14 @@ In order of evidence:
    [`runs/2026-09-24-bonsai2-snippet-ab.md`](runs/2026-09-24-bonsai2-snippet-ab.md)).
    The default change itself was measured by a three-arm run over 161
    probes ([`runs/2026-09-25-night-arms.md`](runs/2026-09-25-night-arms.md)):
-   the target skill was read on 157 with 1.7.0 against 116 with 1.6.0 search
-   mode (+25.5 points, 95% CI 18.4 to 32.9), and on all ten Core probes in
-   both.
+   the target skill was read on 157 with 1.7.0 as first built against 116 with
+   1.6.0 search mode (+25.5 points, 95% CI 18.4 to 32.9), and on all ten Core
+   probes in both. That build is commit `08aff2e`: the old ranker, 8 hits and
+   the `limit` argument the model could set. The BM25F ranker and the 3-then-5
+   list came later (`713d6e8`) and were measured on another model, Gemma 4
+   26B-A4B, new search against old (+6.0 points,
+   [`runs/2026-09-29-openrouter-ab.md`](runs/2026-09-29-openrouter-ab.md)). No
+   single run compares the shipped tip with 1.6.0 on one model.
 5. **Open hypotheses for offline tests:** IDF weighting; a `profile` value
    that is not a profile falling back to the query (the model confused the
    two once in 183 calls).

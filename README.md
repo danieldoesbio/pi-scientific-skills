@@ -80,8 +80,9 @@ on demand — pushed one level further, so narrowing what's always loaded no
 longer means making anything unreachable.
 
 `sci_find` is registered whether or not you run `/sci search`, so it works
-alongside any profile, and `/sci find` runs the same search for you. Profiles
-still put a field's skills straight into the prompt when you want them there.
+alongside any profile. `/sci find` uses the same ranker for you and lists the
+top 8. Profiles still put a field's skills straight into the prompt when you
+want them there.
 Verified against small models, not just a frontier one — the whole point is the
 low end.
 
@@ -132,6 +133,13 @@ you decline, escape, or ignore it. On an upgrade it tells you once what
 changed and leaves your selection exactly as it was — your `settings.json` is
 not touched by an upgrade you didn't ask for.
 
+### What 1.7.0 changed
+
+- Search mode loads no skills (~0 tokens instead of ~23k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
+- A BM25F ranker shows 3 hits on a prompt's first search and 5 on later ones. On 321 held-out requests its top 3 held the target 310 times; the old ranker's top 8, 283 times ([run](testing/runs/2026-09-27-find-ranker.md)).
+- In a live A/B on Gemma 4 26B-A4B, the new search read the right skill +6.0 points more often and used 867.5 fewer prompt tokens at the choice turn (paired median; [run](testing/runs/2026-09-29-openrouter-ab.md)).
+- `/sci none` is now the same as `/sci search`. To load Core again: `/sci profiles`, tick Core, Apply.
+
 ## What's inside
 
 162 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
@@ -175,8 +183,9 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
 - **Search mode against a small cloud model, 3 of 3.** Before 1.7.0, with only
   Core loaded, `deepseek/deepseek-v4-flash` called `sci_find` unprompted for
   three questions whose skills were not in its prompt, and read the `SKILL.md`
-  each time. Re-run against every release since 1.2.0 with the same result.
-  Recorded under `extensionRuns` in `testing/ledger.json`.
+  each time. Recorded for 1.1.0, 1.2.0, 1.3.0, 1.4.0 and 1.5.0, 3 of 3 each
+  time, under `extensionRuns` in `testing/ledger.json`. Not recorded with this
+  model for 1.6.0 or 1.7.0; the local-model run above is the 1.6.0 search test.
 - **Upstream's own pytest suite passed at the last count** (upstream v2.62.0);
   details in
   [DOCUMENTATION.md](DOCUMENTATION.md#what-pi-does-and-does-not-enforce).

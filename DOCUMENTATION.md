@@ -333,12 +333,19 @@ have been listed. The `promptSnippet` below exists to cover that. A small A/B
 pilot (`testing/runs/2026-09-24-bonsai2-snippet-ab.md`) showed no effect on the
 search rate (11/12 in both arms). A three-arm run over 161 probes then measured
 the default change itself (`testing/runs/2026-09-25-night-arms.md`): the model
-read the target skill on 157 with 1.7.0, 116 with 1.6.0 search mode (+25.5
-points, 95% CI 18.4 to 32.9) and 158 with all 162 skills listed. It read all ten
-Core targets in every arm. The gain belongs to the 1.7.0 release as a whole: it
-also added the `sci_find` snippet and guideline, which 1.6.0 did not have. Profiles still put a field's skills in
-the prompt for anyone who wants them there. Existing users keep their filter;
-the 1.7.0 upgrade notice tells them how to switch.
+read the target skill on 157 with the 1.7.0 design as first built, 116 with 1.6.0
+search mode (+25.5 points, 95% CI 18.4 to 32.9) and 158 with all 162 skills
+listed. It read all ten Core targets in every arm. That 1.7.0 arm is the build at
+commit `08aff2e`, not the shipped tip: the old ranker, 8 hits and a `limit`
+argument the model could set. The BM25F ranker and the 3-then-5 list came later
+(`713d6e8`). The gain belongs to that design as a whole: it also added the
+`sci_find` snippet and guideline, which 1.6.0 did not have. The evidence for the
+shipped tip is a chain of two runs on two models: Bonsai 2 27B, first-built
+1.7.0 against 1.6.0, +25.5 points; then Gemma 4 26B-A4B, new search against old,
++6.0 points (below). No single run compares the shipped tip with 1.6.0 on one
+model. Profiles still put a field's skills in the prompt for anyone who wants
+them there. Existing users keep their filter; the 1.7.0 upgrade notice says what
+changed and how to get Core back (below).
 
 **`sci_find` in the system prompt, since 1.7.0.** pi lists a custom tool under
 "Available tools" only when it has a `promptSnippet` (`system-prompt.js`
@@ -356,6 +363,37 @@ wording does not name web search, because that would fit one probe directly.
 Known trade-off: "analysis" lets the guideline fire in ordinary data-coding
 sessions, which costs one tool call. The live tests cannot measure that,
 because every probe has a target.
+
+**A custom system prompt gets neither the listing nor the guideline.** pi adds
+a tool's snippet and guidelines only when it builds its own default prompt. With
+a custom one (`SYSTEM.md` or `--system-prompt`) it leaves out the tools section
+and the guidelines (`buildSystemPrompt` in pi's `system-prompt.js`, the
+`customPrompt` branch; pi 0.84.3 and 0.87.0 both do this). `sci_find` is still
+registered and in the tool schema, but the prompt never names it. In search
+mode that is the state of the 2026-09-23 run, where 15 of the 19 misses on valid
+probes were attempts that never called it. If you use a custom prompt, add a
+line that names `sci_find`, for example the package's own guideline: "Use
+`sci_find` before you write code, install a package or set up a service for
+scientific, research or analysis work: a skill may already cover it. Then read
+the SKILL.md it returns." No live run used a custom prompt, so the effect of
+that line is not measured.
+
+**`/sci none`, `/sci search` and the way back to Core (1.7.0).** An empty
+`skills` filter now means search mode, not "off": `sci_find` stays registered.
+1.6.0's `/sci none` wrote an empty filter to mean off, and 1.7.0 reads that
+same file as search mode without changing it. `/sci search` writes an empty
+filter where 1.6.0 wrote the Core list. An empty filter cannot carry pi config
+overrides (`!x`, `+x`, `-x`; see "The empty-array footgun" below), so
+`/sci search` drops them, and its report names each one: "Dropped pi config
+overrides: !polars. Re-add them with pi config if you want them back." The way
+back to Core is the picker: `/sci profiles`, tick Core, Apply and reload.
+`test-extension.mjs` starts from four settings files that 1.6.0's own code
+wrote (Core accepted, offer declined, `/sci none`, Core plus `!polars`) and
+checks that startup leaves each byte-identical and that the round trip
+(`/sci search`, then Core through the picker) restores the Core file byte for
+byte. To turn `sci_find` and `/sci` off, set `"extensions": []` on the
+package's object entry in `settings.json`; this was checked against pi's own
+resolver in 0.84.3 and 0.87.0, and the `skills` filter then works as written.
 
 **Design decisions worth not re-deriving:**
 
@@ -379,28 +417,47 @@ because every probe has a target.
   message) does not. Profile listings do not count as a search. The result
   text is most of the prefill of the turn after a search, so a shorter list is
   a faster turn: about 850 characters per hit, and 8 hits took about 17 of the
-  25 seconds on 2026-09-25. Under bm25f the target is in the top 3 for 96–99%
-  of the first queries two models wrote, above the old ranker's top 8. There
-  is no `limit` argument: in the same data the models set one in 578 of 1,341
-  calls, mostly 10 to 20. `/sci find` and callers that pass no count get 8.
-  Not yet measured: what a model does when the target is not in the 3 (the
-  tool description tells it to search again with other words).
-- **A compact result format is experimental, off by default, and not in
-  1.7.0.** With `PI_SCI_FIND_FORMAT=compact`, `sci_find` shows the top 2 hits
+  25 seconds on 2026-09-25. Under bm25f the target is in the top 3 for 98.7%
+  of the first queries Bonsai 2 27B wrote and 96.4% of Haiku 4.5's. The old
+  ranker's top 8 held 97.2% and 96.3%: equal for Haiku, 1.5 points lower for
+  Bonsai. There is no `limit` argument: in the same data the models set one in
+  578 of 1,341 calls, mostly 10 to 20. `/sci find` and callers that pass no
+  count get 8, from the same ranker.
+- **After a miss, and the live A/B.** When the target is not in the 3, the tool
+  description tells the model to search again with other words. One run
+  measured what it does
+  ([`testing/runs/2026-09-29-openrouter-ab.md`](testing/runs/2026-09-29-openrouter-ab.md)):
+  Gemma 4 26B-A4B through OpenRouter, the old search (commit `0a8ddfd`: old
+  ranker, up to 8 hits, a `limit` argument) against the new one, 319 units (161
+  probes in two paraphrase styles). The target's `SKILL.md` was read in 244 of
+  319 with the new search and 225 of 319 with the old (+6.0 points, 95% CI 1.0
+  to 10.9; the pre-registered test was non-inferiority, which it met). The
+  choice turn's prompt tokens fell by a paired median of 867.5 (n 226). Among
+  attempts whose first list lacked the target (19 new, 17 old), the model called
+  `sci_find` again in 12 and read the target in 10 with the new search, against
+  6 and 4 with the old; those counts are small. When Gemma called `sci_find` at
+  all, it read the right skill in 244 of 255 attempts (95.7%) with the new
+  search and 225 of 245 (91.8%) with the old. Most of its misses never
+  searched (64 of 75, against 74 of 94). Limits: one model, an unpinned
+  provider, and the paraphrases were development data for the ranker, which
+  favours the new search.
+- **A compact result format is experimental, behind a flag, and off.** With
+  `PI_SCI_FIND_FORMAT=compact`, `sci_find` shows the top 2 hits
   in full and the others with the first sentence of their description only
-  (with 3, then 5 hits, that is 1 or 3 short ones); `runToolSearch` with no
-  count gives 6 hits, not 8. On 2026-09-25 the top 6 held the target
-  in 152 of 158 searches, and the choice turn after the search spent most of
-  its time in prefill of the result. The first choice-turn replay
+  (with 3, then 5 hits, that is 1 or 3 short ones). `/sci find` and other
+  callers that pass no count then get 6 hits, not 8; `sci_find` itself always
+  passes 3 or 5, so the 6 never applies to it. On 2026-09-25 the top 6 held
+  the target in 152 of 158 searches, and the choice turn after the search spent
+  most of its time in prefill of the result. The first choice-turn replay
   ([`testing/runs/2026-09-27-find-compact-replay.md`](testing/runs/2026-09-27-find-compact-replay.md))
   was inconclusive: the target was read in 155 of 158 choice turns with
   `compact` and 158 of 158 with `full` (95% CI −5.4 to 0.8 points, margin −5),
   and `compact` saved a median 951 prompt tokens. The second sample, pooled
   with the first, was non-inferior
   ([`testing/runs/2026-09-27-find-compact-replay-2.md`](testing/runs/2026-09-27-find-compact-replay-2.md)).
-  The shorter list (3, then 5) took its place as the way to cut result
-  tokens. Profile listings and no-match results are the
-  same in both formats.
+  The flag stays off by decision, not for lack of a replay: the shorter list
+  (3, then 5) took its place as the way to cut result tokens. Profile listings
+  and no-match results are the same in both formats.
 - **The ranker is BM25F (since 1.7.0).** `sci_find` ranks with BM25F over three fields
   per skill: name, description and SKILL.md body (`extensions/bm25f.ts`). A
   word's weight falls with the number of skills that use it, and the body lets
@@ -411,13 +468,18 @@ because every probe has a target.
   most the query could score. On development data it put the target in the
   top 8 for 99.8% of recorded queries (current ranker: 97.2%) and 95.0% of
   plain-language rewrites of the probes (current: 77.0%), and lost none of
-  1,069 development queries to the no-match rule. Its costs: it returns hits
-  for more in-domain requests that no skill covers (29 of 40 against 33 of 40
-  for the current ranker, from an agent-written set), and it has no alias
-  boost, so a query made only of common words can miss ("write the methods
-  section of my paper" ranks `scientific-writing` 11th; `test-search.mjs`
-  lists it as a known miss). The index is built on the first call (about
-  120 ms) and later calls take under 3 ms. Before it became the default:
+  1,069 development queries to the no-match rule. It also returns hits for
+  fewer requests that no skill covers. On agent-written sets (60 off-domain
+  and 40 in-domain requests with no matching skill), a hit came back for 16 and
+  11 as queries (current ranker: 26 and 19) and for 34 and 29 with the full
+  request text as the query (current: 37 and 33). Every count is lower than the
+  current ranker's, yet most full-text requests with no skill still get hits, so
+  the no-match rule is a filter, not a guarantee; the in-domain set has only 40
+  items. Its cost: it has no alias boost, so a query made only of common words
+  can miss ("write the methods section of my paper" ranks `scientific-writing`
+  11th; `test-search.mjs` lists it as a known miss). The index is built on the
+  first call (about 120 ms) and later calls take under 3 ms. Before it became
+  the default:
   a choice-turn replay (the model read the target in 158 of 158 turns with
   bm25f lists, against 156 of 158), a panel of two query writers (Claude
   Haiku 4.5 and Bonsai 2 27B; top 8 99.3% against 96.7%), and one run on a
@@ -426,7 +488,9 @@ because every probe has a target.
   [`testing/runs/2026-09-27-find-ranker.md`](testing/runs/2026-09-27-find-ranker.md).
   With 3 hits, the "methods section" miss above shows no writing skill; a
   query that names the kind of writing ("scientific manuscript methods")
-  does. `PI_SCI_FIND_RANKER=current` restores the old ranker for one release.
+  does. `PI_SCI_FIND_RANKER=current` restores the old ranking order for one
+  release. It is the order only: the first search still shows 3 hits, later
+  ones 5, and there is still no `limit` argument.
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
   than no answer. Matching is **word-boundary, not substring** — raw substring
@@ -711,7 +775,7 @@ is therefore a hard prerequisite for `npm test`.
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
 
-`npm run typecheck` (`scripts/typecheck.mjs`) is a sixth check, kept separate
+`npm run typecheck` (`scripts/typecheck.mjs`) is one more check, kept separate
 from `npm test`: it runs real `tsc` against `extensions/*.ts`, using pi's own
 shipped `.d.ts` files as the types for `@earendil-works/pi-coding-agent` and
 `typebox` — the same declarations an installed pi actually exposes, not a
@@ -727,7 +791,7 @@ in — so this script shells out to `npx --yes -p typescript@5 tsc`, which
 downloads it into npm's cache on first run. That download is why it is its
 own script and its own CI step rather than folded into `npm test`.
 
-Two things are worth knowing before changing these:
+Three things are worth knowing before changing these:
 
 - `resolve()` returns *all* resources with an `enabled` flag, so `.length` does
   not change when a filter applies. Count `resolve().skills.filter(s => s.enabled)`
@@ -1390,7 +1454,8 @@ claims about adoption and coverage have something behind them.
 
 ## Publishing checklist
 
-- [ ] `npm test` clean — validation plus the four offline suites (requires an
+- [ ] `npm test` clean — validation plus the six offline suites (search,
+      extension, filter, skill-expand, frontmatter and live-lib; requires an
       installed pi; they load the extension through pi's own jiti)
 - [ ] Read `sync-upstream.sh`'s main-ahead warning. When upstream `main` has
       moved past the tag, sync a SHA on `main` instead of the stale tag
