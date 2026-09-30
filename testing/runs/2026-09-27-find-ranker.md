@@ -692,6 +692,14 @@ hyphenated negatives under each ranker. Before the fix the first four failed
 under pi 0.84.3 and 0.87.0 ("mass-spec" and "read-alignment" returned no
 hits). After it, all 106 pass under both.
 
+An independent review compared 63b55db with the tree after the hyphen fix over
+6,717 queries and found no change on the recorded, probe, paraphrase, held-out,
+live `sci_find` and hyphenated-science sets, and no flip from hits to none
+anywhere. Queries flipped from none to hits only for hyphenated phrases, for
+example "up-down" and "wall-time", whose spaced form already returns hits or
+whose joined form scores, and none of 75 realistic off-topic hyphenated queries
+flipped that way; the rule is a design tradeoff, and it is accepted.
+
 ## Release-review notes (2026-09-30)
 
 Written at the release review. They add facts from git. They change no rule,

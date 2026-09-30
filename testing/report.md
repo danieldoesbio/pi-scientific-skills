@@ -141,5 +141,6 @@ index would put every request at 23k or more, the 16k–32k bin or above.
 
 Raw transcripts stay out of git, in the main checkout under
 `testing/transcripts/find-live/2026-09-23-bonsai2-27b-none/`. The notebook
-lists the files. The ledger entry is the last item in `extensionRuns` in
+lists the files. The ledger entry is the `extensionRuns` item dated 2026-09-23,
+"supervised live search test, all testable probes", in
 [`ledger.json`](ledger.json).

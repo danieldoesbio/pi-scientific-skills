@@ -255,11 +255,13 @@ above. Dates are commit dates from `git log` (-0700).
   default. The variants under "Candidate changes" were tested on the old
   ranker only.
 - **2026-09-26 (62e359d).** The "Status: done" block of "Proposed next
-  experiment", and the sentence in recommendation 4 that names the three-arm
-  run.
-- **2026-09-30 (0aa4b47).** The sentences of recommendation 4 from "the
-  target skill was read on 157" to the end of the item. They give the
-  157-against-116 result and the build it was measured on.
+  experiment", and the sentences in recommendation 4 that name the three-arm
+  run and give its result: the target skill was read on 157 with 1.7.0
+  against 116 with 1.6.0 search mode.
+- **2026-09-30 (0aa4b47).** It rewrote those sentences of recommendation 4 in
+  place. It added "as first built" and the sentences from "That build is
+  commit `08aff2e`" to the end of the item: the build and the scope of the
+  result. No number changed.
 
 ### Scope of the 157-against-116 result
 
