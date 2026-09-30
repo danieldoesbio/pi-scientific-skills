@@ -386,12 +386,13 @@ filter where 1.6.0 wrote the Core list. An empty filter cannot carry pi config
 overrides (`!x`, `+x`, `-x`; see "The empty-array footgun" below), so
 `/sci search` drops them, and its report names each one: "Dropped pi config
 overrides: !polars. Re-add them with pi config if you want them back." The way
-back to Core is the picker: `/sci profiles`, tick Core, Apply.
-`test-extension.mjs` starts from four settings files: three that 1.6.0 wrote
-(Core accepted, offer declined, `/sci none`) and one with a pi config override
-added (Core plus `!polars`). It checks that startup leaves each byte-identical
-and that the round trip (`/sci search`, then Core through the picker) restores
-the Core file byte for byte. To turn `sci_find` and `/sci` off, set
+back to Core is the picker: `/sci profiles`, tick Core, choose "Apply and
+reload". `test-extension.mjs` starts from four settings files: three 1.6.0
+states (Core accepted; offer declined, which leaves only the install entry;
+`/sci none`) and one with a pi config override added (Core plus `!polars`). It
+checks that startup leaves each byte-identical and that the round trip
+(`/sci search`, then Core through the picker) restores the Core file byte for
+byte. To turn `sci_find` and `/sci` off, set
 `"extensions": []` on the package's object entry in `settings.json`; this was
 checked against pi's own resolver in 0.84.3 and 0.87.0, and the `skills` filter
 then works as written.
@@ -415,7 +416,7 @@ then works as written.
   `message_start` and `turn_start` events). A user message starts a new first
   search: the prompt, and each steer and follow-up message. So does a custom
   message that opens an agent run. An extension's `pi.sendMessage` with
-  `triggerTurn: true` starts a run with no user message, and pi sends its
+  `triggerTurn: true` on an idle agent starts a run with no user message, and pi sends its
   custom message to the model as one. A custom message later in a run does not
   start a new first search. Nor does a retry or compaction that restarts the
   agent loop (`agent_start`, no new message). Profile listings do not count as
@@ -1279,9 +1280,9 @@ under "What pi does and does not enforce". The README is the landing page on
 npm and GitHub and stays positive and short; this file is where the hedges live.
 
 The README reports the search test with `deepseek/deepseek-v4-flash` (Core in
-the prompt, three questions, `sci_find` called unprompted each time) for 1.1.0
-to 1.5.0. `extensionRuns` holds no entry for that test with this model for 1.6.0
-or 1.7.0. The 1.6.0 search test is the local-model run of 2026-09-23 (Ternary
+the prompt, three questions, `sci_find` called unprompted each time) for 1.1.0,
+1.2.0, 1.3.0, 1.4.0 and 1.5.0 (1.4.1 has no entry). `extensionRuns` holds no
+entry for that test with this model for 1.6.0 or 1.7.0. The 1.6.0 search test is the local-model run of 2026-09-23 (Ternary
 Bonsai 2 27B, no skill in the prompt; report in `testing/report.md`).
 
 ```bash

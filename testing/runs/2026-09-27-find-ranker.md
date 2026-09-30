@@ -697,8 +697,13 @@ An independent review compared 63b55db with the tree after the hyphen fix over
 live `sci_find` and hyphenated-science sets, and no flip from hits to none
 anywhere. Queries flipped from none to hits only for hyphenated phrases, for
 example "up-down" and "wall-time", whose spaced form already returns hits or
-whose joined form scores, and none of 75 realistic off-topic hyphenated queries
-flipped that way; the rule is a design tradeoff, and it is accepted.
+whose joined form scores. Some of those are off-topic: 6 of the 54 off-topic
+queries in the 6,717-query comparison flipped from none to hits (for example
+"part-time job"). A check of 75 more realistic off-topic hyphenated queries,
+which are not part of the 6,717, found 4 that flip the same way: "user-name
+ideas", "data-base of recipes", "in-box zero" and "head-line news". A query with
+a hyphen can now return hits where the same words without it return none. The
+rule is a design tradeoff, and it is accepted.
 
 ## Release-review notes (2026-09-30)
 
