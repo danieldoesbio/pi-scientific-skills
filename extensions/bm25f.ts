@@ -34,7 +34,7 @@ export const BM25F_SETTINGS = {
  */
 const fold = (word: string): string => (word.length > 3 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word);
 
-/** Lowercase words, split on anything but letters, digits and "+". */
+/** Lowercase words, split on anything but ASCII letters, digits and "+". */
 const splitWords = (text: string): string[] => text.toLowerCase().split(/[^a-z0-9+]+/).filter(Boolean);
 
 /** The words of `text`, each with a plural "s" folded, and no joined pairs. */
@@ -163,9 +163,9 @@ export const rankAll = (index: Bm25fIndex, terms: readonly string[]): { entry: S
  * Chosen on development data to lose none of 1,069 queries whose target was
  * in the top 8, and to return nothing for every query in test-search.mjs's
  * negative list. The most a query could score counts single words only: the
- * joined pair of a hyphenated word ("massspec") is usually in no description,
- * so it can never score, and counting it would hold a short hyphenated query
- * under the share.
+ * joined pair of a hyphenated word ("massspec") is usually in no indexed field
+ * (name, description or body), so it can never score, and counting it would hold
+ * a short hyphenated query under the share.
  */
 export const NO_MATCH = { minTop: 2.5, minShare: 0.35 } as const;
 

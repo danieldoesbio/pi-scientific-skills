@@ -71,12 +71,14 @@ import {
 /** How long the first-run question waits before giving up and doing nothing. */
 const OFFER_TIMEOUT_MS = 20_000;
 
-// Declining keeps every skill loaded but not the prompt as it was: the tool's
-// snippet and guideline are added whatever the answer, so the row says so.
+// Declining keeps every skill loaded but not the tool set as it was: the tool is
+// registered whatever the answer, so the row says it stays available. It does
+// not say the prompt lists it: pi's default prompt does, a custom one (SYSTEM.md,
+// --system-prompt) drops the tools section.
 // scripts/test-tui-offer.py waits for "search mode:" and expects only the accept
 // row to carry it.
 const OFFER_ACCEPT = `Yes — search mode: ${TOOL_NAME} finds skills as needed (recommended)`;
-const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded (${TOOL_NAME} is still listed in the prompt)`;
+const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded (${TOOL_NAME} stays available)`;
 
 const offerTitle = (): string =>
   `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
@@ -131,6 +133,17 @@ const SNAPSHOT_NEWS = [
 ];
 
 /**
+ * Two facts every 1.7.0 notice gives, in one place so `searchNews` and
+ * `filteredNotice` cannot drift apart. The 1.6.0 clause on `/sci none` stays in
+ * `searchNews`: someone who hand-filtered before ever running `/sci` never ran
+ * `/sci none`.
+ */
+const DEFAULT_PROMPT_NEWS =
+  `In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) ${TOOL_NAME} ` +
+  `is now listed, with a guideline to use it for scientific, research and analysis work.`;
+const EMPTY_FILTER_MEANING = `now means search mode, not off; ${TOOL_NAME} stays on.`;
+
+/**
  * What 1.7.0 changed, written once for every 1.6.0 state: Core accepted, the
  * offer declined, `/sci none`, Core plus a `pi config` override. It says what
  * the commands and an empty filter mean now, never what the reader chose, so
@@ -154,11 +167,10 @@ const searchNews = (): string[] => [
   `${TOOL_NAME} now ranks with BM25F and returns ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,
   `${LATER_SEARCH_LIMIT}; its "limit" argument is gone. PI_SCI_FIND_RANKER=current restores the old`,
   `ranking order only.`,
-  `In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) ${TOOL_NAME}`,
-  `is now listed, with a guideline to use it for scientific, research and analysis work.`,
-  `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") now means search mode, not off;`,
-  `${TOOL_NAME} stays on. "/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
-  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, Apply and reload.`,
+  DEFAULT_PROMPT_NEWS,
+  `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") ${EMPTY_FILTER_MEANING}`,
+  `"/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
+  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, Apply.`,
   `Turn ${TOOL_NAME} and /${COMMAND_NAME} off with "extensions": [] on the package's object entry`,
   `in settings.json.`,
 ];
@@ -198,6 +210,10 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
  * excludes. A filter was never a boundary — the model could always `read` any
  * SKILL.md — but shipping a tool that makes that routine without saying so
  * would be changing what they chose out from under them.
+ *
+ * It also gives the two facts every 1.7.0 notice gives, from the constants above:
+ * where the listing is (and is not), and what an empty filter means now. A
+ * `skills: []` written by hand meant "off" before 1.7.0.
  */
 const filteredNotice = (): string =>
   [
@@ -209,9 +225,10 @@ const filteredNotice = (): string =>
     `it. It also updates ontology-term-resolution (Bioregistry, Identifiers.org,`,
     `ZOOMA and Ontobee companions) and genomic-intelligence (per-operation sync`,
     `limits; the splice-orientation check is documented as unreliable).`,
-    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand —`,
-    `including any your filter leaves out of the system prompt — and is listed`,
-    `in the system prompt so the model knows it is there.`,
+    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand,`,
+    `including any your filter leaves out of the system prompt.`,
+    DEFAULT_PROMPT_NEWS,
+    `An empty "skills" filter ${EMPTY_FILTER_MEANING}`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
 
@@ -340,11 +357,13 @@ export default function (pi: ExtensionAPI): void {
   // trade worth a configuration flag, and a user running the full set still
   // benefits from being able to look a skill up by need rather than by name.
   //
-  // pi lists a custom tool under "Available tools" only when it has a
-  // promptSnippet (system-prompt.js filters on it). Without one the model sees
-  // sci_find only in the tool schema. In the 2026-09-23 live test, 15 of 19
-  // misses on valid probes were attempts that never called it. Guidelines are
-  // appended flat to pi's own list, so each one names the tool.
+  // pi lists a custom tool in the tools section of its default system prompt
+  // only when it has a promptSnippet (system-prompt.js filters on it). Without
+  // one the model sees sci_find only in the tool schema. In the 2026-09-23 live
+  // test, 15 of 19 misses on valid probes were attempts that never called it.
+  // Guidelines go into pi's own list with no tool heading, so each one names
+  // the tool. A custom system prompt drops the tools section and the guidelines;
+  // see `searchNews`.
   if (SKILLS_DIR) {
     // A user message (the prompt, a steer or a follow-up) starts a new first
     // search, and so does a custom message that opens an agent run

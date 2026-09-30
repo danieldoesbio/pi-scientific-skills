@@ -83,6 +83,13 @@ const makeHarness = ({ mode = "tui", selectAnswer, cwd, hasUI = true } = {}) => 
 const extension = await loadExtensionModule("extensions/index.ts");
 const { TOTAL_SKILL_COUNT } = await loadExtensionModule("extensions/profiles.ts");
 
+// The sentence every 1.7.0 notice gives about where sci_find is listed: pi's
+// default system prompt only. Written out here, not imported, so a change to the
+// wording in index.ts shows up as a failing check.
+const DEFAULT_PROMPT_LISTING =
+  "In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) sci_find is now listed, " +
+  "with a guideline to use it for scientific, research and analysis work.";
+
 /** Register the extension against doubles and hand back its hooks. */
 const register = (harness) => {
   let commandHandler;
@@ -1202,11 +1209,14 @@ console.log("\n-- first run (new user, TUI) --");
     harness.selects[0]?.title,
   );
   // Declining keeps every skill loaded but not the prompt as it was: sci_find's
-  // snippet and guideline are added whatever the answer, so the row says so.
+  // snippet and guideline are added whatever the answer (in pi's default prompt;
+  // a custom one drops both), so the row says the tool stays available.
   const [acceptRow, declineRow] = harness.selects[0]?.options ?? [];
   check(
-    "the decline row says sci_find is still listed in the prompt",
-    /^No\b/.test(declineRow ?? "") && /sci_find is still listed in the prompt/.test(declineRow ?? ""),
+    "the decline row says sci_find stays available, not that the prompt lists it",
+    /^No\b/.test(declineRow ?? "") &&
+      /\(sci_find stays available\)/.test(declineRow ?? "") &&
+      !/listed in the prompt/.test(declineRow ?? ""),
     declineRow,
   );
   // scripts/test-tui-offer.py waits for "search mode:" and expects only the
@@ -1475,14 +1485,14 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
   // What applies to one state on top of that.
   const coreBack = [
     ['"/sci search" no longer loads Core', /"\/sci search" no longer loads Core/],
-    ["the way back to Core", /"\/sci profiles", tick Core, Apply and reload/],
+    ["the way back to Core", /"\/sci profiles", tick Core, Apply\./],
   ];
   const emptyFilter = [
     ['an empty "skills" filter means search mode, not off', /empty "skills" filter.*search mode, not off/],
   ];
   const namedOverrides = [
     ["/sci search names the pi config overrides it drops", /names any pi config overrides it drops/],
-    ["the way back to Core", /"\/sci profiles", tick Core, Apply and reload/],
+    ["the way back to Core", /"\/sci profiles", tick Core, Apply\./],
   ];
 
   const seen160 = { onboardingSeen: true, lastSeenVersion: "1.6.0", version: 1 };
@@ -1692,6 +1702,15 @@ console.log("\n-- first run (already hand-filtered) --");
     /sci_find/.test(harness.notes[0] ?? "") && /filter/.test(harness.notes[0] ?? ""),
     harness.notes[0],
   );
+  // The listing is in pi's default system prompt only. The notice says so in the
+  // words the upgrade notice uses, so a hand-filtered user is not told that a
+  // custom prompt lists the tool.
+  check(
+    "names the custom-prompt limit, in the upgrade notice's own words",
+    (harness.notes[0] ?? "").includes(DEFAULT_PROMPT_LISTING) &&
+      extension.upgradeNotice("1.6.0", "1.7.0").includes(DEFAULT_PROMPT_LISTING),
+    harness.notes[0],
+  );
   check(
     "settings.json is byte-identical",
     readFileSync(paths.settings, "utf8") === settingsBefore,
@@ -1700,6 +1719,36 @@ console.log("\n-- first run (already hand-filtered) --");
   const second = makeHarness({ mode: "tui" });
   await startup(register(second), second);
   check("notice is shown exactly once", second.notes.length === 0);
+}
+
+console.log("\n-- first run (hand-filtered with an empty filter) --");
+{
+  // `skills: []` meant "off" before 1.7.0 and means search mode now. Someone who
+  // wrote one by hand, before ever running /sci, is owed both facts: what the
+  // empty filter means now, and where the listing is (and is not).
+  const paths = newAgentDir();
+  const settingsBefore = JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills: [] }] }, null, 2);
+  writeFileSync(paths.settings, settingsBefore);
+
+  const harness = makeHarness({ mode: "tui", selectAnswer: (options) => options[0] });
+  await startup(register(harness), harness);
+  const notice = harness.notes[0] ?? "";
+
+  check("does not re-ask someone who already chose", harness.selects.length === 0);
+  check("tells them once", harness.notes.length === 1);
+  check(
+    "says an empty filter means search mode, not off, and sci_find stays on",
+    /An empty "skills" filter now means search mode, not off; sci_find stays on\./.test(notice),
+    notice,
+  );
+  check(
+    "names the custom-prompt limit, in the upgrade notice's own words",
+    notice.includes(DEFAULT_PROMPT_LISTING),
+    notice,
+  );
+  check("leaves their filter unchanged and says so", /your "skills" filter is unchanged/.test(notice), notice);
+  check("settings.json is byte-identical", readFileSync(paths.settings, "utf8") === settingsBefore);
+  check("takes no action on their behalf", harness.sendUserMessage.length === 0 && harness.reloadCount() === 0);
 }
 
 console.log("\n-- first run (print mode, no UI bound) --");
