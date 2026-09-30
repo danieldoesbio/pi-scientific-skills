@@ -951,6 +951,24 @@ console.log("\n-- first run (new user, TUI) --");
       /search mode/.test(harness.selects[0]?.title ?? ""),
     harness.selects[0]?.title,
   );
+  // Declining keeps every skill loaded but not the prompt as it was: sci_find's
+  // snippet and guideline are added whatever the answer, so the row says so.
+  const [acceptRow, declineRow] = harness.selects[0]?.options ?? [];
+  check(
+    "the decline row says sci_find is still listed in the prompt",
+    /^No\b/.test(declineRow ?? "") && /sci_find is still listed in the prompt/.test(declineRow ?? ""),
+    declineRow,
+  );
+  // scripts/test-tui-offer.py waits for "search mode:" and expects only the
+  // accept row to carry it; the rows also keep their order (accept first).
+  check(
+    'only the accept row carries "search mode:"',
+    /^Yes\b/.test(acceptRow ?? "") &&
+      (acceptRow ?? "").includes("search mode:") &&
+      !(declineRow ?? "").includes("search mode:") &&
+      !(harness.selects[0]?.title ?? "").includes("search mode:"),
+    JSON.stringify(harness.selects[0]),
+  );
   const queued = harness.sendUserMessage[0];
   check("accepting queues the command", queued?.content === "/sci search", JSON.stringify(queued));
   // pi dispatches an extension command only when this flag is set; it defaults
@@ -1093,7 +1111,7 @@ console.log("\n-- upgrade (patch release, same minor line) --");
       harness.notes.length === 1 &&
         /updated to/.test(notice) &&
         !/Patch release/.test(notice) &&
-        /Run "\/sci search"/.test(notice),
+        /"\/sci status"/.test(notice),
       notice,
     );
     const config = JSON.parse(readFileSync(paths.config, "utf8"));
@@ -1124,20 +1142,239 @@ console.log("\n-- upgradeNotice / compareVersions: pure functions, fixed version
 
   const minorNotice = upgradeNotice("1.6.0", "1.7.0");
   check(
-    "minor pair (1.6.0→1.7.0): the search-mode news, not the snapshot they already saw",
+    "minor pair (1.6.0→1.7.0): the search news, not the snapshot they already saw",
     /updated to 1\.7\.0 \(from 1\.6\.0\)/.test(minorNotice) &&
-      /Search mode/.test(minorNotice) &&
-      /sci_find is now listed/.test(minorNotice) &&
+      /BM25F/.test(minorNotice) &&
+      /search mode/i.test(minorNotice) &&
+      /now listed/.test(minorNotice) &&
       !/Upstream snapshot/.test(minorNotice),
     minorNotice,
+  );
+  // About nine lines of 90 characters, head included. A longer notice is one
+  // nobody reads to the end, and then it has told them nothing.
+  check(
+    "minor pair: short enough to read once",
+    minorNotice.length <= 9 * 90,
+    `${minorNotice.length} characters`,
   );
 
   const skippedNotice = upgradeNotice("1.5.0", "1.7.0");
   check(
     "skipped minor (1.5.0→1.7.0): also the snapshot news they missed",
-    /Search mode/.test(skippedNotice) && /Upstream snapshot v2\.69\.0/.test(skippedNotice),
+    /BM25F/.test(skippedNotice) && /Upstream snapshot v2\.69\.0/.test(skippedNotice),
     skippedNotice,
   );
+}
+
+console.log("\n-- upgrade from each real 1.6.0 state --");
+{
+  // The four states a 1.6.0 user can be in, as 1.6.0's own code wrote them:
+  // `git archive main` at 1.6.0, loaded through pi's jiti, driven through the
+  // first-run offer and `/sci search` / `/sci none`. The literals below
+  // serialize to the same bytes (compared once, `updatedAt` aside). Settings
+  // built by hand would test what this file believes 1.6.0 wrote.
+  const { FIRST_SEARCH_LIMIT, LATER_SEARCH_LIMIT } = await loadExtensionModule("extensions/search.ts");
+  const PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+  const file = (value) => `${JSON.stringify(value, null, 2)}\n`;
+  const SOURCE = "npm:pi-scientific-skills";
+  const CORE = [
+    "citation-management",
+    "experimental-design",
+    "exploratory-data-analysis",
+    "matplotlib",
+    "paper-lookup",
+    "polars",
+    "scientific-critical-thinking",
+    "scientific-visualization",
+    "scientific-writing",
+    "statistical-analysis",
+  ];
+
+  // One notice for every 1.6.0 state, so it must read true to each. These are
+  // the phrases that hold for all four: what search does now, where sci_find is
+  // listed, how to undo it, and no assumption about what the reader did.
+  const forEveryone = [
+    ["BM25F ranking", /BM25F/],
+    [
+      `${FIRST_SEARCH_LIMIT} hits then ${LATER_SEARCH_LIMIT}`,
+      new RegExp(`${FIRST_SEARCH_LIMIT} hits.*then ${LATER_SEARCH_LIMIT}\\b`),
+    ],
+    ['the "limit" argument is gone', /"limit" argument is gone/],
+    [
+      "PI_SCI_FIND_RANKER=current restores the ranking order only",
+      /PI_SCI_FIND_RANKER=current restores the old ranking order only\./,
+    ],
+    [
+      "listed in pi's default system prompt only",
+      /In pi's default system prompt \(not a custom SYSTEM\.md or --system-prompt\)/,
+    ],
+    ["a guideline for scientific work", /scientific, research and analysis work/],
+    ["a way to turn the tool off", /"extensions": \[\]/],
+    ['"/sci status"', /"\/sci status"/],
+    ["does not say it replaces loading Core", (text) => !/instead of loading Core/.test(text)],
+    [
+      "does not address a choice the reader may not have made",
+      (text) => !/\byou (chose|declined|accepted|ran)\b/i.test(text),
+    ],
+  ];
+  const holds = (notice, phrases) =>
+    phrases
+      .filter(([, test]) => !(typeof test === "function" ? test(notice) : test.test(notice)))
+      .map(([what]) => what);
+
+  // What applies to one state on top of that.
+  const coreBack = [
+    ['"/sci search" no longer loads Core', /"\/sci search" no longer loads Core/],
+    ["the way back to Core", /"\/sci profiles", tick Core, Apply and reload/],
+  ];
+  const emptyFilter = [
+    ['an empty "skills" filter means search mode, not off', /empty "skills" filter.*search mode, not off/],
+  ];
+  const namedOverrides = [
+    ["/sci search names the pi config overrides it drops", /names any pi config overrides it drops/],
+    ["the way back to Core", /"\/sci profiles", tick Core, Apply and reload/],
+  ];
+
+  const seen160 = { onboardingSeen: true, lastSeenVersion: "1.6.0", version: 1 };
+  const STATES = [
+    {
+      label: "accepted the offer (Core)",
+      settings: file({ packages: [{ source: SOURCE, skills: CORE }] }),
+      config: file({ ...seen160, updatedAt: "2026-09-30T20:08:53.591Z", profiles: ["core"] }),
+      profiles: ["core"],
+      phrases: coreBack,
+    },
+    {
+      label: "declined the offer (all skills, no filter)",
+      settings: file({ packages: [SOURCE] }),
+      config: file({ ...seen160, updatedAt: "2026-09-30T20:08:53.592Z" }),
+      profiles: undefined,
+      phrases: [],
+    },
+    {
+      label: "ran /sci none (skills: [] meant off)",
+      settings: file({ packages: [{ source: SOURCE, skills: [] }] }),
+      config: file({ ...seen160, updatedAt: "2026-09-30T20:08:53.593Z", profiles: [] }),
+      profiles: [],
+      phrases: emptyFilter,
+    },
+    {
+      label: "Core plus a pi config override (!polars)",
+      settings: file({ packages: [{ source: SOURCE, skills: [...CORE, "!polars"] }] }),
+      config: file({ ...seen160, updatedAt: "2026-09-30T20:08:53.595Z", profiles: ["core"] }),
+      profiles: ["core"],
+      phrases: namedOverrides,
+    },
+  ];
+  const [CORE_STATE, DECLINED_STATE, NONE_STATE, OVERRIDE_STATE] = STATES;
+
+  for (const state of STATES) {
+    const paths = newAgentDir();
+    writeFileSync(paths.settings, state.settings);
+    writeFileSync(paths.config, state.config);
+    const harness = makeHarness({ mode: "tui", selectAnswer: (options) => options[0] });
+    await startup(register(harness), harness);
+    const notice = harness.notes[0] ?? "";
+
+    check(
+      `${state.label}: told once, never asked, nothing done for them`,
+      harness.notes.length === 1 &&
+        harness.selects.length === 0 &&
+        harness.sendUserMessage.length === 0 &&
+        harness.reloadCount() === 0,
+      JSON.stringify({ notes: harness.notes.length, selects: harness.selects.length }),
+    );
+    check(
+      `${state.label}: settings.json is byte-identical`,
+      readFileSync(paths.settings, "utf8") === state.settings,
+      "an upgrade must never rewrite a user's settings",
+    );
+    const config = JSON.parse(readFileSync(paths.config, "utf8"));
+    check(
+      `${state.label}: records the version and keeps their saved profiles`,
+      config.lastSeenVersion === PACKAGE_VERSION && JSON.stringify(config.profiles) === JSON.stringify(state.profiles),
+      JSON.stringify(config),
+    );
+    const missing = holds(notice, forEveryone);
+    check(
+      `${state.label}: the notice gives the news that holds for every state`,
+      missing.length === 0,
+      `missing: ${missing.join("; ")}\n${notice}`,
+    );
+    for (const phrase of state.phrases) {
+      check(`${state.label}: the notice gives ${phrase[0]}`, holds(notice, [phrase]).length === 0, notice);
+    }
+  }
+
+  // The notice makes claims about commands. Run them.
+  {
+    // (b) The way back to Core: /sci search, then /sci profiles, tick Core, Apply.
+    const paths = newAgentDir();
+    writeFileSync(paths.settings, CORE_STATE.settings);
+    writeFileSync(paths.config, CORE_STATE.config);
+    const search = makeHarness();
+    await register(search).commandHandler("search", search.ctx);
+    check(
+      "accepted the offer: /sci search now writes an empty filter, not Core",
+      JSON.stringify(JSON.parse(readFileSync(paths.settings, "utf8")).packages[0].skills) === "[]",
+      readFileSync(paths.settings, "utf8"),
+    );
+    const tickCore = (options) => {
+      const row = options.find((option) => /^\[.\] Core — /.test(option));
+      return row?.startsWith("[ ]") ? row : "Apply and reload";
+    };
+    const back = makeHarness({ mode: "tui", selectAnswer: tickCore });
+    await register(back).commandHandler("profiles", back.ctx);
+    check(
+      "accepted the offer: /sci profiles, tick Core, Apply restores 1.6.0's Core settings byte for byte",
+      readFileSync(paths.settings, "utf8") === CORE_STATE.settings,
+      readFileSync(paths.settings, "utf8"),
+    );
+    check("and reloads so it takes effect", back.reloadCount() === 1);
+  }
+  {
+    // (c) Declined: nothing in their settings; the tool is on and the status says so.
+    const paths = newAgentDir();
+    writeFileSync(paths.settings, DECLINED_STATE.settings);
+    writeFileSync(paths.config, DECLINED_STATE.config);
+    const harness = makeHarness();
+    await register(harness).commandHandler("status", harness.ctx);
+    check(
+      "declined the offer: status still shows every skill loaded, with sci_find active",
+      /all skills active/.test(harness.notes.at(-1) ?? "") && /sci_find: active/.test(harness.notes.at(-1) ?? ""),
+      harness.notes.at(-1),
+    );
+  }
+  {
+    // (d) skills: [] is search mode now, and sci_find stays on.
+    const paths = newAgentDir();
+    writeFileSync(paths.settings, NONE_STATE.settings);
+    writeFileSync(paths.config, NONE_STATE.config);
+    const harness = makeHarness();
+    await register(harness).commandHandler("status", harness.ctx);
+    check(
+      "ran /sci none: status reads the empty filter as search mode, with sci_find active",
+      /search mode/.test(harness.notes.at(-1) ?? "") && /sci_find: active/.test(harness.notes.at(-1) ?? ""),
+      harness.notes.at(-1),
+    );
+  }
+  {
+    // (e) /sci search names the override it drops.
+    const paths = newAgentDir();
+    writeFileSync(paths.settings, OVERRIDE_STATE.settings);
+    writeFileSync(paths.config, OVERRIDE_STATE.config);
+    const harness = makeHarness();
+    await register(harness).commandHandler("search", harness.ctx);
+    check(
+      "Core plus !polars: /sci search names the dropped override",
+      /Dropped pi config overrides: !polars\./.test(harness.notes.at(-1) ?? ""),
+      harness.notes.at(-1),
+    );
+    check(
+      "and writes the empty filter",
+      JSON.stringify(JSON.parse(readFileSync(paths.settings, "utf8")).packages[0].skills) === "[]",
+    );
+  }
 }
 
 console.log("\n-- downgrade (older release running after a newer one was seen) --");

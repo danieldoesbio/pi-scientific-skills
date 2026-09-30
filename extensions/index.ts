@@ -71,8 +71,12 @@ import {
 /** How long the first-run question waits before giving up and doing nothing. */
 const OFFER_TIMEOUT_MS = 20_000;
 
+// Declining keeps every skill loaded but not the prompt as it was: the tool's
+// snippet and guideline are added whatever the answer, so the row says so.
+// scripts/test-tui-offer.py waits for "search mode:" and expects only the accept
+// row to carry it.
 const OFFER_ACCEPT = `Yes — search mode: ${TOOL_NAME} finds skills as needed (recommended)`;
-const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded`;
+const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded (${TOOL_NAME} is still listed in the prompt)`;
 
 const offerTitle = (): string =>
   `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
@@ -127,6 +131,39 @@ const SNAPSHOT_NEWS = [
 ];
 
 /**
+ * What 1.7.0 changed, written once for every 1.6.0 state: Core accepted, the
+ * offer declined, `/sci none`, Core plus a `pi config` override. It says what
+ * the commands and an empty filter mean now, never what the reader chose, so
+ * each line is true for someone who did nothing. `scripts/test-extension.mjs`
+ * checks it against the settings files 1.6.0's own code wrote.
+ *
+ * - Search: a new ranker and hit counts for everyone, and no `limit` argument.
+ *   `PI_SCI_FIND_RANKER=current` brings back the old order, not the old count.
+ * - The listing and guideline are in pi's default system prompt only. pi builds
+ *   a custom one (SYSTEM.md, `--system-prompt`) without the tools section or
+ *   the guidelines (system-prompt.js, `if (customPrompt)`).
+ * - An empty `skills` filter is search mode now. 1.6.0's `/sci none` wrote one
+ *   to mean off; the tool stays on, and their settings are not touched.
+ * - `/sci search` writes an empty filter, where 1.6.0 wrote Core, and names the
+ *   `pi config` overrides that drops. The way back to Core is the picker.
+ * - `"extensions": []` on the package's object entry stops pi loading the
+ *   extension: no tool, no `/sci`. Checked against pi's own resolver in 0.84.3
+ *   and 0.87.0; the `skills` filter then works as the user wrote it.
+ */
+const searchNews = (): string[] => [
+  `${TOOL_NAME} now ranks with BM25F and returns ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,
+  `${LATER_SEARCH_LIMIT}; its "limit" argument is gone. PI_SCI_FIND_RANKER=current restores the old`,
+  `ranking order only.`,
+  `In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) ${TOOL_NAME}`,
+  `is now listed, with a guideline to use it for scientific, research and analysis work.`,
+  `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") now means search mode, not off;`,
+  `${TOOL_NAME} stays on. "/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
+  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, Apply and reload.`,
+  `Turn ${TOOL_NAME} and /${COMMAND_NAME} off with "extensions": [] on the package's object entry`,
+  `in settings.json.`,
+];
+
+/**
  * `current` defaults to `PACKAGE_VERSION` for every real call site; it takes
  * an explicit value only in `scripts/test-extension.mjs`'s pure-function
  * tests, which check the patch and minor notice text against fixed pairs
@@ -146,11 +183,9 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
   const missedSnapshot = from === undefined || compareVersions(from, SNAPSHOT_RELEASE) < 0;
   return [
     ...head,
-    `Search mode ("/${COMMAND_NAME} search", or its new alias "/${COMMAND_NAME} none") now keeps`,
-    `every skill out of the system prompt, instead of loading Core.`,
-    `${TOOL_NAME} is now listed in the system prompt and finds all ${TOTAL_SKILL_COUNT} skills on demand.`,
+    ...searchNews(),
     ...(missedSnapshot ? SNAPSHOT_NEWS : []),
-    `Run "/${COMMAND_NAME} search" to switch, or "/${COMMAND_NAME} status" to see where you stand.`,
+    `"/${COMMAND_NAME} status" shows where you stand.`,
   ].join(" ");
 };
 
