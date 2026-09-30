@@ -27,16 +27,30 @@ export const BM25F_SETTINGS = {
   k1: 1.2,
 } as const;
 
-/** A plural "s" is folded; "ss" endings ("analysis" is safe: it ends in "is") are kept. */
+/**
+ * Drops a final "s" from a word of 4 or more characters, unless it ends in
+ * "ss" ("class" is kept). It is not a stemmer: "analysis" folds to "analysi",
+ * the same way in documents and in queries, so the two still meet.
+ */
 const fold = (word: string): string => (word.length > 3 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word);
 
+/** Lowercase words, split on anything but letters, digits and "+". */
+const splitWords = (text: string): string[] => text.toLowerCase().split(/[^a-z0-9+]+/).filter(Boolean);
+
+/** The words of `text`, each with a plural "s" folded, and no joined pairs. */
+const unigrams = (text: string): string[] => splitWords(text).map(fold);
+
 /**
- * Lowercase words split on anything but letters, digits and "+", each with a
- * plural "s" folded, plus every adjacent pair joined when the pair has 5 or
- * more letters. The pairs let "rna seq", "rna-seq" and "rnaseq" meet.
+ * The words of `text` (see `unigrams`), plus every adjacent pair joined when
+ * the pair has 5 or more characters. A document is tokenized whole, so its
+ * "rna seq" and its "rna-seq" both give the token "rnaseq". A query is
+ * tokenized one term at a time (see `rankAll`), so it gets a pair only from a
+ * hyphen inside a term: "rna-seq" and "rnaseq" meet those documents through
+ * "rnaseq", but the query "rna seq" is two terms and matches through "rna"
+ * and "seq" alone.
  */
 export const tokenize = (text: string): string[] => {
-  const words = text.toLowerCase().split(/[^a-z0-9+]+/).filter(Boolean);
+  const words = splitWords(text);
   const out = words.map(fold);
   for (let i = 0; i + 1 < words.length; i++) {
     const pair = words[i] + words[i + 1];
@@ -148,14 +162,17 @@ export const rankAll = (index: Bm25fIndex, terms: readonly string[]): { entry: S
  * "statistics"), whose best score is small because it has one term.
  * Chosen on development data to lose none of 1,069 queries whose target was
  * in the top 8, and to return nothing for every query in test-search.mjs's
- * negative list.
+ * negative list. The most a query could score counts single words only: the
+ * joined pair of a hyphenated word ("massspec") is usually in no description,
+ * so it can never score, and counting it would hold a short hyphenated query
+ * under the share.
  */
 export const NO_MATCH = { minTop: 2.5, minShare: 0.35 } as const;
 
 export const passesNoMatchRule = (index: Bm25fIndex, terms: readonly string[], top: number): boolean => {
   if (top >= NO_MATCH.minTop) return true;
   const total = index.skills.length;
-  const most = [...new Set(terms.flatMap(tokenize))].reduce((sum, term) => {
+  const most = [...new Set(terms.flatMap(unigrams))].reduce((sum, term) => {
     const df = index.documentFrequency.get(term) ?? 0;
     return sum + Math.log(1 + (total - df + 0.5) / (df + 0.5));
   }, 0);

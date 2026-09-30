@@ -566,3 +566,115 @@ Target in the top k (%), request text as the query:
   and expert probes).
 - Then release prep: the upgrade notice gets a line on the new search; the
   usual release process; `npm publish` is Daniel's step.
+
+## Post-review regression check (2026-09-30)
+
+### The fault and the fix
+
+The pre-flight review of the 1.7.0 stack found that short hyphenated queries
+got "No skill matched" under bm25f. "mass-spec" returned nothing, where "mass
+spec" returned `pyopenms` and `matchms`. "read-alignment" returned nothing,
+where the current ranker returns `deeptools` and `pysam`.
+
+The cause was in the no-match rule (`passesNoMatchRule`). It summed the IDF of
+`terms.flatMap(tokenize)` to get the most a query could score, and `tokenize`
+also makes the joined pair of a hyphenated word ("massspec"). That pair is in
+no skill (df 0), so its IDF is at its maximum, but it can never score. It
+inflated the denominator of the 35% share, and a short query fell under it.
+
+The fix: the sum now runs over single words only (split and fold, no pairs).
+The scores, the thresholds (2.5 and 35%) and the tokens used for scoring are
+unchanged. Two comments in `extensions/bm25f.ts` were wrong and are corrected:
+the `tokenize` comment and the `fold` comment ("analysis" folds to "analysi",
+the same way for documents and queries; the code has no check for a final
+"is"). The fold behaviour is unchanged.
+
+Two earlier statements in this notebook are left as written and are corrected
+here. The tokens bullet under "The ranker" says the pairs let "rna seq",
+"rna-seq" and "rnaseq" meet. A document's "rna seq" and "rna-seq" both give
+the token "rnaseq", and a query "rna-seq" or "rnaseq" meets it. A spaced query
+does not: each query term is tokenized alone, so "rna seq" has no pair token
+and matches through "rna" and "seq". The no-match bullet says the sum is over
+the query's unique tokens. It is now over its unique single words.
+
+### What the change does (offline, no model)
+
+1,420 queries were run before (037b384) and after: every query of the five
+bench sets, the 321 held-out request texts, and 30 short hand-written probes
+(hyphenated and plain).
+
+- `rankAll` scores: identical for all 1,420.
+- `search()` hit lists: different for 5, all from no hits to hits, all
+  hyphenated: `mass-spec`, `read-alignment`, `state-of-the-art`,
+  `peak-calling`, `dna-binding`. The spaced forms of the last three already
+  returned hits under bm25f.
+- Because the single words are a subset of the tokens, the denominator can
+  only fall. The rule can admit more queries and never fewer, so no top-k rate
+  can fall.
+- The off-domain hyphenated queries "e-mail my landlord", "t-shirt sizes" and
+  "asdf-ghjk" return nothing, before and after. Two of them joined the
+  negatives in `scripts/test-search.mjs`.
+- Not changed: a hyphenated query still scores its joined pair when a
+  SKILL.md uses the phrase. "readalignment" is in 3 bodies (`biopython`,
+  `pysam`, `scikit-bio`), so "read-alignment" lists them above `bulk-rnaseq`,
+  and "read alignment" lists `bulk-rnaseq` first. "massspec" is in none, so
+  "mass-spec" and "mass spec" give the same list.
+
+### Top-k rates, before and after
+
+`node scripts/find-rank-bench.mjs`, target in the top k (%), no-match rule
+included. Before and after are the same in every cell, under pi 0.84.3 and
+under pi 0.87.0. They also equal the development table above.
+
+| Set | n | Ranker | Top 1 | Top 2 | Top 3 | Top 8 | No hit |
+|---|---|---|---|---|---|---|---|
+| recorded | 425 | current | 77.2 | 86.8 | 92.0 | 97.2 | 0.2 |
+| recorded | 425 | bm25f | 92.9 | 97.4 | 98.8 | 99.8 | 0.0 |
+| probe text | 162 | current | 72.8 | 83.3 | 87.0 | 95.7 | 0.0 |
+| probe text | 162 | bm25f | 96.3 | 98.1 | 98.8 | 100.0 | 0.0 |
+| synonym | 161 | current | 64.0 | 73.9 | 78.9 | 88.8 | 0.0 |
+| synonym | 161 | bm25f | 89.4 | 96.3 | 98.1 | 100.0 | 0.0 |
+| plain | 161 | current | 36.0 | 47.8 | 57.8 | 77.0 | 0.0 |
+| plain | 161 | bm25f | 72.0 | 85.7 | 88.8 | 95.0 | 0.0 |
+| expert | 160 | current | 67.5 | 78.8 | 85.0 | 96.3 | 0.0 |
+| expert | 160 | bm25f | 96.3 | 98.8 | 100.0 | 100.0 | 0.0 |
+
+`node scripts/find-rank-heldout.mjs <main-checkout>/test-artifacts/find-rank-heldout`,
+request text as the query. The SHA-256 of the three files matched the table in
+"Held-out set" above. Before and after, under both pi versions:
+
+| Style | n | bm25f top 3 | current top 8 | Diff (Newcombe 95% CI) | Discordant | Bar |
+|---|---|---|---|---|---|---|
+| novice | 161 | 151 (93.8%) | 130 (80.7%) | +13.0 (6.9 to 19.7) | 25:4 | met |
+| terse | 160 | 159 (99.4%) | 153 (95.6%) | +3.8 (0.9 to 8.0) | 6:0 | met |
+| pooled | 321 | 310 (96.6%) | 283 (88.2%) | +8.4 (5.0 to 12.2) | 31:4 | met |
+
+| Style | Ranker | Top 1 | Top 2 | Top 3 | Top 5 | Top 8 | No hit |
+|---|---|---|---|---|---|---|---|
+| novice | current | 47.8 | 57.8 | 64.6 | 77.0 | 80.7 | 0.0 |
+| novice | bm25f | 77.0 | 91.9 | 93.8 | 94.4 | 96.9 | 0.0 |
+| terse | current | 62.5 | 78.8 | 85.6 | 91.3 | 95.6 | 0.0 |
+| terse | bm25f | 94.4 | 98.1 | 99.4 | 100.0 | 100.0 | 0.0 |
+| pooled | current | 55.1 | 68.2 | 75.1 | 84.1 | 88.2 | 0.0 |
+| pooled | bm25f | 85.7 | 95.0 | 96.6 | 97.2 | 98.4 | 0.0 |
+
+**What this run is.** It is a regression check on a set that was already
+used. The held-out set became development data after the 2026-09-29 run, and
+it is hash-locked. It is not a new pre-registered test, and nothing was
+chosen on it. It has no hypothesis to confirm: no rate moved.
+
+The panel's first-query rates (top 3: Bonsai 98.7%, Haiku 96.4%) were not run
+again. They need the panel transcripts, and the argument above covers them: no
+hit list of a query that already had hits changes, and a query that had none
+can only gain.
+
+### Tests
+
+`scripts/test-search.mjs` has 8 new checks (106 in all; the count in
+`README.md` is updated). Four are for hyphenated queries under bm25f:
+"mass-spec" lists `matchms` and `pyopenms`; "read-alignment" lists `deeptools`
+or `pysam`; the top hit of "mass-spec" is the top hit of "mass spec"; the top
+hit of "read-alignment" is in the top 3 of "read alignment". Four are two
+hyphenated negatives under each ranker. Before the fix the first four failed
+under pi 0.84.3 and 0.87.0 ("mass-spec" and "read-alignment" returned no
+hits). After it, all 106 pass under both.

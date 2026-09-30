@@ -98,6 +98,10 @@ const NEGATIVES = [
   "plumbing",
   "gossip",
   "furniture",
+  // Hyphenated: a hyphen makes a joined pair token, and the bm25f no-match rule
+  // counts single words only. These must still return nothing.
+  "e-mail my landlord",
+  "asdf-ghjk",
 ];
 
 /**
@@ -218,6 +222,41 @@ note("\n-- ranker switch and bm25f specifics --");
   const top3 = topShare(targetRanks(recorded, (query) => search.search(catalog, query, 3, "bm25f").map((hit) => hit.entry.name)), 3);
   note(`  bm25f: target in the top 3 for ${(100 * top3).toFixed(1)}% of ${recorded.length} recorded first queries`);
   suite.record(top3 >= 0.98, `bm25f: target in the top 3 for ${(100 * top3).toFixed(1)}% of recorded first queries, floor 98%`);
+}
+
+// A hyphenated word makes a joined pair token ("massspec"). The pair is usually
+// in no skill, so it can never score. It must not count toward the most a
+// query could score, or a short hyphenated query falls under the no-match
+// share and gets "No skill matched" where its spaced form finds the skills.
+note("\n-- hyphenated queries (bm25f) --");
+{
+  const run = (query) => search.search(catalog, query, TOP_N, "bm25f").map((hit) => hit.entry.name);
+  const massSpec = run("mass-spec");
+  suite.record(
+    ["matchms", "pyopenms"].every((name) => massSpec.includes(name)),
+    `bm25f: "mass-spec" must list matchms and pyopenms in top ${TOP_N}, got [${massSpec.join(", ") || "none"}]`,
+  );
+  const readAlignment = run("read-alignment");
+  suite.record(
+    ["deeptools", "pysam"].some((name) => readAlignment.includes(name)),
+    `bm25f: "read-alignment" must list deeptools or pysam in top ${TOP_N}, got [${readAlignment.join(", ") || "none"}]`,
+  );
+  // The pair also scores when a SKILL.md uses the phrase. "massspec" is in no
+  // skill, so "mass-spec" scores exactly as "mass spec": the same top hit.
+  // "readalignment" is in 3 SKILL.md bodies (biopython, pysam, scikit-bio), so
+  // the pair lifts them and "read-alignment" may reorder the top of the list
+  // against "read alignment": its top hit must stay in that form's top 3.
+  for (const [hyphenated, spaced, window] of [
+    ["mass-spec", "mass spec", 1],
+    ["read-alignment", "read alignment", 3],
+  ]) {
+    const [hyphenHits, spacedHits] = [run(hyphenated), run(spaced)];
+    suite.record(
+      hyphenHits.length > 0 && spacedHits.slice(0, window).includes(hyphenHits[0]),
+      `bm25f: the top hit of "${hyphenated}" must be in the top ${window} of "${spaced}", got "${hyphenHits[0] ?? "none"}" and [${spacedHits.slice(0, window).join(", ") || "none"}]`,
+    );
+    note(`  ${hyphenated} → ${hyphenHits[0] ?? "none"} | ${spaced} → ${spacedHits[0] ?? "none"}`);
+  }
 }
 
 note("\n-- aliases resolve to real skills --");
