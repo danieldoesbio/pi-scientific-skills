@@ -1409,6 +1409,25 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   and `deeptools` were held to; nothing here claims the AlphaGenome Atlas
   itself was queried, only that pi loaded and followed the skill up to the
   key it does not have.
+- **1.7.0 (0):** no skill batch. `skills/` is the same git tree as in 1.6.0
+  (`786d69d`), so `test-batch` was not run, as in 1.4.0, and the count of
+  skills run stays at 43. The release changes search, not skills. Three runs
+  measured its design. Each has an `extensionRuns` entry in
+  `testing/ledger.json` and a notebook in `testing/runs/`:
+  `2026-09-25-night-arms.md` (Bonsai 2 27B, three arms over 161 probes: the
+  target skill read on 157 with the 1.7.0 design as first built, on 116 with
+  1.6.0 search mode, on 158 with all 162 skills listed),
+  `2026-09-27-find-ranker.md` (offline, 321 held-out requests: BM25F top 3
+  held the target 310 times, the old ranker's top 8, 283 times) and
+  `2026-09-29-openrouter-ab.md` (Gemma 4 26B-A4B, old search against new
+  search over 319 units: new on 244, old on 225, +6.0 points, non-inferior).
+  All three ran on pre-release builds (the package content of `08aff2e`,
+  `69eea24` and `713d6e8`), before the fix commits that came after, so none of
+  them ran the final tarball. **Still owed for 1.7.0:**
+  `node scripts/test-find-live.mjs` on a small model, the tarball discovery
+  probe from the publishing checklist, and `scripts/try-it.sh new --check` and
+  `upgrading --check` on the packed tarball. None has been run against the
+  final tarball.
 - The other 119 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
