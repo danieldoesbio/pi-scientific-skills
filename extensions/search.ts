@@ -321,8 +321,8 @@ export const DEFAULT_LIMIT = 8;
 export const MAX_LIMIT = 20;
 
 /**
- * Hits `sci_find` shows the model: the first search after a user prompt, then
- * every later one. Chosen from the top-k rates in
+ * Hits `sci_find` shows the model: the first search after the message that opens a
+ * prompt or run, then every later one. Chosen from the top-k rates in
  * testing/runs/2026-09-27-find-ranker.md: under bm25f the target is in the
  * top 3 for 98.7% of the first queries Bonsai 2 27B wrote and 96.4% of Haiku
  * 4.5's. The current ranker's top 8 held 97.2% and 96.3%, so the top 3 is 1.5

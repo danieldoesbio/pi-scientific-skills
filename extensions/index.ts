@@ -133,7 +133,7 @@ const SNAPSHOT_NEWS = [
 ];
 
 /**
- * Two facts every 1.7.0 notice gives, in one place so `searchNews` and
+ * Two facts both 1.7.0 news notices (`searchNews` and `filteredNotice`) give, in one place so `searchNews` and
  * `filteredNotice` cannot drift apart. The 1.6.0 clause on `/sci none` stays in
  * `searchNews`: someone who hand-filtered before ever running `/sci` never ran
  * `/sci none`.
@@ -148,7 +148,8 @@ const EMPTY_FILTER_MEANING = `now means search mode, not off; ${TOOL_NAME} stays
  * offer declined, `/sci none`, Core plus a `pi config` override. It says what
  * the commands and an empty filter mean now, never what the reader chose, so
  * each line is true for someone who did nothing. `scripts/test-extension.mjs`
- * checks it against the settings files 1.6.0's own code wrote.
+ * checks it against three 1.6.0 states (Core accepted; offer declined, which leaves
+ * only the install entry; `/sci none`) and one with a `pi config` override added.
  *
  * - Search: a new ranker and hit counts for everyone, and no `limit` argument.
  *   `PI_SCI_FIND_RANKER=current` brings back the old order, not the old count.
@@ -164,13 +165,13 @@ const EMPTY_FILTER_MEANING = `now means search mode, not off; ${TOOL_NAME} stays
  *   and 0.87.0; the `skills` filter then works as the user wrote it.
  */
 const searchNews = (): string[] => [
-  `${TOOL_NAME} now ranks with BM25F and returns ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,
+  `${TOOL_NAME} ranks with BM25F and shows ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,
   `${LATER_SEARCH_LIMIT}; its "limit" argument is gone. PI_SCI_FIND_RANKER=current restores the old`,
   `ranking order only.`,
   DEFAULT_PROMPT_NEWS,
   `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") ${EMPTY_FILTER_MEANING}`,
   `"/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
-  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, Apply.`,
+  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, choose "Apply and reload".`,
   `Turn ${TOOL_NAME} and /${COMMAND_NAME} off with "extensions": [] on the package's object entry`,
   `in settings.json.`,
 ];
@@ -211,7 +212,7 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
  * SKILL.md — but shipping a tool that makes that routine without saying so
  * would be changing what they chose out from under them.
  *
- * It also gives the two facts every 1.7.0 notice gives, from the constants above:
+ * It also gives the two facts both 1.7.0 news notices give, from the constants above:
  * where the listing is (and is not), and what an empty filter means now. A
  * `skills: []` written by hand meant "off" before 1.7.0.
  */

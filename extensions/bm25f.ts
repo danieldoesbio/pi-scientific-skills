@@ -162,10 +162,10 @@ export const rankAll = (index: Bm25fIndex, terms: readonly string[]): { entry: S
  * "statistics"), whose best score is small because it has one term.
  * Chosen on development data to lose none of 1,069 queries whose target was
  * in the top 8, and to return nothing for every query in test-search.mjs's
- * negative list. The most a query could score counts single words only: the
- * joined pair of a hyphenated word ("massspec") is usually in no indexed field
- * (name, description or body), so it can never score, and counting it would hold
- * a short hyphenated query under the share.
+ * negative list. The most a query could score counts single words only. A
+ * joined pair of a hyphenated word scores only when the index holds it
+ * ("massspec" is in no field). A pair that can never score must not hold a
+ * short hyphenated query under the share.
  */
 export const NO_MATCH = { minTop: 2.5, minShare: 0.35 } as const;
 

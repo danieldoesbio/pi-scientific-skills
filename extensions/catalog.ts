@@ -388,9 +388,16 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
  *   at the head of a run counts. A custom message later in a run (a steer, or a
  *   context message pi adds between turns) does not reset.
  *
- * A system message never resets and does not clear the flag. Since pi 0.87 a
+ * A system message never resets and does not clear the flag. In pi 0.87 a
  * run whose tool loadout changed opens with a system message ahead of its
  * first message; it records the tool change and is not a prompt.
+ *
+ * Two cases still count wrong, and are left as they are:
+ * - A custom steer queued during an auto-retry backoff reaches the model
+ *   mid-prompt but opens a new run, so it resets: a prompt with that steer
+ *   shows 3, 3, 5 where the base case shows 3, 5, 5.
+ * - In pi 0.87 a custom entry from `agent_before_settle` gives no
+ *   `message_start`, so the stage stays at 5 for it.
  *
  * `agent_start` alone does not reset, because pi emits it again for an
  * `agent.continue()` after an auto-retry or a compaction. With no message

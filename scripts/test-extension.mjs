@@ -388,7 +388,7 @@ console.log("\n-- sci_find hit count: 3 for the first search after a prompt, the
   check("a new prompt starts again at 3", (await headings({ query })) === 3);
 }
 
-console.log("\n-- sci_find: the 3-then-5 stage follows the message that opens a prompt, not pi's agent_start --");
+console.log("\n-- sci_find: the 3-then-5 stage follows the message that opens a prompt --");
 {
   const queries = ["single cell rna-seq clustering", "protein structure prediction", "variant calling from a bam file"];
   const fresh = async () => {
@@ -646,7 +646,7 @@ console.log("\n-- sci_find: the 3-then-5 stage follows the message that opens a 
     await pi.nextTurn();
     const second = await hits();
     check(
-      "a custom message behind the user message at the start of a run resets once: 3, then 5",
+      "a custom message behind the user message at the start of a run does not change the count: 3, then 5",
       first === 3 && second === 5,
       `${first}, ${second}`,
     );
@@ -1485,14 +1485,14 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
   // What applies to one state on top of that.
   const coreBack = [
     ['"/sci search" no longer loads Core', /"\/sci search" no longer loads Core/],
-    ["the way back to Core", /"\/sci profiles", tick Core, Apply\./],
+    ["the way back to Core", /"\/sci profiles", tick Core, choose "Apply and reload"\./],
   ];
   const emptyFilter = [
     ['an empty "skills" filter means search mode, not off', /empty "skills" filter.*search mode, not off/],
   ];
   const namedOverrides = [
     ["/sci search names the pi config overrides it drops", /names any pi config overrides it drops/],
-    ["the way back to Core", /"\/sci profiles", tick Core, Apply\./],
+    ["the way back to Core", /"\/sci profiles", tick Core, choose "Apply and reload"\./],
   ];
 
   const seen160 = { onboardingSeen: true, lastSeenVersion: "1.6.0", version: 1 };
@@ -1568,7 +1568,7 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
 
   // The notice makes claims about commands. Run them.
   {
-    // (b) The way back to Core: /sci search, then /sci profiles, tick Core, Apply.
+    // (b) The way back to Core: /sci search, then /sci profiles, tick Core, Apply and reload.
     const paths = newAgentDir();
     writeFileSync(paths.settings, CORE_STATE.settings);
     writeFileSync(paths.config, CORE_STATE.config);
@@ -1586,7 +1586,7 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
     const back = makeHarness({ mode: "tui", selectAnswer: tickCore });
     await register(back).commandHandler("profiles", back.ctx);
     check(
-      "accepted the offer: /sci profiles, tick Core, Apply restores 1.6.0's Core settings byte for byte",
+      "accepted the offer: /sci profiles, tick Core, Apply and reload restores 1.6.0's Core settings byte for byte",
       readFileSync(paths.settings, "utf8") === CORE_STATE.settings,
       readFileSync(paths.settings, "utf8"),
     );

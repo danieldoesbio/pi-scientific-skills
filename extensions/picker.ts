@@ -209,8 +209,8 @@ const confirmReplacingUnknownFilter = async (
   return ctx.ui.confirm(
     "Replace the existing filter?",
     `${settingsPath()} lists ${includes.length} skill pattern(s) that /${COMMAND_NAME} ` +
-      `did not write. Applying a profile replaces that list (\`pi config\` overrides ` +
-      `are kept). Continue?`,
+      `did not write. Applying a profile replaces that list. \`pi config\` overrides stay, ` +
+      `unless you choose no profile: search mode drops them and names each one. Continue?`,
   );
 };
 
