@@ -347,11 +347,12 @@ export default function (pi: ExtensionAPI): void {
   // appended flat to pi's own list, so each one names the tool.
   if (SKILLS_DIR) {
     // A user message (the prompt, a steer or a follow-up) starts a new first
-    // search; see createSearchStage for why this is not agent_start.
+    // search, and so does a custom message that opens an agent run
+    // (pi.sendMessage with triggerTurn); see createSearchStage. agent_start
+    // alone does not: pi emits it again for continue().
     const searchStage = createSearchStage();
-    pi.on("message_start", async (event) => {
-      if (event.message.role === "user") searchStage.userMessage();
-    });
+    pi.on("agent_start", async () => searchStage.agentStart());
+    pi.on("message_start", async (event) => searchStage.messageStart(event.message?.role));
     pi.on("turn_start", async () => searchStage.turnStart());
     pi.registerTool({
       name: TOOL_NAME,

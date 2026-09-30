@@ -408,21 +408,24 @@ resolver in 0.84.3 and 0.87.0, and the `skills` filter then works as written.
   and badly among 162 in a system prompt. That is why scoring is OR-based:
   requiring every term to match returns nothing for ordinary phrasings
   ("variant calling" matches no single description verbatim).
-- **3 hits, then 5.** The first turn that searches after a user prompt gets
+- **3 hits, then 5.** The first turn that searches after a prompt gets
   the top 3 (parallel calls in that turn too); later turns get the top 5
-  (`createSearchStage` in `catalog.ts`, fed by pi's `message_start` event for
-  a user message and its `turn_start` event). A steer or follow-up message
-  counts as a user message, so the first search after it shows 3 again; a
-  retry or compaction that restarts the agent loop (`agent_start`, no new
-  message) does not. Profile listings do not count as a search. The result
-  text is most of the prefill of the turn after a search, so a shorter list is
-  a faster turn: about 850 characters per hit, and 8 hits took about 17 of the
-  25 seconds on 2026-09-25. Under bm25f the target is in the top 3 for 98.7%
-  of the first queries Bonsai 2 27B wrote and 96.4% of Haiku 4.5's. The old
-  ranker's top 8 held 97.2% and 96.3%: equal for Haiku, 1.5 points lower for
-  Bonsai. There is no `limit` argument: in the same data the models set one in
-  578 of 1,341 calls, mostly 10 to 20. `/sci find` and callers that pass no
-  count get 8, from the same ranker.
+  (`createSearchStage` in `catalog.ts`, fed by pi's `agent_start`,
+  `message_start` and `turn_start` events). A user message starts a new first
+  search: the prompt, and each steer and follow-up message. So does a custom
+  message that opens an agent run. An extension's `pi.sendMessage` with
+  `triggerTurn: true` starts a run with no user message, and pi sends its
+  custom message to the model as one. A custom message later in a run does not
+  start a new first search. Nor does a retry or compaction that restarts the
+  agent loop (`agent_start`, no new message). Profile listings do not count as
+  a search. The result text is most of the prefill of the turn after a search,
+  so a shorter list is a faster turn: about 850 characters per hit, and 8 hits
+  took about 17 of the 25 seconds on 2026-09-25. Under bm25f the target is in
+  the top 3 for 98.7% of the first queries Bonsai 2 27B wrote and 96.4% of
+  Haiku 4.5's. The old ranker's top 8 held 97.2% and 96.3%: equal for Haiku,
+  1.5 points lower for Bonsai. There is no `limit` argument: in the same data
+  the models set one in 578 of 1,341 calls, mostly 10 to 20. `/sci find` and
+  callers that pass no count get 8, from the same ranker.
 - **After a miss, and the live A/B.** When the target is not in the 3, the tool
   description tells the model to search again with other words. One run
   measured what it does

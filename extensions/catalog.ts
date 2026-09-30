@@ -370,27 +370,43 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
 
 /**
  * How many hits `sci_find` shows the model. Every call in the first turn that
- * searches after a user message gets FIRST_SEARCH_LIMIT (parallel calls in that
- * turn included); every later turn gets LATER_SEARCH_LIMIT. Profile listings
- * (a profile id in `profile`, or as the whole `query`) and empty calls are not
+ * searches after a prompt gets FIRST_SEARCH_LIMIT (parallel calls in that turn
+ * included); every later turn gets LATER_SEARCH_LIMIT. Profile listings (a
+ * profile id in `profile`, or as the whole `query`) and empty calls are not
  * searches and do not use up the first turn.
  *
- * index.ts feeds it two pi events. `message_start` with role "user" calls
- * `userMessage`: it fires when a message enters the model's context, for the
- * prompt and for each steer and follow-up message, before the assistant's
- * reply and so before its first tool call. `agent_start` is not used: pi emits
- * it again for an `agent.continue()` after an auto-retry or a compaction, with
- * no new message, and not at all for a steer or follow-up message that arrives
- * inside a running agent loop. `input` is not used either: it fires when the
- * user types, before pi queues the message, so it can reset a turn that is
- * still running.
+ * index.ts feeds the stage two pi events, `agent_start` and `message_start`
+ * (with the message's role). Two kinds of message start a new first search:
+ * - A role "user" message always does: the prompt, and each steer and
+ *   follow-up message. `message_start` fires when a message enters the model's
+ *   context, before the assistant's reply and so before its first tool call.
+ * - A role "custom" message does when it opens an agent run. An extension that
+ *   calls `pi.sendMessage` with `triggerTurn: true` on an idle agent starts a
+ *   run with no user message, and `convertToLlm` hands the custom message to
+ *   the model as a user message. `agentStart` sets a flag and the first
+ *   `message_start` that is not a system message clears it, so only a message
+ *   at the head of a run counts. A custom message later in a run (a steer, or a
+ *   context message pi adds between turns) does not reset.
+ *
+ * A system message never resets and does not clear the flag. Since pi 0.87 a
+ * run whose tool loadout changed opens with a system message ahead of its
+ * first message; it records the tool change and is not a prompt.
+ *
+ * `agent_start` alone does not reset, because pi emits it again for an
+ * `agent.continue()` after an auto-retry or a compaction. With no message
+ * queued, that run opens with no new message (its first `message_start` is the
+ * assistant's) and is not a new prompt. `agent_start` is not emitted at all
+ * for a steer or follow-up message that arrives inside a running agent loop.
+ * `input` is not used: it fires when the user types, before pi queues the
+ * message, so it can reset a turn that is still running.
  *
  * `turnStart` counts turns itself. pi's own `turnIndex` starts again at 0 at
  * every `agent_start`, so after a retry it would name the first searching turn
  * a second time.
  */
 export interface SearchStage {
-  userMessage: () => void;
+  agentStart: () => void;
+  messageStart: (role: unknown) => void;
   turnStart: () => void;
   limitFor: (params: ToolParams) => number | undefined;
 }
@@ -398,9 +414,15 @@ export interface SearchStage {
 export const createSearchStage = (): SearchStage => {
   let turn = 0;
   let firstSearchTurn: number | undefined;
+  let runOpening = false;
   return {
-    userMessage: () => {
-      firstSearchTurn = undefined;
+    agentStart: () => {
+      runOpening = true;
+    },
+    messageStart: (role) => {
+      const opensRun = runOpening;
+      if (role !== "system") runOpening = false;
+      if (role === "user" || (opensRun && role === "custom")) firstSearchTurn = undefined;
     },
     turnStart: () => {
       turn += 1;

@@ -232,6 +232,8 @@ const piRun = async (events) => {
   return {
     seen,
     message,
+    agentStart,
+    turnStart,
     turnEnd,
     agentEnd,
     // agent.prompt(): runAgentLoop emits agent_start, turn_start, then a
@@ -283,6 +285,59 @@ const piRun = async (events) => {
       await turnStart();
       await message("assistant");
     },
+    // pi.sendMessage with triggerTurn: true on an idle agent. sendCustomMessage
+    // builds a role "custom" message and calls agent.prompt() with it
+    // (agent-session.js :1071-1093 -> :747-750 in 0.84.3; :1481-1507 ->
+    // :1078-1082 in 0.87.0). The events of prompt() with the custom message
+    // where the user message would be, and no message_start(user).
+    // convertToLlm sends it to the model as a user message (messages.js
+    // :89-96, both versions).
+    customPrompt: async () => {
+      await agentStart();
+      await turnStart();
+      await message("custom");
+      await message("assistant");
+    },
+    // The same run after the tool loadout changed since the last run. 0.87
+    // puts a system message before the run's first non-system message
+    // (agent-loop.js :219-244, called at :44 and :116); 0.84.3 has no such
+    // message, so this is a 0.87-only shape.
+    customPromptAfterToolChange: async () => {
+      await agentStart();
+      await turnStart();
+      await message("system");
+      await message("custom");
+      await message("assistant");
+    },
+    // agent.continue() after a tool loadout change: the system message comes
+    // before the assistant message, as above.
+    continuedAfterToolChange: async () => {
+      await agentStart();
+      await turnStart();
+      await message("system");
+      await message("assistant");
+    },
+    // A prompt that carries custom messages: prompt() builds [user, nextTurn
+    // messages, before_agent_start messages] (agent-session.js :871-901 /
+    // :1294-1318), so the user message comes first.
+    promptWithCustom: async () => {
+      await agentStart();
+      await turnStart();
+      await message("user");
+      await message("custom");
+      await message("assistant");
+    },
+    // A custom steering message in a running agent (pi.sendMessage with
+    // deliverAs "steer"): the same events as steered() with a custom message.
+    customSteered: async () => {
+      await message("toolResult");
+      await turnEnd();
+      await turnStart();
+      await message("custom");
+      await message("assistant");
+    },
+    // A message_start whose message has no role key.
+    roleless: () => feed({ type: "message_start", message: { content: [], timestamp: 0 } }),
   };
 };
 
@@ -301,8 +356,8 @@ console.log("\n-- sci_find hit count: 3 for the first search after a prompt, the
     /first search returns the best 3 matches and later searches the best 5/.test(tool.description),
   );
   check(
-    "message_start and turn_start are handled",
-    typeof events.message_start === "function" && typeof events.turn_start === "function",
+    "agent_start, message_start and turn_start are handled",
+    ["agent_start", "message_start", "turn_start"].every((name) => typeof events[name] === "function"),
   );
 
   const query = "single cell rna-seq clustering";
@@ -326,7 +381,7 @@ console.log("\n-- sci_find hit count: 3 for the first search after a prompt, the
   check("a new prompt starts again at 3", (await headings({ query })) === 3);
 }
 
-console.log("\n-- sci_find: the 3-then-5 stage follows the user's messages, not pi's agent_start --");
+console.log("\n-- sci_find: the 3-then-5 stage follows the message that opens a prompt, not pi's agent_start --");
 {
   const queries = ["single cell rna-seq clustering", "protein structure prediction", "variant calling from a bam file"];
   const fresh = async () => {
@@ -465,10 +520,205 @@ console.log("\n-- sci_find: the 3-then-5 stage follows the user's messages, not 
     );
   }
 
-  // Only a user message resets. A system message (0.87 declares tool changes
-  // with one, before the user message: agent-loop.js :219-244) and a custom
-  // message (pi.sendMessage, before_agent_start) are not something the user
-  // wrote, and an assistant or toolResult message_start comes every turn.
+  // A run that an extension starts (pi.sendMessage with triggerTurn: true)
+  // opens with a custom message and no user message. The model reads it as a
+  // new prompt, so the first search in it shows 3 again. Without this rule the
+  // stage stayed at 5 for every such run until a real user message came.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    const second = await hits();
+    await pi.agentEnd();
+    await pi.customPrompt();
+    const afterCustom = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    await pi.agentEnd();
+    await pi.customPrompt();
+    const secondCustomRun = await hits();
+    check(
+      "a run that opens with a custom message starts a new first search: 3, then 5, and again for the next such run",
+      first === 3 && second === 5 && afterCustom === 3 && afterThat === 5 && secondCustomRun === 3,
+      `${first}, ${second}, ${afterCustom}, ${afterThat}, ${secondCustomRun}`,
+    );
+  }
+
+  // A custom message in the middle of a run is not a new prompt: a custom
+  // steer, or a context message that pi adds between turns.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    const second = await hits();
+    await pi.customSteered();
+    const afterCustom = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    check(
+      "a custom message in the middle of a run does not reset: 3, 5, then 5 and 5",
+      first === 3 && second === 5 && afterCustom === 5 && afterThat === 5,
+      `${first}, ${second}, ${afterCustom}, ${afterThat}`,
+    );
+  }
+
+  // continue() opens a run with no message, and the assistant's message_start
+  // is the first one. That message must use up the run-opening state, or a
+  // custom message later in the run would count as the one that opened it.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    await pi.agentEnd();
+    await pi.continued();
+    const afterRetry = await hits();
+    await pi.customSteered();
+    const afterCustom = await hits();
+    check(
+      "continue() does not reset, and a custom message later in that run does not either",
+      first === 3 && afterRetry === 5 && afterCustom === 5,
+      `${first}, ${afterRetry}, ${afterCustom}`,
+    );
+  }
+
+  // continue() after a run that a custom message opened.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    await hits();
+    await pi.agentEnd();
+    await pi.customPrompt();
+    const first = await hits();
+    await pi.nextTurn();
+    await pi.agentEnd();
+    await pi.continued();
+    const afterRetry = await hits();
+    check(
+      "continue() after a custom-started run does not reset: 3, then 5",
+      first === 3 && afterRetry === 5,
+      `${first}, ${afterRetry}`,
+    );
+  }
+
+  // A user steer still resets inside a run that a custom message opened.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    await hits();
+    await pi.agentEnd();
+    await pi.customPrompt();
+    const first = await hits();
+    await pi.nextTurn();
+    const second = await hits();
+    await pi.steered();
+    const afterSteer = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    check(
+      "a user steer in a custom-started run starts a new first search: 3, 5, 3, 5",
+      first === 3 && second === 5 && afterSteer === 3 && afterThat === 5,
+      `${first}, ${second}, ${afterSteer}, ${afterThat}`,
+    );
+  }
+
+  // The prompt carries custom messages after the user message. The user
+  // message resets; the custom message behind it is mid-run, so the first
+  // search stays 3 and the next turn 5.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    await hits();
+    await pi.nextTurn();
+    await hits();
+    await pi.agentEnd();
+    await pi.promptWithCustom();
+    const first = await hits();
+    await pi.nextTurn();
+    const second = await hits();
+    check(
+      "a custom message behind the user message at the start of a run resets once: 3, then 5",
+      first === 3 && second === 5,
+      `${first}, ${second}`,
+    );
+  }
+
+  // 0.87 puts a system message ahead of the run's first message when the tool
+  // loadout changed. It is pi's own bookkeeping, not a message the model reads
+  // as a prompt, so it must not hide the custom message behind it.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    await hits();
+    await pi.nextTurn();
+    await hits();
+    await pi.agentEnd();
+    await pi.customPromptAfterToolChange();
+    const first = await hits();
+    await pi.nextTurn();
+    const second = await hits();
+    check(
+      "a system message ahead of the opening custom message does not hide it: 3, then 5",
+      first === 3 && second === 5,
+      `${first}, ${second}`,
+    );
+  }
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    await pi.agentEnd();
+    await pi.continuedAfterToolChange();
+    const afterRetry = await hits();
+    check(
+      "a system message ahead of the assistant in continue() does not reset: 3, then 5",
+      first === 3 && afterRetry === 5,
+      `${first}, ${afterRetry}`,
+    );
+  }
+
+  // A message_start that has no role, or no message, is not an error in the
+  // extension: pi's own handlers read event.message.role on an AgentMessage,
+  // but an untyped extension or a future message type could break that.
+  {
+    const { events, pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    await pi.agentEnd();
+    await pi.agentStart();
+    await pi.turnStart();
+    let thrown;
+    try {
+      await pi.roleless();
+      await events.message_start({ type: "message_start" });
+    } catch (error) {
+      thrown = error;
+    }
+    check("a message_start with no role, or no message, does not throw", thrown === undefined, String(thrown));
+    // The role-less message used up the run-opening state, so the custom
+    // message behind it is mid-run and does not reset; a user steer still does.
+    await pi.message("custom");
+    await pi.message("assistant");
+    const afterCustom = await hits();
+    await pi.steered();
+    const afterSteer = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    check(
+      "after a role-less message the stage is not stuck: a custom message does not reset, a user steer does",
+      first === 3 && afterCustom === 5 && afterSteer === 3 && afterThat === 5,
+      `${first}, ${afterCustom}, ${afterSteer}, ${afterThat}`,
+    );
+  }
+
+  // A user message always resets. A custom message resets only when it opens a
+  // run. A system message (0.87 declares tool changes with one, before the
+  // first message of a run: agent-loop.js :219-244), an assistant and a
+  // toolResult message_start do not reset; the assistant's comes every turn.
   {
     const { pi, hits } = await fresh();
     await pi.prompt();
