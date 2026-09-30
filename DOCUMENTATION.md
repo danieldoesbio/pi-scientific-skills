@@ -310,11 +310,11 @@ Profiles solve the context budget for the **human**: you pick a field before the
 work starts. They do nothing for the **model**, and a profile is a bet — when it
 is wrong, the skill the scientist needed is invisible.
 
-`sci_find` closes that half. It loads no skills; it searches all 162 names and
-descriptions and returns the ones that match, with full descriptions and the
-absolute `SKILL.md` path for the model to `read`. That is mechanically identical
-to how pi loads a skill natively, one level further down: descriptions deferred
-rather than bodies.
+`sci_find` closes that half. It loads no skills; it searches the names,
+descriptions and SKILL.md text of all 162 skills and returns the ones that
+match, with full descriptions and the absolute `SKILL.md` path for the model to
+`read`. That is mechanically identical to how pi loads a skill natively, one
+level further down: descriptions deferred rather than bodies.
 
 `/sci search` writes an empty `skills` filter — no skill in the system prompt,
 ~0 tokens — through the same `commitPlan` path everything else uses —
@@ -347,22 +347,22 @@ model. Profiles still put a field's skills in the prompt for anyone who wants
 them there. Existing users keep their filter; the 1.7.0 upgrade notice says what
 changed and how to get Core back (below).
 
-**`sci_find` in the system prompt, since 1.7.0.** pi lists a custom tool under
-"Available tools" only when it has a `promptSnippet` (`system-prompt.js`
-filters on it); until 1.7.0 the model saw `sci_find` only in the tool schema.
-In the 2026-09-23 test, 15 of the 19 misses on valid probes were attempts that
-never called it. The tool now carries a one-line snippet and one guideline:
-use `sci_find` before writing code, installing a package or setting up a
-service for scientific, research or analysis work. pi appends guidelines flat to
-its own list, so the guideline names the tool. `test-extension.mjs` renders
-both through pi's own `buildSystemPrompt`. The scope reads "scientific, research
-and analysis" and not only "scientific": in the pilot's one treatment miss
-(`parallel-web`), the model's thinking named `sci_find` as a tool for
-"scientific skills" and judged a web-monitoring task out of its scope. The
-wording does not name web search, because that would fit one probe directly.
-Known trade-off: "analysis" lets the guideline fire in ordinary data-coding
-sessions, which costs one tool call. The live tests cannot measure that,
-because every probe has a target.
+**`sci_find` in the system prompt, since 1.7.0.** pi lists a custom tool in the
+tools section of its default system prompt only when it has a `promptSnippet`
+(`system-prompt.js` filters on it); until 1.7.0 the model saw `sci_find` only in
+the tool schema. In the 2026-09-23 test, 15 of the 19 misses on valid probes
+were attempts that never called it. The tool now carries a one-line snippet and
+one guideline: use `sci_find` before writing code, installing a package or
+setting up a service for scientific, research or analysis work. pi puts
+guidelines into its own list with no tool heading, so the guideline names the
+tool. `test-extension.mjs` renders both through pi's own `buildSystemPrompt`.
+The scope reads "scientific, research and analysis" and not only "scientific":
+in the pilot's one treatment miss (`parallel-web`), the model's thinking named
+`sci_find` as a tool for "scientific skills" and judged a web-monitoring task
+out of its scope. The wording does not name web search, because that would fit
+one probe directly. Known trade-off: "analysis" lets the guideline fire in
+ordinary data-coding sessions, which costs one tool call. The live tests cannot
+measure that, because every probe has a target.
 
 **A custom system prompt gets neither the listing nor the guideline.** pi adds
 a tool's snippet and guidelines only when it builds its own default prompt. With
@@ -386,14 +386,15 @@ filter where 1.6.0 wrote the Core list. An empty filter cannot carry pi config
 overrides (`!x`, `+x`, `-x`; see "The empty-array footgun" below), so
 `/sci search` drops them, and its report names each one: "Dropped pi config
 overrides: !polars. Re-add them with pi config if you want them back." The way
-back to Core is the picker: `/sci profiles`, tick Core, Apply and reload.
-`test-extension.mjs` starts from four settings files that 1.6.0's own code
-wrote (Core accepted, offer declined, `/sci none`, Core plus `!polars`) and
-checks that startup leaves each byte-identical and that the round trip
-(`/sci search`, then Core through the picker) restores the Core file byte for
-byte. To turn `sci_find` and `/sci` off, set `"extensions": []` on the
-package's object entry in `settings.json`; this was checked against pi's own
-resolver in 0.84.3 and 0.87.0, and the `skills` filter then works as written.
+back to Core is the picker: `/sci profiles`, tick Core, Apply.
+`test-extension.mjs` starts from four settings files: three that 1.6.0 wrote
+(Core accepted, offer declined, `/sci none`) and one with a pi config override
+added (Core plus `!polars`). It checks that startup leaves each byte-identical
+and that the round trip (`/sci search`, then Core through the picker) restores
+the Core file byte for byte. To turn `sci_find` and `/sci` off, set
+`"extensions": []` on the package's object entry in `settings.json`; this was
+checked against pi's own resolver in 0.84.3 and 0.87.0, and the `skills` filter
+then works as written.
 
 **Design decisions worth not re-deriving:**
 
@@ -1277,6 +1278,12 @@ record by release" below, and the caveats that used to sit on the README are
 under "What pi does and does not enforce". The README is the landing page on
 npm and GitHub and stays positive and short; this file is where the hedges live.
 
+The README reports the search test with `deepseek/deepseek-v4-flash` (Core in
+the prompt, three questions, `sci_find` called unprompted each time) for 1.1.0
+to 1.5.0. `extensionRuns` holds no entry for that test with this model for 1.6.0
+or 1.7.0. The 1.6.0 search test is the local-model run of 2026-09-23 (Ternary
+Bonsai 2 27B, no skill in the prompt; report in `testing/report.md`).
+
 ```bash
 npm run test:batch -- --version 1.0.3 --include <skills-new-this-release>
 ```
@@ -1413,7 +1420,7 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   itself was queried, only that pi loaded and followed the skill up to the
   key it does not have.
 - **1.7.0 (0):** no skill batch. `skills/` is the same git tree as in 1.6.0
-  (`786d69d`), so `test-batch` was not run, as in 1.4.0, and the count of
+  (`786d69d`), so `test-batch` was not run, as in 1.4.1, and the count of
   skills run stays at 43. The release changes search, not skills. Three runs
   measured its design. Each has an `extensionRuns` entry in
   `testing/ledger.json` and a notebook in `testing/runs/`:

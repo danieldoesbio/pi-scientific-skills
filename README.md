@@ -120,11 +120,12 @@ extension leaves your settings working. See
 [Uninstalling](DOCUMENTATION.md#uninstalling) for the one-time files `/sci`
 leaves behind.
 
-Overrides you wrote by hand (`!pattern`, `+path`, `-path`) are preserved. The one
-exception is search mode (`/sci search`, `/sci none`, or applying an empty
-selection), which has to write an empty list and can't carry them. If your settings are
-malformed, or a project-local `.pi/settings.json` would override the global one,
-`/sci` names the file and refuses to write rather than guess.
+Overrides you wrote by hand (`!pattern`, `+path`, `-path`) survive your profile
+choices. Search mode (`/sci search`, `/sci none`, or applying an empty
+selection) writes an empty list, which can't carry them. It drops them and names
+each one in its message. If your settings are malformed, or a project-local
+`.pi/settings.json` would override the global one, `/sci` names the file and
+refuses to write rather than guess.
 
 Your `settings.json` is never written unless you ask for it. `/sci` keeps one
 small state file of its own in `~/.pi/agent/` so it asks its first-run
@@ -135,7 +136,7 @@ not touched by an upgrade you didn't ask for.
 
 ### What 1.7.0 changed
 
-- Search mode loads no skills (~0 tokens instead of ~23k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
+- Search mode loads no skills (~0 tokens instead of Core's ~1.4k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
 - A BM25F ranker shows 3 hits on a prompt's first search and 5 on later ones. On 321 held-out requests its top 3 held the target 310 times; the old ranker's top 8, 283 times ([run](testing/runs/2026-09-27-find-ranker.md)).
 - In a live A/B on Gemma 4 26B-A4B, the new search read the right skill +6.0 points more often and used 867.5 fewer prompt tokens at the choice turn (paired median; [run](testing/runs/2026-09-29-openrouter-ab.md)).
 - `/sci none` is now the same as `/sci search`. To load Core again: `/sci profiles`, tick Core, Apply.
@@ -152,16 +153,17 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   description, checked by the validator on every change and by a tarball smoke
   test on every release. Frontmatter passes a validator that reimplements pi's
   rules with 0 warnings and 0 hard issues.
-- **43 skills have been run end to end in pi** under a small model
+- **43 skills have been run end to end in pi** mostly under a small model
   (`deepseek/deepseek-v4-flash`): loaded, followed, and in most cases producing a
   real result — a live ARAX knowledge-graph query, a full non-compartmental PK
   analysis, a BIDS dataset layout, a time-series classifier trained to 100% on
-  GunPoint, a live CELLxGENE Census query. Coverage grows by a batch every
-  release. The per-skill record is `testing/ledger.json`, with the notes in
+  GunPoint, a live CELLxGENE Census query. Coverage grows with each skill
+  batch. The per-skill record is `testing/ledger.json`, with the notes in
   [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
 - **`/sci` and `sci_find`, automated on every change:** 242 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
-  `sci_find` renders under "Available tools" in pi's real system-prompt builder;
+  `sci_find` renders in the tools section of pi's default system prompt, built by
+  pi's own builder;
   `/sci all` preserves hand-written `!pattern` overrides; a seeded prior-version config leaves
   `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
   `/skill:../../etc/passwd` is not),
@@ -184,8 +186,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   Core loaded, `deepseek/deepseek-v4-flash` called `sci_find` unprompted for
   three questions whose skills were not in its prompt, and read the `SKILL.md`
   each time. Recorded for 1.1.0, 1.2.0, 1.3.0, 1.4.0 and 1.5.0, 3 of 3 each
-  time, under `extensionRuns` in `testing/ledger.json`. Not recorded with this
-  model for 1.6.0 or 1.7.0; the local-model run above is the 1.6.0 search test.
+  time, under `extensionRuns` in `testing/ledger.json`.
 - **Upstream's own pytest suite passed at the last count** (upstream v2.62.0);
   details in
   [DOCUMENTATION.md](DOCUMENTATION.md#what-pi-does-and-does-not-enforce).
