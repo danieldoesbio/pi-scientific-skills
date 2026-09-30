@@ -174,9 +174,10 @@ console.log("-- sci_find tool --");
     heldOut.slice(0, 160),
   );
 
-  // pi lists a custom tool under "Available tools" only when it has a
-  // promptSnippet. Without one, the 2026-09-23 live test's model saw sci_find
-  // only in the tool schema, and 15 of 19 misses never called it.
+  // pi lists a custom tool in the prompt's tools section ("Available tools"
+  // before pi 0.87, <tools> since) only when it has a promptSnippet. Without
+  // one, the 2026-09-23 live test's model saw sci_find only in the tool
+  // schema, and 15 of 19 misses never called it.
   const snippet = tool?.promptSnippet ?? "";
   check(
     "has a one-line promptSnippet that scopes it to scientific, research and analysis work",
@@ -306,23 +307,39 @@ console.log("\n-- sci_find in pi's real system prompt --");
   const { tool } = register(makeHarness());
   const snippet = normalizeSnippet.call(null, tool.promptSnippet);
   const guidelines = normalizeGuidelines.call(null, tool.promptGuidelines);
+  // pi 0.84-0.86 reads guidelines from `promptGuidelines` and ignores
+  // `toolGuidelines`. pi 0.87 reads them per tool from `toolGuidelines` (its
+  // own agent-session passes only that) and de-duplicates the two lists.
   const prompt = buildSystemPrompt({
     selectedTools: ["read", "bash", "edit", "write", "sci_find"],
     toolSnippets: { sci_find: snippet },
+    toolGuidelines: { sci_find: guidelines },
     promptGuidelines: guidelines,
     cwd: tmpdir(),
     skills: [],
   });
-  const section = (heading) => prompt.split(`${heading}:\n`)[1]?.split("\n\n")[0] ?? "";
+  // The lines of one prompt section, from either layout. pi 0.84-0.86:
+  // "Available tools:\n<list>\n\n..." and "Guidelines:\n<list>\n\n...".
+  // pi 0.87: "<tools>\n<list>\n\n...\n</tools>" and "<rules>\n<list>\n</rules>".
+  // undefined, never [], when neither layout has it: a pi that renames the
+  // section again then fails every check below, not passes them vacuously.
+  const sectionLines = ({ heading, tag }) => {
+    const tagged = new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`).exec(prompt)?.[1];
+    const body = tagged ?? (prompt.includes(`${heading}:\n`) ? prompt.split(`${heading}:\n`)[1] : undefined);
+    return body?.split("\n\n")[0].split("\n");
+  };
+  const tools = sectionLines({ heading: "Available tools", tag: "tools" });
+  const rules = sectionLines({ heading: "Guidelines", tag: "rules" });
+  const notFound = `section not found in either layout; the prompt starts:\n${prompt.slice(0, 400)}`;
   check(
-    'listed under "Available tools"',
-    section("Available tools").split("\n").includes(`- sci_find: ${snippet}`),
-    section("Available tools"),
+    "sci_find is listed in the prompt's tools section",
+    tools !== undefined && snippet !== undefined && tools.includes(`- sci_find: ${snippet}`),
+    tools?.join("\n") ?? notFound,
   );
   check(
-    'its guideline is under "Guidelines"',
-    guidelines.every((line) => section("Guidelines").split("\n").includes(`- ${line}`)),
-    section("Guidelines"),
+    "its guidelines are in the prompt's guidelines section",
+    rules !== undefined && guidelines.length > 0 && guidelines.every((line) => rules.includes(`- ${line}`)),
+    rules?.join("\n") ?? notFound,
   );
 }
 
