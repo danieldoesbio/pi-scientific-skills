@@ -221,7 +221,12 @@ const unassignedCaveat = (name: string): string => {
 export type HitFormat = "full" | "compact";
 
 export const COMPACT_FULL_HITS = 2;
-/** Default hit count in compact mode: the top 6 held the target in 152 of 158 searches (testing/runs/2026-09-25-night-arms.md). */
+/**
+ * Hit count in compact mode for a caller that passes none, which is `/sci find`.
+ * The top 6 held the target in 152 of 158 searches
+ * (testing/runs/2026-09-27-find-compact-replay.md). The `sci_find` tool never
+ * reaches this: its search stage always passes 3 or 5.
+ */
 export const COMPACT_DEFAULT_LIMIT = 6;
 
 export const findFormat = (): HitFormat => (process.env.PI_SCI_FIND_FORMAT === "compact" ? "compact" : "full");
@@ -246,13 +251,18 @@ export const COMPACT_ALTERNATES_LINE =
 /**
  * Render hits for the model.
  *
- * "full" rests on the design bet that a model discriminates well between
- * eight fully-labelled options. The 2026-09-25 run measured the cost: reading
- * a median 6.7k-character result took about 17 of the 25 seconds between the
- * search and the read, while the target was the first hit in 78% of searches
- * and in the top two in 87%. "compact" keeps full labels for the top two only.
- * It is behind a flag until a replay of the recorded choices shows it keeps the
- * model's pick (testing/runs/2026-09-27-find-compact-replay.md).
+ * "full" rests on the design bet that a model discriminates well among a few
+ * fully-labelled options. The 2026-09-25 run, with 8 hits per search (before
+ * 3-then-5), measured the cost: reading a median 6,816-character result (6,804
+ * in the replay of the same searches) took about 17 of the 25 seconds between
+ * the search and the read, while the target was the first hit in 78% of
+ * searches and in the top two in 87%. "compact" keeps full labels for the top
+ * two only. Both replays of the recorded choices are done: the first was
+ * inconclusive and the two pooled were non-inferior
+ * (testing/runs/2026-09-27-find-compact-replay.md and
+ * testing/runs/2026-09-27-find-compact-replay-2.md). It stays experimental and
+ * off by decision: the shorter list, 3 hits then 5, took its place as the way
+ * to cut result tokens.
  *
  * A hit naming a skill `profiles.ts` held out of every profile gets a caveat
  * on its heading line — the model should know it is reaching for something no
@@ -324,9 +334,12 @@ export interface ToolParams {
 }
 
 /**
- * The single implementation behind both `sci_find` and `/sci find`, so the
- * model and the human can never be shown different answers to the same
- * question. `format` applies to query hits only; profile listings stay full.
+ * The one implementation behind both `sci_find` and `/sci find`: the same
+ * ranker and the same rendering. The hit count differs on purpose. The tool
+ * passes 3 (a prompt's first search) or 5 (later ones) through `limit`, and
+ * `/sci find` passes none and gets DEFAULT_LIMIT, the top 8 (6 under the
+ * experimental compact format). `format` applies to query hits only; profile
+ * listings stay full.
  */
 export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat()): string => {
   if (!SKILLS_DIR) {

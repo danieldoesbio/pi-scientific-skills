@@ -11,9 +11,10 @@
  * Two rules shape the ranking, both from principle rather than taste:
  *
  * 1. Recall beats precision. `sci_find` does not have to pick the right skill,
- *    only get it into a list of eight with its full description attached. The
- *    calling model — even a small one — discriminates well between eight
- *    labelled options and badly among the whole catalogue in a system prompt.
+ *    only get it into a short list with its full description attached (3 hits
+ *    on a prompt's first search, then 5; `/sci find` lists 8). The calling
+ *    model — even a small one — discriminates well among a few labelled
+ *    options and badly among the whole catalogue in a system prompt.
  * 2. Never a confident wrong answer. Below `MIN_SCORE` nothing is returned at
  *    all. Handing a plausible-but-wrong skill to someone designing an
  *    experiment is worse than handing them nothing.
@@ -323,7 +324,9 @@ export const MAX_LIMIT = 20;
  * Hits `sci_find` shows the model: the first search after a user prompt, then
  * every later one. Chosen from the top-k rates in
  * testing/runs/2026-09-27-find-ranker.md: under bm25f the target is in the
- * top 3 for 96–99% of first queries, above the current ranker's top 8.
+ * top 3 for 98.7% of the first queries Bonsai 2 27B wrote and 96.4% of Haiku
+ * 4.5's. The current ranker's top 8 held 97.2% and 96.3%, so the top 3 is 1.5
+ * points higher for Bonsai and equal for Haiku.
  */
 export const FIRST_SEARCH_LIMIT = 3;
 export const LATER_SEARCH_LIMIT = 5;

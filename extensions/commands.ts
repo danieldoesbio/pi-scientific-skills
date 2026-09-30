@@ -190,8 +190,9 @@ const resetAll = (ctx: CommandContext): Promise<void> =>
  * Keep every skill out of the system prompt and let `sci_find` reach them.
  *
  * This is the recommended shape. In the 2026-09-23 live test, a 27B local
- * model with no skill in its prompt found the target through `sci_find` on the
- * first attempt for 143 of 157 valid probes, the ten Core probes included
+ * model with no skill in its prompt reached the target through `sci_find`
+ * within three attempts for 156 of 157 valid probes (143 on the first), and
+ * all ten Core targets within three attempts (8 on the first)
  * (testing/report.md). Profiles, `pi config` and `/skill:<name>` still put a
  * skill in front of the model directly. `/sci none` is an alias: an empty
  * filter no longer means "off", because the tool stays.
@@ -204,7 +205,11 @@ const enableSearchMode = (ctx: CommandContext): Promise<void> =>
     `Search mode: ${describeSearchMode()}.`,
   );
 
-/** Human-facing search — also the fallback for models too weak to tool-call. */
+/**
+ * Human-facing search — also the fallback for models too weak to tool-call.
+ * Same ranker as `sci_find`, but no hit count is passed, so it lists the top 8
+ * where the model gets 3, then 5.
+ */
 const runFind = (ctx: UiContext, query: string): void => {
   report(ctx, runToolSearch({ query }), SKILLS_DIR ? "info" : "warning");
 };
