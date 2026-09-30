@@ -12,6 +12,7 @@ import {
   TOKENS_PER_SKILL,
   TOTAL_SKILL_COUNT,
   UNASSIGNED,
+  type SkillProfile,
 } from "./profiles";
 import {
   DEFAULT_LIMIT,
@@ -279,9 +280,20 @@ const noMatchText = (query: string): string =>
     PROFILES.map((profile) => `  ${profile.id} — ${profile.label}`).join("\n"),
   ].join("\n");
 
+/**
+ * The profile that `text` names, if any. This is the one test for "this text
+ * is a profile id": `formatProfile` lists the profile it finds, and the search
+ * stage does not count a query it finds as a search. Keeping a single test
+ * keeps the two from drifting apart.
+ */
+const profileNamed = (text: string): SkillProfile | undefined => {
+  const id = text.trim().toLowerCase();
+  return PROFILES.find((profile) => profile.id === id);
+};
+
 /** Profile listing: the same taxonomy humans get in the `/sci` picker. */
 const formatProfile = (id: string): string | undefined => {
-  const profile = PROFILES.find((entry) => entry.id === id.trim().toLowerCase());
+  const profile = profileNamed(id);
   if (!profile) return undefined;
   const listed = profile.skills
     .map((name) => skillIndex().get(name))
@@ -347,7 +359,8 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
  * How many hits `sci_find` shows the model. Every call in the first turn that
  * searches after a user prompt gets FIRST_SEARCH_LIMIT (parallel calls in that
  * turn included); every later turn gets LATER_SEARCH_LIMIT. Profile listings
- * and empty calls are not searches and do not use up the first turn.
+ * (a profile id in `profile`, or as the whole `query`) and empty calls are not
+ * searches and do not use up the first turn.
  * index.ts feeds it pi's agent_start (a new prompt) and turn_start events.
  */
 export interface SearchStage {
@@ -367,7 +380,8 @@ export const createSearchStage = (): SearchStage => {
       turn = turnIndex;
     },
     limitFor: (params) => {
-      if (params.profile?.trim() || !params.query?.trim()) return undefined;
+      const query = params.query?.trim();
+      if (params.profile?.trim() || !query || profileNamed(query)) return undefined;
       firstSearchTurn ??= turn;
       return turn === firstSearchTurn ? FIRST_SEARCH_LIMIT : LATER_SEARCH_LIMIT;
     },

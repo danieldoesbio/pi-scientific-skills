@@ -234,6 +234,49 @@ console.log("\n-- sci_find hit count: 3 for the first search after a prompt, the
   check("a new prompt starts again at 3", (await headings({ query })) === 3);
 }
 
+console.log("\n-- sci_find: a profile id sent as the query is a listing, not a search --");
+{
+  newAgentDir();
+  const harness = makeHarness();
+  const { tool, events } = register(harness);
+  const headings = async (params) =>
+    (await tool.execute("id", params)).content[0].text.split("\n").filter((line) => line.startsWith("## ")).length;
+  const query = "single cell rna-seq clustering";
+  const startPrompt = async () => {
+    await events.agent_start({ type: "agent_start" });
+    await events.turn_start({ type: "turn_start", turnIndex: 0, timestamp: 0 });
+  };
+  const turn = (turnIndex) => events.turn_start({ type: "turn_start", turnIndex, timestamp: 0 });
+
+  // runToolSearch answers a bare profile id in `query` with the profile listing
+  // (its asProfile path), so the stage must not count it as the first search.
+  // Each variant is a listing in turn 0; the next turn's real search is the
+  // first search and gets FIRST_SEARCH_LIMIT (3), not LATER_SEARCH_LIMIT (5).
+  const variants = [
+    ["query: a profile id", { query: "core" }],
+    ["query: a hyphenated profile id", { query: "drug-discovery" }],
+    ["query: a profile id, padded and upper case", { query: "  Core  " }],
+    ["profile: a profile id (control)", { profile: "core" }],
+  ];
+  for (const [label, listing] of variants) {
+    await startPrompt();
+    const listed = (await tool.execute("id", listing)).content[0].text;
+    await turn(1);
+    const first = await headings({ query });
+    check(`${label}: is a listing, and the next turn's real search shows 3`, /^# /.test(listed) && first === 3, `${first}`);
+    await turn(2);
+    check(`${label}: the turn after that shows 5`, (await headings({ query })) === 5);
+  }
+
+  // A query that merely contains a profile id is a real search: it takes the
+  // first slot, so a search in a later turn shows 5.
+  await startPrompt();
+  const contains = await headings({ query: "core genome analysis" });
+  await turn(1);
+  const later = await headings({ query });
+  check("a query that contains a profile id word is a search and takes the first slot", contains === 3 && later === 5, `${contains}, ${later}`);
+}
+
 console.log("\n-- sci_find compact format (PI_SCI_FIND_FORMAT=compact) --");
 {
   newAgentDir();
