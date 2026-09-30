@@ -194,11 +194,104 @@ console.log("-- sci_find tool --");
   );
 }
 
+// --- pi's event order, for the sci_find stage tests --------------------------
+//
+// Core events go through pi's OWN AgentSession._emitExtensionEvent, so the
+// extension gets the events, and the turnIndex, that pi would hand it. That
+// method sets turnIndex back to 0 at every agent_start (agent-session.js:445
+// in 0.84.3, :712 in 0.87.0) and adds 1 at turn_end (:467, :730). turn_end is
+// done by hand here: 0.87's turn_end branch also dispatches a boundary event
+// that this test has no session for. An event with no registered handler is
+// dropped, as in pi's extension runner.
+//
+// The order of the core events was read from pi's source, then checked by
+// driving pi's Agent with a scripted stream function (no model call) under
+// both versions: it is the same in both. Line numbers below are 0.84.3 / 0.87.0.
+// agent-loop.js is @earendil-works/pi-agent-core/dist/agent-loop.js.
+const piRun = async (events) => {
+  const { AgentSession } = await import(pathToFileURL(join(findPiDist(), "core", "agent-session.js")).href);
+  const translate = AgentSession.prototype._emitExtensionEvent;
+  const seen = [];
+  const session = {
+    _turnIndex: 0,
+    _extensionRunner: {
+      emit: async (event) => {
+        seen.push(event);
+        await events[event.type]?.(event);
+      },
+    },
+  };
+  const feed = (event) => translate.call(session, event);
+  const message = (role) => feed({ type: "message_start", message: { role, content: [], timestamp: 0 } });
+  const agentStart = () => feed({ type: "agent_start" });
+  const turnStart = () => feed({ type: "turn_start" });
+  const turnEnd = async () => {
+    session._turnIndex += 1;
+  };
+  const agentEnd = () => feed({ type: "agent_end", messages: [] });
+  return {
+    seen,
+    message,
+    turnEnd,
+    agentEnd,
+    // agent.prompt(): runAgentLoop emits agent_start, turn_start, then a
+    // message_start for each prompt message (agent-loop.js :49-52 / :50-53);
+    // the assistant's message_start follows, and its tool calls run after it.
+    prompt: async () => {
+      await agentStart();
+      await turnStart();
+      await message("user");
+      await message("assistant");
+    },
+    // The next turn after one that ran tools: toolResult message, turn_end,
+    // then turn_start at the top of the inner loop (:89-91 / :113).
+    nextTurn: async () => {
+      await message("toolResult");
+      await turnEnd();
+      await turnStart();
+      await message("assistant");
+    },
+    // A steering message. The loop polls the steering queue after each turn
+    // (:160 / :186), emits turn_start (:90 / :113), then message_start for the
+    // queued message BEFORE the assistant responds (:98 / :117). No
+    // agent_start: the loop never restarted.
+    steered: async () => {
+      await message("toolResult");
+      await turnEnd();
+      await turnStart();
+      await message("user");
+      await message("assistant");
+    },
+    // A follow-up message. Only when a turn ends with no tool calls and the
+    // loop would stop (:163-167 / :192-197); then the same events as a steer.
+    followedUp: async () => {
+      await turnEnd();
+      await turnStart();
+      await message("user");
+      await message("assistant");
+    },
+    // agent.continue() with no queued message, as agent-session calls it after
+    // an auto-retry, an overflow compaction, or queued messages
+    // (agent-session.js:751-752 in 0.84.3; :1083-1094 in 0.87.0, which also
+    // calls it after the before-settle boundary): runAgentLoopContinue emits
+    // agent_start and turn_start and no message_start (agent-loop.js :67-68 /
+    // :68-69). turnIndex is 0 again. When queued user messages wait, continue()
+    // runs them as a prompt instead (agent.js :242-252 / :257-267), which is
+    // prompt() above, message_start(user) included.
+    continued: async () => {
+      await agentStart();
+      await turnStart();
+      await message("assistant");
+    },
+  };
+};
+
 console.log("\n-- sci_find hit count: 3 for the first search after a prompt, then 5 --");
 {
   newAgentDir();
   const harness = makeHarness();
   const { tool, events } = register(harness);
+  const pi = await piRun(events);
   const headings = async (params) =>
     (await tool.execute("id", params)).content[0].text.split("\n").filter((line) => line.startsWith("## ")).length;
   const properties = Object.keys(tool.parameters?.properties ?? {});
@@ -208,16 +301,15 @@ console.log("\n-- sci_find hit count: 3 for the first search after a prompt, the
     /first search returns the best 3 matches and later searches the best 5/.test(tool.description),
   );
   check(
-    "agent_start and turn_start are handled",
-    typeof events.agent_start === "function" && typeof events.turn_start === "function",
+    "message_start and turn_start are handled",
+    typeof events.message_start === "function" && typeof events.turn_start === "function",
   );
 
   const query = "single cell rna-seq clustering";
-  await events.agent_start({ type: "agent_start" });
-  await events.turn_start({ type: "turn_start", turnIndex: 0, timestamp: 0 });
+  await pi.prompt();
   await tool.execute("id", { profile: "drug-discovery" });
   await tool.execute("id", {});
-  await events.turn_start({ type: "turn_start", turnIndex: 1, timestamp: 0 });
+  await pi.nextTurn();
   const first = await headings({ query });
   const parallel = await headings({ query: "protein structure prediction" });
   check(
@@ -225,13 +317,185 @@ console.log("\n-- sci_find hit count: 3 for the first search after a prompt, the
     first === 3 && parallel === 3,
     `${first}, ${parallel}`,
   );
-  await events.turn_start({ type: "turn_start", turnIndex: 2, timestamp: 0 });
+  await pi.nextTurn();
   const later = await headings({ query });
   const stray = await headings({ query, limit: 20 });
   check("a later turn shows 5, and a stray limit argument is ignored", later === 5 && stray === 5, `${later}, ${stray}`);
-  await events.agent_start({ type: "agent_start" });
-  await events.turn_start({ type: "turn_start", turnIndex: 0, timestamp: 0 });
+  await pi.agentEnd();
+  await pi.prompt();
   check("a new prompt starts again at 3", (await headings({ query })) === 3);
+}
+
+console.log("\n-- sci_find: the 3-then-5 stage follows the user's messages, not pi's agent_start --");
+{
+  const queries = ["single cell rna-seq clustering", "protein structure prediction", "variant calling from a bam file"];
+  const fresh = async () => {
+    newAgentDir();
+    const { tool, events } = register(makeHarness());
+    const pi = await piRun(events);
+    const hits = async (query = queries[0]) =>
+      (await tool.execute("id", { query })).content[0].text.split("\n").filter((line) => line.startsWith("## ")).length;
+    return { events, pi, hits };
+  };
+
+  // The premises, from pi's own code: turnIndex starts again at 0 at
+  // agent.continue(), and a user message reaches extensions as message_start.
+  {
+    const { pi } = await fresh();
+    await pi.prompt();
+    await pi.nextTurn();
+    await pi.nextTurn();
+    await pi.agentEnd();
+    await pi.continued();
+    const indexes = pi.seen.filter((event) => event.type === "turn_start").map((event) => event.turnIndex);
+    check("pi numbers a run's turns 0, 1, 2 and starts again at 0 at agent.continue()", indexes.join() === "0,1,2,0", indexes.join());
+    const users = pi.seen.filter((event) => event.type === "message_start" && event.message.role === "user");
+    check("pi sends extensions one message_start(user) for the prompt and none for continue()", users.length === 1, `${users.length}`);
+  }
+
+  // A single prompt, as in 'pi -p' and the 1.7.0 A/B: 3, then 5, for every
+  // later turn.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const turn0 = await hits();
+    await pi.nextTurn();
+    const turn1 = await hits();
+    await pi.nextTurn();
+    const turn2 = await hits();
+    check("one prompt: turn 0 shows 3, turn 1 shows 5, turn 2 shows 5", turn0 === 3 && turn1 === 5 && turn2 === 5, `${turn0}, ${turn1}, ${turn2}`);
+  }
+
+  // Parallel calls in the first searching turn: all 3; the next turn 5.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const parallel = await Promise.all(queries.map((query) => hits(query)));
+    await pi.nextTurn();
+    const next = await hits();
+    check("parallel calls in the first searching turn all show 3; the next turn shows 5", parallel.every((n) => n === 3) && next === 5, `${parallel.join()}, ${next}`);
+  }
+
+  // A steering message reaches the model as turn_start then message_start, with
+  // no agent_start, so a reset on agent_start never saw it.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    const second = await hits();
+    await pi.steered();
+    const afterSteer = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    check(
+      "a steer message starts a new first search: 3, then 5",
+      first === 3 && second === 5 && afterSteer === 3 && afterThat === 5,
+      `${first}, ${second}, ${afterSteer}, ${afterThat}`,
+    );
+  }
+
+  // A follow-up arrives after a turn with no tool calls; same events as a steer.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    await pi.followedUp();
+    const afterFollowUp = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    check(
+      "a follow-up message starts a new first search: 3, then 5",
+      first === 3 && afterFollowUp === 3 && afterThat === 5,
+      `${first}, ${afterFollowUp}, ${afterThat}`,
+    );
+  }
+
+  // agent.continue() is not a new prompt. The retry starts at turnIndex 0, the
+  // index of the turn that already searched first, so the stage must not go by
+  // turnIndex either: a search there is a later search.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const first = await hits();
+    await pi.nextTurn();
+    await pi.turnEnd();
+    await pi.agentEnd();
+    await pi.continued();
+    const afterRetry = await hits();
+    await pi.nextTurn();
+    const afterThat = await hits();
+    check(
+      "continue() after an auto-retry does not reset: a search at turnIndex 0 again shows 5",
+      first === 3 && afterRetry === 5 && afterThat === 5,
+      `${first}, ${afterRetry}, ${afterThat}`,
+    );
+  }
+
+  // A retry before any search: the first search is still to come and shows 3.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    await pi.turnEnd();
+    await pi.agentEnd();
+    await pi.continued();
+    const first = await hits();
+    await pi.nextTurn();
+    const later = await hits();
+    check("continue() before the first search: that search shows 3, the next turn 5", first === 3 && later === 5, `${first}, ${later}`);
+  }
+
+  // A second prompt in the same session.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    const one = await hits();
+    await pi.nextTurn();
+    const two = await hits();
+    await pi.agentEnd();
+    await pi.prompt();
+    const three = await hits();
+    await pi.nextTurn();
+    const four = await hits();
+    check(
+      "a second prompt in the same session starts at 3 again",
+      one === 3 && two === 5 && three === 3 && four === 5,
+      `${one}, ${two}, ${three}, ${four}`,
+    );
+  }
+
+  // Only a user message resets. A system message (0.87 declares tool changes
+  // with one, before the user message: agent-loop.js :219-244) and a custom
+  // message (pi.sendMessage, before_agent_start) are not something the user
+  // wrote, and an assistant or toolResult message_start comes every turn.
+  {
+    const { pi, hits } = await fresh();
+    await pi.prompt();
+    await hits();
+    await pi.nextTurn();
+    await pi.message("system");
+    await pi.message("custom");
+    await pi.message("assistant");
+    await pi.message("toolResult");
+    check("system, custom, assistant and toolResult messages do not reset", (await hits()) === 5);
+  }
+
+  // pi's input event fires when a message is typed, before pi queues it
+  // (agent-session.js:816-846 in 0.84.3, :1230-1252 in 0.87.0), so a reset
+  // there would hit the turn that is still running. The model has not seen the
+  // message until message_start.
+  {
+    const { events, pi, hits } = await fresh();
+    await pi.prompt();
+    await hits();
+    await pi.nextTurn();
+    await events.input({ type: "input", text: "also do X", source: "interactive", streamingBehavior: "steer" });
+    const whileQueued = await hits();
+    await pi.steered();
+    const delivered = await hits();
+    check("a steer message that is only queued does not reset; delivery does", whileQueued === 5 && delivered === 3, `${whileQueued}, ${delivered}`);
+  }
 }
 
 console.log("\n-- sci_find: a profile id sent as the query is a listing, not a search --");
@@ -239,14 +503,12 @@ console.log("\n-- sci_find: a profile id sent as the query is a listing, not a s
   newAgentDir();
   const harness = makeHarness();
   const { tool, events } = register(harness);
+  const pi = await piRun(events);
   const headings = async (params) =>
     (await tool.execute("id", params)).content[0].text.split("\n").filter((line) => line.startsWith("## ")).length;
   const query = "single cell rna-seq clustering";
-  const startPrompt = async () => {
-    await events.agent_start({ type: "agent_start" });
-    await events.turn_start({ type: "turn_start", turnIndex: 0, timestamp: 0 });
-  };
-  const turn = (turnIndex) => events.turn_start({ type: "turn_start", turnIndex, timestamp: 0 });
+  const startPrompt = () => pi.prompt();
+  const turn = () => pi.nextTurn();
 
   // runToolSearch answers a bare profile id in `query` with the profile listing
   // (its asProfile path), so the stage must not count it as the first search.
@@ -261,10 +523,10 @@ console.log("\n-- sci_find: a profile id sent as the query is a listing, not a s
   for (const [label, listing] of variants) {
     await startPrompt();
     const listed = (await tool.execute("id", listing)).content[0].text;
-    await turn(1);
+    await turn();
     const first = await headings({ query });
     check(`${label}: is a listing, and the next turn's real search shows 3`, /^# /.test(listed) && first === 3, `${first}`);
-    await turn(2);
+    await turn();
     check(`${label}: the turn after that shows 5`, (await headings({ query })) === 5);
   }
 
@@ -272,7 +534,7 @@ console.log("\n-- sci_find: a profile id sent as the query is a listing, not a s
   // first slot, so a search in a later turn shows 5.
   await startPrompt();
   const contains = await headings({ query: "core genome analysis" });
-  await turn(1);
+  await turn();
   const later = await headings({ query });
   check("a query that contains a profile id word is a search and takes the first slot", contains === 3 && later === 5, `${contains}, ${later}`);
 }

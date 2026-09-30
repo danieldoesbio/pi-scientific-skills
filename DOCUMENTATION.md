@@ -372,8 +372,11 @@ because every probe has a target.
   ("variant calling" matches no single description verbatim).
 - **3 hits, then 5.** The first turn that searches after a user prompt gets
   the top 3 (parallel calls in that turn too); later turns get the top 5
-  (`createSearchStage` in `catalog.ts`, fed by pi's `agent_start` and
-  `turn_start` events). Profile listings do not count as a search. The result
+  (`createSearchStage` in `catalog.ts`, fed by pi's `message_start` event for
+  a user message and its `turn_start` event). A steer or follow-up message
+  counts as a user message, so the first search after it shows 3 again; a
+  retry or compaction that restarts the agent loop (`agent_start`, no new
+  message) does not. Profile listings do not count as a search. The result
   text is most of the prefill of the turn after a search, so a shorter list is
   a faster turn: about 850 characters per hit, and 8 hits took about 17 of the
   25 seconds on 2026-09-25. Under bm25f the target is in the top 3 for 96–99%

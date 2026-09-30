@@ -311,10 +311,13 @@ export default function (pi: ExtensionAPI): void {
   // misses on valid probes were attempts that never called it. Guidelines are
   // appended flat to pi's own list, so each one names the tool.
   if (SKILLS_DIR) {
-    // A new prompt starts a new first search; see createSearchStage.
+    // A user message (the prompt, a steer or a follow-up) starts a new first
+    // search; see createSearchStage for why this is not agent_start.
     const searchStage = createSearchStage();
-    pi.on("agent_start", async () => searchStage.agentStart());
-    pi.on("turn_start", async (event) => searchStage.turnStart(event.turnIndex));
+    pi.on("message_start", async (event) => {
+      if (event.message.role === "user") searchStage.userMessage();
+    });
+    pi.on("turn_start", async () => searchStage.turnStart());
     pi.registerTool({
       name: TOOL_NAME,
       label: "Find scientific skill",

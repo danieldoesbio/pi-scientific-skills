@@ -357,15 +357,28 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
 
 /**
  * How many hits `sci_find` shows the model. Every call in the first turn that
- * searches after a user prompt gets FIRST_SEARCH_LIMIT (parallel calls in that
+ * searches after a user message gets FIRST_SEARCH_LIMIT (parallel calls in that
  * turn included); every later turn gets LATER_SEARCH_LIMIT. Profile listings
  * (a profile id in `profile`, or as the whole `query`) and empty calls are not
  * searches and do not use up the first turn.
- * index.ts feeds it pi's agent_start (a new prompt) and turn_start events.
+ *
+ * index.ts feeds it two pi events. `message_start` with role "user" calls
+ * `userMessage`: it fires when a message enters the model's context, for the
+ * prompt and for each steer and follow-up message, before the assistant's
+ * reply and so before its first tool call. `agent_start` is not used: pi emits
+ * it again for an `agent.continue()` after an auto-retry or a compaction, with
+ * no new message, and not at all for a steer or follow-up message that arrives
+ * inside a running agent loop. `input` is not used either: it fires when the
+ * user types, before pi queues the message, so it can reset a turn that is
+ * still running.
+ *
+ * `turnStart` counts turns itself. pi's own `turnIndex` starts again at 0 at
+ * every `agent_start`, so after a retry it would name the first searching turn
+ * a second time.
  */
 export interface SearchStage {
-  agentStart: () => void;
-  turnStart: (turnIndex: number) => void;
+  userMessage: () => void;
+  turnStart: () => void;
   limitFor: (params: ToolParams) => number | undefined;
 }
 
@@ -373,11 +386,11 @@ export const createSearchStage = (): SearchStage => {
   let turn = 0;
   let firstSearchTurn: number | undefined;
   return {
-    agentStart: () => {
+    userMessage: () => {
       firstSearchTurn = undefined;
     },
-    turnStart: (turnIndex) => {
-      turn = turnIndex;
+    turnStart: () => {
+      turn += 1;
     },
     limitFor: (params) => {
       const query = params.query?.trim();
