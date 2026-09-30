@@ -223,3 +223,50 @@ overflows.
 probes need about 20 hours or more of laptop time, plus persona and judge
 calls. A stratified subset (for example, all Core probes, the 12 no-search
 probes and a random sample of the rest) would cut that.
+
+## Release-review notes (2026-09-30)
+
+Written at the release review. They add dates and scope. They change no text
+above. Dates are commit dates from `git log` (-0700).
+
+### Dates of the findings
+
+- **Findings of the 2026-09-23 run, written 2026-09-24 (98cb371).**
+  "Headline" through "Candidate changes", and recommendations 1, 2, 3 and 5.
+  They describe `sci_find` as it was tested on 2026-09-23: package 1.6.0,
+  Bonsai 2 27B, pi 0.84.3, no skill listed in the prompt, the old ranker
+  with its alias boost, a `limit` that the model could set (8 by default),
+  and no prompt snippet for `sci_find`. Their counts (157 valid probes, 183
+  calls) are from that run only.
+- **Also 2026-09-24 (98cb371).** The introduction, the proposal in
+  recommendation 4 (up to "`qutip`."), and the whole of "Proposed next
+  experiment" except its status block ("Question" to "Cost"). That section's
+  predictions were written before the pre-registration of the night run
+  (08aff2e, 2026-09-25 08:45:13).
+- **Older than 1.7.0, and changed since.** The snippet, the guideline and the
+  scope sentence of recommendation 4 were built on 2026-09-24 and
+  2026-09-25 (2a1637f, 02c1611). The default ranker has been BM25F since
+  713d6e8 (2026-09-29 10:45:44). It weighs words by rarity, which is the idea
+  under "Scoring has no rarity weight" and in recommendation 5, and it gives
+  alias skills no boost
+  ([`runs/2026-09-27-find-ranker.md`](runs/2026-09-27-find-ranker.md)). The
+  old ranker stays as `PI_SCI_FIND_RANKER=current`. So "Alias side effects"
+  and "Scoring has no rarity weight" describe the old ranker, not the 1.7.0
+  default. The variants under "Candidate changes" were tested on the old
+  ranker only.
+- **2026-09-26 (62e359d).** The "Status: done" block of "Proposed next
+  experiment", and the sentence in recommendation 4 that names the three-arm
+  run.
+- **2026-09-30 (0aa4b47).** The sentences of recommendation 4 from "the
+  target skill was read on 157" to the end of the item. They give the
+  157-against-116 result and the build it was measured on.
+
+### Scope of the 157-against-116 result
+
+The 157-against-116 read (+25.5 points, 95% CI 18.4 to 32.9, 161 probes,
+Bonsai 2 27B) was measured on the package content of 08aff2e, launched from
+49288d1: the old ranker, 8 hits and a `limit` argument the model could set.
+The BM25F ranker and the 3-then-5 list (713d6e8) came later. They were
+measured on another model, Gemma 4 26B-A4B, new search against old (+6.0
+points, [`runs/2026-09-29-openrouter-ab.md`](runs/2026-09-29-openrouter-ab.md)).
+No single run compares the shipped tip with 1.6.0 on one model.

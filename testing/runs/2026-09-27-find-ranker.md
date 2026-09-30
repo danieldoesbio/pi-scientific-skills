@@ -1,6 +1,11 @@
 # Run notebook: a BM25F ranker for `sci_find`
 
-**Status: development done; step 4a pre-registered.** Each pre-registration
+**Status (fixed 2026-09-30; it read "development done; step 4a
+pre-registered"): done for the 1.7.0 decision.** Step 4a, the panel (two
+writers) and the held-out run are reported below. The live A/B is in
+[`2026-09-29-openrouter-ab.md`](2026-09-29-openrouter-ab.md). Step 4b was
+never designed. A regression check of 2026-09-30 comes last, then the
+release-review notes. Each pre-registration
 below was written and committed before its first request. The query-writer
 panel (step 3) is added after its setup smokes, before it runs.
 
@@ -183,6 +188,10 @@ gain of bm25f is in the lists (step 2) and in the queries of other models
 - **Non-inferior:** 4a passes. bm25f can become the default in 1.8.0 when
   step 3's rule also holds (and 4b, if it runs, shows no loss); the held-out
   set is run once and reported before the change.
+  Note 2026-09-30 (status-line fix; the rule above is unchanged): the
+  release is 1.7.0, not 1.8.0 (see "Next"). Step 3 was decided over two
+  writers, and the OpenRouter A/B stood in for 4b (see the release-review
+  notes).
 - **Inferior:** bm25f does not become the default. The discordant probes are
   examined.
 - **Inconclusive:** no default change and no automatic second sample.
@@ -234,6 +243,10 @@ checkout's gitignored `testing/transcripts/find-live/2026-09-27-find-ranker-repl
 - **Decision.** 4a passes. By the decision rule, bm25f can become the
   default in 1.8.0 when step 3's rules hold over all writers (and 4b shows
   no loss); the held-out set runs once first.
+  Note 2026-09-30 (status-line fix; the text above is unchanged): the
+  release is 1.7.0, not 1.8.0 (see "Next"). Step 3 was decided over two
+  writers, not all four, and the OpenRouter A/B stood in for 4b (see the
+  release-review notes).
 
 ## Step 3: first queries from a panel of query writers (pre-registered)
 
@@ -678,3 +691,90 @@ hit of "read-alignment" is in the top 3 of "read alignment". Four are two
 hyphenated negatives under each ranker. Before the fix the first four failed
 under pi 0.84.3 and 0.87.0 ("mass-spec" and "read-alignment" returned no
 hits). After it, all 106 pass under both.
+
+## Release-review notes (2026-09-30)
+
+Written at the release review. They add facts from git. They change no rule,
+number or result in this notebook. The edits to existing places are three
+status-line fixes: the status line at the top, and one dated note each under
+the step 4a decision rule and the step 4a decision. Times are commit times
+from `git log` (-0700).
+
+### Writers that did not run
+
+- The step 3 pre-registration (c816e82, 2026-09-27 17:04:00) names four
+  writers: Haiku, Gemma 4 12B, Gemma 4 E4B and Bonsai. Haiku (results in
+  572fc56, 2026-09-27 18:49:07) and Bonsai (d75588b, 2026-09-29 05:23:18)
+  ran. Gemma 12B and E4B passed their setup smokes (a061ab3, 2026-09-27
+  19:33:48) and never ran the panel. They were dropped on 2026-09-29, after
+  the Haiku and Bonsai results were in. The notebook discloses this in
+  "Addendum 2026-09-29: two writers, and the design to ship" (added by
+  69eea24, 2026-09-29 10:39:06). The Gemma predictions are not scored.
+- Rules A and B were written for every counted writer, and they were applied
+  to two. Both are larger than the smallest models in the goal, as that
+  addendum says. The panel does not show whether the gain holds for a
+  4B-class writer. The argument for weaker writers rests on the raw request
+  text, which is development data.
+
+### Step 4b
+
+- Step 4b (a live A/B on the full attempt) was never designed or
+  pre-registered in this notebook. It appears as a condition in the rules:
+  the "4b skip rule" of step 3 (c816e82) and "4b, if it runs" in the step 4a
+  decision rule. It also appears as one plan line under "Next": "Step 4b
+  (live A/B on the full attempt), if step 3 does not skip it." 51784f1
+  (2026-09-29 10:56:43) replaced that line.
+- The skip rule did not fire. The plain-style gains were 3.8 (Bonsai) and
+  3.3 (Haiku), and the rule skips 4b only below 3 points for every counted
+  writer. So 4b stayed in the plan.
+- The OpenRouter A/B
+  ([`2026-09-29-openrouter-ab.md`](2026-09-29-openrouter-ab.md),
+  pre-registered in 02bb091 at 2026-09-29 11:22:01) stands in for 4b. It is
+  not a 4b as planned. Its model, Gemma 4 26B-A4B, is not one of the four
+  registered writers. Its arms differ by the whole product change (BM25F,
+  3 then 5 hits, no `limit`, one more tool-description sentence), not by the
+  ranker alone.
+
+### The held-out pre-registration
+
+- The held-out pre-registration and its bar (69eea24, 2026-09-29 10:39:06)
+  come 20 seconds before the results (0a8ddfd, 10:39:26). Git shows the
+  order of the two commits. It cannot show that the bar and the predictions
+  were written before the numbers were seen: a commit time is when the commit
+  was made, not when the text was written, and git takes it from the local
+  clock. That the bar came first rests on the notebook's own statement.
+- The hash lock is 945684d (2026-09-27 16:50:52). It records the SHA-256 of
+  the three held-out files, and the hashes matched at the run. That shows
+  the files did not change after the lock. It does not show that no one read
+  them. The files are outside git (`test-artifacts/`, gitignored), so only
+  the maintainer can check the hashes again.
+
+### Clock stamps
+
+- Two addendum headings carry a time later than the commit that holds them:
+  "Addendum 2026-09-27 17:10 (before any local writer ran)" is in f7bea94
+  (17:05:34, 4 min 26 s earlier), and "Addendum 2026-09-27 19:35: setup
+  smokes (no setup change)" is in a061ab3 (19:33:48, 1 min 12 s earlier).
+  The commit times are the record.
+- The Haiku run is stamped 17:04–18:48, and its pre-registration c816e82 is
+  17:04:00. Git cannot order the pre-registration and the first Haiku
+  request inside that minute. The sampling correction (f7bea94) came after
+  the run began; the addendum says it changes no rule.
+- So "each pre-registration was written and committed before its first
+  request", in the status paragraph at the top, rests on commit order. For
+  the Haiku run that order cannot be checked, and for the held-out run the
+  gap is 20 seconds.
+
+### Limits of the evidence
+
+- The panel's top-3 rates under bm25f (Bonsai 98.7%, Haiku 96.4%, Haiku
+  plain 92.8%; top 5 99.4% and 98.2%) are stated, with their detail, only in
+  the addendum "two writers, and the design to ship". The results tables of
+  step 3 show top 8 only. The post-review check, the OpenRouter A/B notebook
+  and `DOCUMENTATION.md` repeat the two headline figures. No committed table,
+  file or script gives them: `scripts/find-panel-report.mjs` ranks the top 8
+  only (`TOP = 8`).
+- The raw panel data is not in git. The panel folder in the main checkout
+  ignores itself, and `testing/transcripts/**/*.jsonl` is ignored. A reader
+  of this repository cannot re-derive the top-3 figures. They rest on this
+  notebook, and the 3-hit first search of 1.7.0 rests partly on them.

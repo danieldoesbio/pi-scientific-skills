@@ -377,3 +377,101 @@ does not compare the extension with that baseline for this model.
 Non-inferior, so, by the decision rule, release prep for 1.7.0 goes ahead.
 The search decision (20–23% of attempts never searched) is a separate
 problem for the tool description.
+
+## Release-review notes (2026-09-30)
+
+Written at the release review, after the results. They add facts from git.
+They change no rule, number or result above. Times are commit times from
+`git log` on 2026-09-29 (-0700).
+
+### A pre-registered outcome definition was edited in place
+
+- 02bb091 (11:22:01) pre-registered this run. bec393a (11:25:20, 3 min 19 s
+  later) edited the "Secondary" paragraph of the rules in place. The list of
+  paired medians first ended "time to read (units read in both arms);", with
+  no rule for errors. bec393a added two rules: both token measures skip
+  provider-error messages, and the choice turn must come before any user
+  message, or the unit has none. The same commit changed
+  `scripts/find-ab-report.mjs` and `scripts/test-live-lib.mjs` to match. It
+  also flipped one test expectation: for a fixture in which a user message
+  comes before the next answer, the choice-turn tokens were 100 and are now
+  none.
+- The run began at 11:25 from bec393a (first addendum), so the edit came
+  before the first request. The first addendum is in a3146f4, 36 s after
+  bec393a, and says the run had started. Git does not hold the launch time.
+- The edit covers the secondary token measures only. The primary outcome
+  (read rate), both intervals, the verdict rule and the decision rule are as
+  registered in 02bb091.
+- The headline token result uses the amended definition: choice-turn prompt
+  tokens, paired median −867.5 (the subject line of 9dc417c rounds it to
+  −868). The prediction "−800 to −1,300" was scored as a hit under the
+  amended definition too. The notebook did not compute the value under the
+  02bb091 text, and I did not. The amendment probably changed nothing here.
+  Both arms show 0 provider errors, and `providerErrors` in
+  `scripts/lib/pi-session.mjs` counts every assistant message with stop
+  reason "error", so the first rule had nothing to skip. The choice-turn line
+  and the first-result line both have n 226, equal to "searched in both
+  arms", so the second rule left out no unit. The choice that the old report
+  used is the first assistant entry after the results, whatever comes
+  between (`choiceTurn` in `scripts/lib/replay.mjs`). So, with no error
+  messages and no unit left out, the old and the new definition pick the
+  same message in every paired unit. I did not check this against the
+  transcripts.
+
+### Addendum times
+
+The clock time in each addendum heading is later than the commit that holds
+it:
+
+| Heading | Commit | Commit time | Heading is later by |
+|---|---|---|---|
+| "Addendum 2026-09-29 11:30 (after launch; no rule change)" | a3146f4 | 11:25:56 | 4 min 4 s |
+| "Addendum 2026-09-29 11:55: run stopped and restarted behind a key proxy (before the restart's first request)" | e526e04 | 11:50:31 | 4 min 29 s |
+| "Addendum 2026-09-29 12:35: second run stopped; restart with `MPLBACKEND=Agg` (before the restart's first request)" | 0453a70 | 12:26:20 | 8 min 40 s |
+
+The commit times are the record.
+
+- **First run.** Started at 11:25 from bec393a. The addendum text says it
+  stopped at 11:45. It is void.
+- **Second run.** Started after e526e04 (11:50:31). The 12:35 addendum gives
+  11:51 as the time its matplotlib probe loaded the backend, the earliest
+  time the notebook gives for its requests. The addendum text says it stopped
+  at 12:24. It is void.
+- **Third run.** Started after 0453a70 (12:26:20). The Results heading gives
+  12:27 to 15:17. This run is the one analysed.
+
+Git holds no record of the stop times and the health-check times in the
+addendum text. Each of them is earlier than the commit that reports it. The
+claim in the two restart headings, "before the restart's first request",
+holds against the commit times, not against the heading times. The 11:55
+heading is later than the matplotlib load (11:51) of the run it introduces,
+and the 12:35 heading is later than the third run's start (12:27).
+
+### Sections written after the results
+
+- "Post hoc: both rankers on the same Gemma queries" was added by 8ba6328
+  (15:41:30), 20 min 23 s after the results commit 9dc417c (15:21:07). It is
+  post hoc, as its text says.
+- The same commit, 8ba6328, also rewrote three lines of the results
+  paragraph "Where the difference comes from". 9dc417c said that among
+  searches `new` "did not put the target in the first list more often".
+  8ba6328 says the arms listed the target about equally often, but that each
+  arm ranked its own queries. No number changed. The notebook did not
+  disclose the rewrite. The earlier wording is in git history.
+- "Finding: when Gemma searches, it reads the right skill" was added by
+  63b55db (15:45:41). It is also written after the results and was not
+  pre-registered.
+- The status line at the top (written in 9dc417c) says the pre-registration
+  was committed before the first request and that the rules do not change.
+  Read it with the first section above: the rules are those of 02bb091 as
+  amended by bec393a before launch.
+
+### Scope of the evidence
+
+This run compares the old search (0a8ddfd) with the new search on one model,
+Gemma 4 26B-A4B. The earlier 157-against-116 result (+25.5 points, Bonsai 2
+27B, [`2026-09-25-night-arms.md`](2026-09-25-night-arms.md)) was measured on
+the package content of 08aff2e, launched from 49288d1: the old ranker, 8
+hits and a `limit` argument the model could set. The BM25F ranker and the
+3-then-5 list (713d6e8) came later. No single run compares the shipped tip
+with 1.6.0 on one model.

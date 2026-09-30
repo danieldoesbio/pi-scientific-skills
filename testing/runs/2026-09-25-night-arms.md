@@ -549,3 +549,69 @@ generation tok/s `v16` 111/20 under 4k tokens and 103/16 at 16k–32k; `v17`
 Speed from `scripts/find-live-timing.mjs`. The read rates, intervals and
 times to read above come again from `scripts/find-live-arms-report.mjs`
 (written after this look, same numbers).
+
+## Release-review notes (2026-09-30)
+
+Written at the release review, after the results. They add facts from git.
+They change no rule, number or result above. Times are commit times from
+`git log` (-0700).
+
+### The interim look was not pre-registered
+
+- The pre-registration (08aff2e, 2026-09-25 08:45:13) has no interim look.
+  `git show 08aff2e:testing/runs/2026-09-25-night-arms.md` holds no such
+  section. It says only that a night may not finish all 17 chunks and that
+  the run continues on later nights.
+- 5acfbea (2026-09-26 10:45:27) added the look at chunks 1–9 (90 paired
+  probes). 6cb0728 (10:47:34) scored the predictions against it. By the
+  notebook's session notes, the look came between the second session
+  (stopped 07:34) and the third (resumed 11:34).
+- The look gave `v17 − v16` = +22.2 points on 90 probes. The prediction
+  "within noise" on non-Core was scored "Wrong" against this interim data,
+  before chunks 10–17 ran. The run then went on to all 17 chunks, and the
+  final figure is +25.5 on 161. The look says chunks 10–17 run as planned
+  whatever the numbers show, and that its CIs are not adjusted. Git cannot
+  show what would have happened with other numbers.
+- What did not change, from git, between 08aff2e and 62e359d (the final
+  results commit): nothing under `extensions/`, `skills/` or `package.json`.
+  In `scripts/`, five files changed: the four new files named below, and
+  `scripts/test-live-lib.mjs` (checks for the new scripts, and one header
+  comment reworded). The harness and its scoring (`scripts/test-find-live.mjs`
+  and everything it imports from `scripts/lib/`) are unchanged. The
+  registered outcomes, the −5 margin and the analysis-set rule are as
+  registered. The arms ran from `git archive` copies of their launch commits.
+
+### Code added during the run
+
+- Two timing scripts, `scripts/find-live-timing.mjs` and
+  `scripts/lib/server-log.mjs`, were added in 84cffea (2026-09-25 16:35:48).
+  8f52d14 (16:39:37) changed both. They join the server log to the session
+  files and give the pre-registered speed and warm-up measures. They also give
+  `endpointSecondsNet`, which was not pre-registered (see the session notes).
+- A report script, `scripts/find-live-arms-report.mjs` with
+  `scripts/lib/arms-report.mjs`, was added in 4af7aa5 (2026-09-26 12:38:45).
+  It computes the pre-registered primary outcomes. It came after the interim
+  look and during the third session, before the last chunks finished. The
+  notebook says it gives the same numbers as the look.
+
+### Launch commit and the status line
+
+- The `v17` and `full` arms ran from 49288d1 (2026-09-25 08:50:17), the
+  launch commit that `sources.txt` in the run folder records (outside git).
+  `v16` ran from 98cb371. 49288d1 changed only this notebook since 08aff2e,
+  by the 7 lines of the per-arm request check. So the `v17` package is the
+  package content of 08aff2e, launched from 49288d1. Above "Results", this
+  notebook differs from 08aff2e only by those 7 lines.
+- The status line at the top still reads "pre-registered". It was true at
+  launch. Now read the notebook as the pre-registration above "Results" and
+  the record below it.
+
+### Scope of the evidence
+
+The 157-against-116 read (+25.5 points, 95% CI 18.4 to 32.9) was measured on
+the package content of 08aff2e, launched from 49288d1: the old ranker, 8 hits
+and a `limit` argument the model could set. The BM25F ranker and the
+3-then-5 list (713d6e8) came later. They were measured on another model,
+Gemma 4 26B-A4B, in
+[`2026-09-29-openrouter-ab.md`](2026-09-29-openrouter-ab.md) (+6.0 points).
+No single run compares the shipped tip with 1.6.0 on one model.
