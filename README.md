@@ -151,7 +151,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   GunPoint, a live CELLxGENE Census query. Coverage grows by a batch every
   release. The per-skill record is `testing/ledger.json`, with the notes in
   [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 163 behavioural checks
+- **`/sci` and `sci_find`, automated on every change:** 193 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
   `sci_find` renders under "Available tools" in pi's real system-prompt builder;
   `/sci all` preserves hand-written `!pattern` overrides; a seeded prior-version config leaves

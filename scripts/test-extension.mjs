@@ -734,6 +734,135 @@ console.log("\n-- /sci none --");
   check("reloads so it takes effect now", harness.reloadCount() === 1);
 }
 
+// Search mode writes `skills: []`, which cannot carry `pi config` overrides
+// (an overrides-only array means "everything, minus those"). 1.6.0's search
+// wrote the Core list and kept them, so a Core user who had turned a skill off
+// in `pi config` lost that choice on upgrade, with nothing on screen to say so.
+// The write is unchanged; the report now names what it dropped.
+console.log("\n-- /sci search names the pi config overrides it drops --");
+{
+  const { describeSearchMode } = await loadExtensionModule("extensions/catalog.ts");
+  const { PROFILES } = await loadExtensionModule("extensions/profiles.ts");
+  const searchSummary = `Search mode: ${describeSearchMode()}.`;
+  const reAdd = "Re-add them with pi config if you want them back.";
+  // The filter 1.6.0's search wrote: the Core profile's skills, sorted.
+  const core = [...PROFILES.find((profile) => profile.id === "core").skills].sort();
+  const seed = (skills) => JSON.stringify({ packages: [{ source: "pi-scientific-skills", skills }] }, null, 2);
+  const SEARCH_ONLY_ROW = "Search only (no skills in the prompt)";
+
+  /** One case: seed settings.json, run `invoke`, hand back what the user saw and what was written. */
+  const run = async (skills, invoke, { selectAnswer } = {}) => {
+    const paths = newAgentDir();
+    writeFileSync(paths.settings, seed(skills));
+    const harness = makeHarness(selectAnswer === undefined ? {} : { mode: "tui", selectAnswer });
+    const hooks = register(harness);
+    await invoke(hooks, harness);
+    return {
+      harness,
+      message: harness.notes.at(-1),
+      written: readFileSync(paths.settings, "utf8"),
+      config: existsSync(paths.config) ? JSON.parse(readFileSync(paths.config, "utf8")) : undefined,
+    };
+  };
+
+  /** The shared assertions: what the message says, and that the write is the same as ever. */
+  const expectDropped = (label, result, expected) => {
+    check(`${label}: message is the search summary plus the dropped overrides`, result.message === expected, result.message);
+    check(
+      `${label}: settings.json is the seed with skills [] and nothing else changed`,
+      result.written === seed([]) && JSON.parse(result.written).packages[0].skills.length === 0,
+      result.written,
+    );
+    check(
+      `${label}: saves no profile`,
+      Array.isArray(result.config?.profiles) && result.config.profiles.length === 0,
+      JSON.stringify(result.config),
+    );
+    check(`${label}: reloads so it takes effect now`, result.harness.reloadCount() === 1);
+  };
+
+  const search = (hooks, harness) => hooks.commandHandler("search", harness.ctx);
+
+  {
+    const skills = [...core, "!polars"];
+    const result = await run(skills, search);
+    expectDropped(
+      "1.6.0 Core filter plus !polars",
+      result,
+      `${searchSummary} Dropped pi config overrides: !polars. ${reAdd} Reloading…`,
+    );
+  }
+  {
+    const skills = [...core, "+extra", "-other"];
+    const result = await run(skills, search);
+    expectDropped(
+      "1.6.0 Core filter plus +extra and -other",
+      result,
+      `${searchSummary} Dropped pi config overrides: +extra, -other. ${reAdd} Reloading…`,
+    );
+  }
+  {
+    // An entry holding only overrides is "all skills, minus those" (what /sci all leaves behind).
+    const skills = ["!polars", "-matplotlib"];
+    const result = await run(skills, search);
+    expectDropped(
+      "overrides-only filter",
+      result,
+      `${searchSummary} Dropped pi config overrides: !polars, -matplotlib. ${reAdd} Reloading…`,
+    );
+  }
+  {
+    const skills = [...core, "!polars"];
+    const result = await run(skills, (hooks, harness) => hooks.commandHandler("none", harness.ctx));
+    expectDropped(
+      "/sci none",
+      result,
+      `${searchSummary} Dropped pi config overrides: !polars. ${reAdd} Reloading…`,
+    );
+  }
+  {
+    const skills = [...core, "!polars"];
+    const result = await run(skills, (hooks, harness) => hooks.commandHandler("", harness.ctx), {
+      selectAnswer: () => SEARCH_ONLY_ROW,
+    });
+    expectDropped(
+      `main menu "Search only"`,
+      result,
+      `${searchSummary} Dropped pi config overrides: !polars. ${reAdd} Reloading…`,
+    );
+  }
+  {
+    // The picker with nothing ticked writes the same empty filter, so it names them too.
+    // Overrides-only seed: a plain include would first raise its "replace the filter?" confirm.
+    const skills = ["!polars"];
+    const answers = ["Choose profiles…", "Clear selection", "Apply and reload"];
+    let asked = 0;
+    const result = await run(skills, (hooks, harness) => hooks.commandHandler("", harness.ctx), {
+      selectAnswer: () => answers[asked++],
+    });
+    expectDropped(
+      "picker with no profile ticked",
+      result,
+      `No profile chosen. ${searchSummary} Dropped pi config overrides: !polars. ${reAdd} Reloading…`,
+    );
+  }
+  {
+    // No overrides: the message is exactly what it was before this change.
+    const result = await run(core, search);
+    expectDropped("1.6.0 Core filter, no overrides", result, `${searchSummary} Reloading…`);
+  }
+  {
+    // Already in search mode: nothing to drop, nothing changes, nothing to say.
+    const result = await run([], search);
+    check(
+      "already in search mode: message is unchanged",
+      result.message === `${searchSummary} (already applied)`,
+      result.message,
+    );
+    check("already in search mode: does not reload", result.harness.reloadCount() === 0);
+  }
+}
+
 console.log("\n-- /sci reset --");
 {
   const paths = newAgentDir();
