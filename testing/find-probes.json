@@ -1,0 +1,1021 @@
+[
+  {
+    "skill": "adaptyv",
+    "task": "I have a batch of newly designed protein sequences and want to submit them to our cloud lab's experiment API for binding, thermostability, and expression assays, then pull back the results once the runs finish.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "aeon",
+    "task": "I have multivariate sensor time series from a set of machines and need to classify each recording into one of several failure-mode categories, plus flag anomalous segments and change points, using a consistent scikit-learn-style estimator interface.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "alphagenome",
+    "task": "I have a list of noncoding single-nucleotide variants from a fine-mapped GWAS credible set, all on the standard human reference build, and want to prioritize which ones most likely disrupt regulatory activity - enhancers, promoters, splicing, chromatin accessibility - using precomputed genome-wide impact scores and their underlying feature attributions.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "analytical-method-validation",
+    "task": "I'm about to validate a new HPLC assay for a drug product and need to plan the study and acceptance criteria for linearity, accuracy, precision, and detection/quantitation limits under the correct regulatory framework before we collect any data.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "anndata",
+    "task": "I have several h5ad files from separate single-cell experiments and need to combine them into one sparse-matrix-backed object that keeps all the per-cell and per-gene metadata correctly aligned, without running any clustering or normalization yet.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "arbor",
+    "task": "I want to run many rounds of automated experiments to raise my agent harness's accuracy on a benchmark, organizing each trial as a branch off a shared hypothesis so insights accumulate, and using a held-out evaluation split I never search against so I don't just overfit to the metric I'm optimizing.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "arboreto",
+    "task": "I have a single-cell RNA expression matrix and want to infer which transcription factors regulate which target genes, using a scalable tree-based ensemble approach that can run in parallel across cores.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "astropy",
+    "task": "I have a FITS image with WCS header keywords and need to convert pixel positions into sky coordinates in a different reference frame, plus compute the luminosity distance for an object at a given redshift.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "autoskill",
+    "task": "I've been repeating the same multi-step research routine on my computer for weeks and want you to review my recent screen activity, captured locally and never sent anywhere without my say-so, to propose a new reusable workflow for it.",
+    "accept": [],
+    "namesPlatform": false,
+    "untestable": "needs a running screenpipe daemon and the user's own screen history; see testing/README.md"
+  },
+  {
+    "skill": "benchling-integration",
+    "task": "I need to pull a batch of DNA construct records from our Benchling registry and update the matching electronic lab notebook entries for a new set of samples through the API.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "bgpt-paper-search",
+    "task": "I'm doing an evidence synthesis and need structured, per-paper experimental details - methods, sample sizes, and quality scores - pulled from full-text studies on a topic, not just titles and abstracts.",
+    "accept": [
+      "paper-lookup",
+      "paperclip"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "bids",
+    "task": "I have raw DICOM scans from an MRI study across multiple subjects and sessions and need to convert them into a standardized, validated directory layout with proper JSON metadata sidecars before sharing the dataset on a public imaging repository.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "biopython",
+    "task": "I have a folder of FASTA and GenBank files that I need to parse programmatically, run automated similarity searches against NCBI databases, and stitch into a custom batch-processing pipeline.",
+    "accept": [
+      "bioservices"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "bioservices",
+    "task": "I need to take a list of UniProt accessions, map them to KEGG pathway identifiers, and pull back pathway and Gene Ontology annotations, all through one consistent interface instead of juggling separate clients for each database.",
+    "accept": [
+      "database-lookup"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "bulk-rnaseq",
+    "task": "I have raw paired-end reads from a bulk RNA sequencing experiment comparing treatment against control and want to go all the way from quality control and alignment through a differential expression gene list and enriched pathways, in one reproducible pipeline.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "cellxgene-census",
+    "task": "I want to pull expression values and cell-type metadata for a specific tissue and disease across many public single-cell studies at once, without downloading each source dataset individually, to build a large cross-study reference set.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "cirq",
+    "task": "I need to build and simulate a noise-aware quantum circuit written for a specific Google quantum processor's native gate set, then run a characterization experiment to measure how the real device's error rates compare to the simulation.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "citation-management",
+    "task": "I'm compiling the bibliography for my manuscript and need to search for a set of papers, verify their author, journal, and year details against original sources, and generate accurate, duplicate-free BibTeX entries.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "clinical-decision-support",
+    "task": "I'm preparing an aggregate evaluation package for a risk-prediction model that our hospital governance committee is reviewing - a GRADE-style evidence profile, subgroup fairness checks, and calibration documentation - strictly for committee review, not for treating any specific patient.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "clinical-reports",
+    "task": "I need to draft a checklist-compliant results-report scaffold for our randomized trial's synthetic dataset, structured around the required reporting items, ready for our statistician and clinical lead to review and finalize.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "cobrapy",
+    "task": "I have a genome-scale metabolic reconstruction in the standard systems-biology markup format and want to run flux balance analysis plus a gene knockout screen to find which knockouts are lethal or growth-limiting under a specific growth medium.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "consciousness-council",
+    "task": "I'm torn on a strategic direction for my lab and want several genuinely conflicting expert viewpoints - a systems thinker, a pragmatist, an ethicist - debated against each other in a structured way before I make the call.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "dask",
+    "task": "My pandas-based processing script runs out of memory on a dataset far bigger than my laptop's RAM, and I want to scale the same dataframe-style operations across cores or a small cluster without rewriting the logic from scratch.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "database-lookup",
+    "task": "I need to look up a specific gene's records across several public identifier systems using each database's documented API, with full provenance of the endpoints, filters, and pagination I used, rather than pulling the answer from memory.",
+    "accept": [
+      "bioservices"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "datalad",
+    "task": "I want to clone a large public neuroimaging dataset without downloading every file up front, then record exactly how I generate my analysis outputs so a collaborator can re-execute my whole pipeline later.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "datamol",
+    "task": "I have a CSV of SMILES strings that I need to standardize and canonicalize, compute molecular descriptors and fingerprints for, and then cluster into a diverse representative subset, all with minimal boilerplate code.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "deepchem",
+    "task": "I want to train a graph neural network to predict toxicity and other ADMET properties for a set of drug-like molecules, benchmarking my model against standard published molecular datasets and splits.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "deepspot-m",
+    "task": "I have whole-slide H&E histology images and want to predict spatial gene expression for a list of genes across the tissue directly from the images, without running an actual spatial sequencing assay.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "deeptools",
+    "task": "I have ChIP-seq BAM files from treatment and control samples and need to generate normalized coverage tracks, check sample correlation and enrichment quality, and build a heatmap of signal around transcription start sites.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "depmap",
+    "task": "I want to check whether a specific gene is selectively essential in KRAS-mutant cancer cell lines, using genome-wide CRISPR knockout screen dependency scores, to evaluate it as a possible drug target.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "dhdna-profiler",
+    "task": "I have a long piece of writing from a colleague and want to map their underlying reasoning style from the text alone - how analytical versus intuitive they are, how they weigh ethics against strategy, and other tensions in how they think.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "diffdock",
+    "task": "I have a protein structure and a set of candidate small molecules in SMILES form and want to predict each one's most likely 3D binding pose along with a confidence score for how much I should trust that pose, as part of a virtual screen.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "dnanexus-integration",
+    "task": "I need to upload a batch of sequencing files to our DNAnexus project, launch a workflow app on them, and monitor job status and compute cost while it runs.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "esm",
+    "task": "I want to generate novel protein sequence variants by filling in masked regions of a partial sequence with a multimodal generative protein model, then get a predicted all-atom structure for the completed sequence.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "etetoolkit",
+    "task": "I have several already-inferred gene trees in standard tree-text format and want to compare their topologies with Robinson-Foulds distances, reconcile them against a species tree to find duplication and loss events, and render a publication-quality figure of the result.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "exa-search",
+    "task": "I need to search the web for recent technical writeups on a specific method and also fetch and pull the full text from several specific article URLs and academic PDFs in one batch.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "experimental-design",
+    "task": "I'm planning a screening study with six factors that could affect my assay's yield and want to lay out a fractional-factorial layout with randomized run order so the effects don't get confounded, before I collect any data.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "exploratory-data-analysis",
+    "task": "Before I start modeling, I want a redacted profile of my CSV dataset - missing-value patterns, possible train/test leakage, and how sensitive my outliers are to different transformations - summarized into a rigorous scaffolded report.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "flowio",
+    "task": "I have raw flow cytometry files straight off the instrument and need to inspect the channel metadata, pull the event data into a NumPy array for further processing, and write out a new file in the modern single-precision format - no compensation or gating needed yet.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "fluidsim",
+    "task": "I'm setting up a periodic pseudospectral turbulence simulation and need help picking the solver, checking my resolution, time step, and CFL number against my compute budget, and validating a tiny pilot run before I scale up to a multi-node job.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "folklore-variant-evidence",
+    "task": "I have one well-defined germline variant identified by its reference SNP ID and want to pull gene-disease validity assertions plus source-linked supporting literature for it, with the lookup stopping cleanly and telling me so if the identifier turns out to be ambiguous rather than guessing which variant I meant.",
+    "accept": [
+      "database-lookup"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "generate-image",
+    "task": "I need a photorealistic illustration of a bioluminescent deep-sea jellyfish for our outreach flyer, and I also want to edit the background lighting on a reference photo I already have.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "geniml",
+    "task": "I want to plan a Region2Vec embedding run over my collection of BED files and check that my tokenizer vocabulary is actually compatible with the pretrained model before I commit to training.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "genomic-coordinates",
+    "task": "My BED file intervals don't line up with my VCF positions after a pipeline step — am I off by one somewhere — and how do I confirm my variant calls are on the correct genome build before comparing them against ClinVar?",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "genomic-intelligence",
+    "task": "Given this raw DNA sequence, can a hosted model predict where the promoter region and the splice donor/acceptor sites are, without me downloading any model weights or using a local GPU?",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "geomaster",
+    "task": "I have Sentinel-2 satellite imagery and need to calculate NDVI from the bands, then run watershed delineation and hydrological terrain analysis over a raster elevation model.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "geopandas",
+    "task": "I have a shapefile of county boundaries and a CSV of clinic locations with lat/lon coordinates, and need to spatially join each clinic to its containing county polygon and reproject everything to a consistent coordinate reference system.",
+    "accept": [
+      "geomaster"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "get-available-resources",
+    "task": "Before I launch this large local computation, can you check how much CPU, memory, and GPU I actually have available in this environment, including any scheduler or container limits I might be running under?",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "gget",
+    "task": "I just need a quick lookup of the AlphaFold structure and basic gene info for a couple of genes — nothing elaborate, no big automated pipeline.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "ginkgo-cloud-lab",
+    "task": "I want to submit a cell-free protein expression validation run to Ginkgo Bioworks' automated wet-lab platform and get HiBiT luminescence quantification back, without doing the bench work myself.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "glycoengineering",
+    "task": "I have an antibody Fc sequence and want to scan it for N-linked glycosylation sequons and identify likely O-glycosylation hotspots, since we're adjusting the glycosylation pattern to improve ADCC while lowering immunogenicity.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "gtars",
+    "task": "I need to compute pairwise overlaps and consensus coverage across a stack of genomic interval fragment files, plus tokenize the regions for a downstream ML model, entirely locally with no network calls.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "histolab",
+    "task": "I have a handful of H&E whole slide images and just need a straightforward way to detect tissue regions, extract tiles, and normalize the staining for a quick deep-learning dataset — nothing as heavy as multiplexed spatial proteomics.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "hugging-science",
+    "task": "I'm doing an ML project on protein language models and want to find well-curated datasets, pretrained models, and interactive demos on Hugging Face that are specifically relevant to biology, rather than generic searching.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "hypogenic",
+    "task": "I have a labeled text dataset and want to run an iterative LLM-assisted process that proposes and scores candidate textual patterns as hypotheses, then refine the bank using literature-derived information.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "hypothesis-generation",
+    "task": "I have some preliminary observations from an experiment and want help turning them into clearly stated candidate hypotheses with rival explanations and testable predictions, plus a preregistration-ready analysis plan — without treating my first idea as fact.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "imaging-data-commons",
+    "task": "I need to find and download a public collection of lung CT DICOM scans from the National Cancer Institute's public cancer imaging archive for a radiology AI training set, and check the data's license terms.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "infographics",
+    "task": "I want to create a polished one-page visual summary — icons, key stats, a clean layout — of '5 key benefits of a Mediterranean diet,' with accurate researched statistics and colorblind-safe design, ready to post on social media.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "iso-standards-readiness",
+    "task": "We're preparing for an ISO 13485 quality management system audit at our medical device company and need to organize our controlled documents, risk management file, and CAPA records into a structured evidence package before human review.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "lab-hardware-cad",
+    "task": "I need to design a custom microplate holder that mates precisely with our plate reader's dimensions and export it as a STEP file ready for 3D printing.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "labarchive-integration",
+    "task": "Our lab uses LabArchives as our electronic notebook, and I need help writing a script that authenticates with signed requests and pulls a list of recent notebook entries and inventory items through the API.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "lamindb",
+    "task": "I need a system that tracks the full computational lineage of my scRNA-seq datasets — which script produced which version of an AnnData artifact — and lets me query and validate them against standardized ontologies for cell type and tissue.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "latchbio-integration",
+    "task": "I want to package my Python bioinformatics pipeline as a workflow on the Latch platform, configure GPU and memory settings for each task, launch it through their SDK, and push some run metadata into their Registry.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "latex-posters",
+    "task": "I need to build a conference research poster in LaTeX with a professional multi-column layout sized for a standard A0 board, incorporating a few AI-generated schematic figures I'll create separately.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "liteparse",
+    "task": "I have scanned PDF pages that need OCR, and for each extracted word I need the exact bounding-box coordinates on the page, plus PNG renders of each page for a multimodal agent to inspect — all running locally with no cloud API.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "literature-review",
+    "task": "I need to systematically search across PubMed, arXiv, and other academic databases on a research topic, synthesize the findings into thematic sections, verify every citation, and produce a properly formatted document I can use as the background section of a manuscript.",
+    "accept": [
+      "research-lookup"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "markdown-mermaid-writing",
+    "task": "I'm writing up a methods report and want to represent my data-processing pipeline as a text-based diagram embedded directly in a Markdown file, so it diffs cleanly in git and renders natively on GitHub instead of as an image I'd have to regenerate every time.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "market-research-reports",
+    "task": "I need to build an evidence-traceable market-sizing report — TAM/SAM/SOM — for a new diagnostics product, with every claim traceable to a cited source and the forecast assumptions laid out with sensitivity ranges.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "markitdown",
+    "task": "I have a folder of mixed Word documents, PowerPoint decks, and CSV files that I need converted into clean Markdown text so I can index them for a retrieval-augmented generation pipeline — I don't need bounding boxes or page images, just readable structured text.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "matchms",
+    "task": "I have a set of untargeted metabolomics MS/MS spectra in MGF format that I need to clean up, harmonize the precursor and adduct metadata for, and score against a spectral reference library using cosine similarity to find matches.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "matlab",
+    "task": "I've inherited a codebase of numerical .m scripts and need help reviewing them for correctness and figuring out whether I can safely migrate parts of it to run on the free Octave interpreter instead.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "matplotlib",
+    "task": "I need to build a completely custom plot — a broken axis, an inset zoom panel, and a custom colormap — where the higher-level plotting shortcuts don't give me the low-level control I need over every element, then export it as a vector PDF.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "medchem",
+    "task": "I have a virtual library of a few thousand candidate compounds and want to filter out anything that violates Lipinski's rule of five or Veber's rules, and flag any containing PAINS or other structural alert substructures before we prioritize compounds for synthesis.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "modal",
+    "task": "I've trained a model locally and need to deploy it as a scalable web API endpoint that automatically spins up GPU containers on demand, without managing my own Kubernetes cluster or writing Dockerfiles.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "molecular-dynamics",
+    "task": "I want to run energy minimization and a production simulation of a protein-ligand complex, then compute RMSD and RMSF from the resulting trajectory to assess binding stability.",
+    "accept": [
+      "tamarind"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "molfeat",
+    "task": "I want to benchmark several different ways of turning my SMILES library into numeric features for a QSAR model, including both classical fingerprints and pretrained transformer embeddings, to see which representation predicts activity best.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "ncats-arax",
+    "task": "I want to look up what's known about a two-hop relationship between a specific gene and a disease in a structured biomedical knowledge graph, along with the supporting publications and data-source provenance for each edge.",
+    "accept": [
+      "primekg"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "networkx",
+    "task": "I have a list of nodes and edges representing protein interactions and want to compute centrality measures, detect communities, and find the shortest path between two proteins in this network.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "neurokit2",
+    "task": "I have raw ECG and electrodermal activity recordings from a physiology experiment and need to preprocess them, detect events, and compute heart-rate variability and other complexity metrics in a reproducible pipeline.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "neuropixels-analysis",
+    "task": "I have raw SpikeGLX recordings from a high-density silicon probe and need to preprocess them, correct for probe drift, run spike sorting, and then compute quality metrics to curate the resulting units.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "nextflow",
+    "task": "I'm writing a custom DSL2 module with its own process and channel logic, and need help setting up tests with nf-test and configuring it to run correctly on our SLURM cluster.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "omero-integration",
+    "task": "Our imaging core runs an OMERO server, and I need a script that logs into it, pulls ROI annotations and metadata for a batch of microscopy images, and exports them locally.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "onekgpd",
+    "task": "I have a gene of interest and need to find which individuals in the 1000 Genomes Project cohort carry homozygous missense variants there, along with their gnomAD allele frequencies and AlphaMissense scores.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "ontology-term-resolution",
+    "task": "I'm filling in a GEO submission's tissue and cell-type fields and need to resolve free-text labels like 'PBMC' and 'left ventricle' to validated ontology term IDs, and check whether an existing CURIE already in my metadata table is obsolete.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "open-notebook",
+    "task": "I want to set up a self-hosted, privacy-preserving alternative to NotebookLM where I can upload my PDFs and recorded talks, chat with them in context, and generate a multi-speaker podcast summarizing my research notes.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "openpiv",
+    "task": "I have a pair of particle-seeded flow images from a wind-tunnel experiment and need to cross-correlate interrogation windows to extract the 2D velocity field, then validate and replace spurious vectors before computing vorticity.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "opentrons-integration",
+    "task": "I need to write and locally simulate a liquid-handling protocol for our Opentrons Flex robot, including runtime parameters and control of a temperature module, before it ever touches the physical deck.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "optimize-for-gpu",
+    "task": "My NumPy and pandas preprocessing pipeline for a large dataset is too slow on CPU, and I want to move the array operations and dataframe joins onto our NVIDIA GPU without changing the numerical results.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pacsomatic",
+    "task": "I have matched tumor-normal PacBio BAM files with their pbi indexes and need to build a compliant samplesheet, generate the launch artifacts, run a dry-run validation, and then submit the run to our Slurm cluster.",
+    "accept": [
+      "nextflow"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "paper-lookup",
+    "task": "I need to find the DOI for a paper I only have partial citation details for, check its open-access status, pull the full text, and see which later papers cited it, across whatever scholarly databases have it indexed.",
+    "accept": [
+      "paperclip"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "paperclip",
+    "task": "I want to search full-text biomedical papers alongside FDA and EMA regulatory filings and clinical-trial protocols in one unified, grep-able archive, and get citations pinned to exact line numbers for verification; I already have an API key configured for this.",
+    "accept": [
+      "paper-lookup"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "paperzilla",
+    "task": "I want to check my project's paper recommendation feed for anything new, open one to see the note on why it's relevant, and export the canonical paper as markdown so I can read it offline.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "parallel-web",
+    "task": "I need current web search results on a fast-moving regulatory topic that changed after your training cutoff, and I'd like to set up a recurring check that flags when a specific government webpage changes going forward.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pathml",
+    "task": "I have whole-slide H&E pathology images that I need to load and tile into patches, run through a QC pipeline, and build spatial graphs from multiplex-stained cells, all locally and strictly for exploratory research, not diagnosis.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pathogen-variant-surveillance",
+    "task": "I need to know which SARS-CoV-2 Pango lineages are circulating and growing fastest right now, and whether a specific lineage name I saw in an old report has since been withdrawn or renamed.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pathway-enrichment",
+    "task": "I have a list of significantly up- and down-regulated genes from a differential expression analysis and want to test which KEGG and Reactome pathways are over-represented, plus run a full ranked GSEA using the test statistic and make a clean dotplot.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "peer-review",
+    "task": "An editor has asked me to review a submitted manuscript, and I need help structuring a rigorous, evidence-based assessment covering the methods, statistics, and reproducibility, while keeping the unpublished content confidential.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pennylane",
+    "task": "I want to build a variational quantum circuit and train its parameters with gradient descent to solve a small eigenvalue problem, using automatic differentiation so I can later swap between a simulator and different hardware backends.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "phylogenetics",
+    "task": "I have a set of unaligned homologous protein sequences from several species and want to align them, build a maximum-likelihood tree with model selection, and then visualize and annotate the resulting tree.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pi-agent",
+    "task": "I'm extending Pi with a custom tool and need to know how to register it, hook into Pi's event system, and package it as an installable extension for my team to use in their terminal coding sessions.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "pkpd-modeling",
+    "task": "I have concentration-time data from a single-dose PK study and need to compute non-compartmental exposure metrics like AUC and half-life, check if the terminal elimination phase is well characterized, and then explore whether a two-compartment model fits better.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "polars",
+    "task": "I'm migrating a slow pandas ETL script to something with lazy query optimization and out-of-core streaming so it can handle a dataset that doesn't fit in memory, using an Arrow-based expression API.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "polars-bio",
+    "task": "I need to compute overlap and nearest-feature operations between two large BED interval files, and read straight from a BAM file to get per-position coverage depth, all without loading everything into memory and ideally reading directly from an S3 bucket.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pptx-posters",
+    "task": "I need to build an editable, macro-free PowerPoint conference poster from my approved figures, abstract text, and citations, and make sure it's printer- and accessibility-compliant before I hand it off for review.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "primekg",
+    "task": "I want to explore a precision-medicine knowledge graph that integrates over twenty biomedical databases of genes, drugs, diseases, and phenotypes to find which existing drugs might be repurposed for a disease of interest via a shared molecular target.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "protocolsio-integration",
+    "task": "I need to pull the current published version of a lab protocol from our protocols.io project, confirm its DOI and version history, and see what a proposed step edit would look like before I actually make any change.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "pufferlib",
+    "task": "I'm adapting a custom Gymnasium environment for large-scale reinforcement-learning training and need help vectorizing environment rollouts, wiring up a policy-gradient trainer, and safely reviewing a checkpoint file before loading it.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pydeseq2",
+    "task": "I have raw RNA-seq count data from treated versus control samples with a batch covariate and need to run differential expression testing with a multi-factor design, get log-fold-change shrinkage, and pull out genes significant after FDR correction.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pydicom",
+    "task": "I have a folder of local DICOM files from an imaging study I'm authorized to use for research, and I need to inspect and safely strip patient-identifying metadata tags before exporting the pixel arrays for a de-identified pilot dataset.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pyhealth",
+    "task": "I want to build a clinical deep-learning pipeline for in-hospital mortality prediction using ICU electronic health record data structured like MIMIC-III, going from the raw patient dataset through task definition, model training, and evaluation metrics.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pylabrobot",
+    "task": "I need to write a vendor-agnostic liquid-handling protocol in Python that can run on either our Hamilton STAR or our Tecan EVO, and simulate it offline first with a visual deck view before any physical execution.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "pymatgen",
+    "task": "I have a set of crystal structure files from DFT calculations and want to check their symmetry, build a phase diagram from computed formation energies, and query the Materials Project database for comparable entries.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "pymc",
+    "task": "I want to build a hierarchical Bayesian model for my multilevel experimental data, run MCMC sampling with NUTS, check convergence diagnostics, and compare it against a simpler model using leave-one-out cross-validation.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pymoo",
+    "task": "I have an engineering design problem with several conflicting objectives and constraints and want to find the Pareto-optimal trade-off solutions using a multi-objective evolutionary algorithm, then visualize the resulting front for a presentation.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pyopenms",
+    "task": "I have raw LC-MS/MS proteomics spectra and need to detect and quantify peptide features across multiple runs, align retention times, link them into a consensus feature table, and get a wide intensity matrix for downstream statistics.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pysam",
+    "task": "I need to open a sorted, indexed BAM file, pull all reads overlapping a specific genomic region, filter out secondary and supplementary alignments, and compute per-base read depth including zero-coverage positions.",
+    "accept": [
+      "polars-bio"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pytdc",
+    "task": "I want to discover therapeutics machine-learning benchmark datasets covering drug-target interaction, ADMET, and molecule generation tasks, load one with its standard task-appropriate train/test split, and score my predictions with the benchmark's official evaluator metric.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pytorch-lightning",
+    "task": "I have a PyTorch model training loop with a lot of boilerplate for checkpointing, logging, and multi-GPU handling, and I want to reorganize it into a structured module/trainer pattern that scales cleanly to distributed training with DDP or FSDP.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "pyzotero",
+    "task": "I need to programmatically pull all items and PDF attachments from a shared Zotero group library, organize them by collection, and export the metadata for a systematic review.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "qiskit",
+    "task": "I need to build a quantum circuit and run it first on a local exact simulator with the standard sampling primitive, then transpile it for an actual IBM quantum processor and execute it through a session with basic error mitigation.",
+    "accept": [],
+    "namesPlatform": true
+  },
+  {
+    "skill": "qutip",
+    "task": "I need to simulate the Lindblad master-equation dynamics of an open quantum system, a two-level atom coupled to a dissipative bath, and also run quantum trajectory unraveling to get single-shot measurement records.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "rdkit",
+    "task": "I have a list of SMILES strings and need to compute molecular descriptors like molecular weight and TPSA, generate Morgan fingerprints, and run a substructure search with a SMARTS pattern, with fine control over sanitization.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "relsa-severity-assessment",
+    "task": "I'm running a mouse study and want to combine body-weight loss, temperature readings, and clinical scores into a single per-animal severity score relative to a reference set of known-burden animals, then forecast which animals are heading toward a humane endpoint before they get there.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "research-grants",
+    "task": "I'm resubmitting an NIH R01 after the study section flagged weak innovation, and I need help sharpening the specific aims and significance narrative along with the budget justification before the next deadline.",
+    "accept": [
+      "venue-templates"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "research-lookup",
+    "task": "I'm drafting the introduction of a manuscript on mitochondrial dysfunction in Parkinson's disease and need a solid packet of current, verified references covering the competing mechanistic hypotheses, so every claim I write can be traced back to a real source.",
+    "accept": [
+      "literature-review",
+      "paper-lookup"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "rowan",
+    "task": "I have a new small-molecule candidate and want to predict its pKa along with a conformer and tautomer ensemble, then dock it against my target protein, all without setting up any local HPC or GPU infrastructure -- just submit the SMILES and get results back.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scanpy",
+    "task": "I have raw droplet-based single-cell RNA-seq counts from 10x Genomics that need quality-control filtering, normalization, clustering, and marker-gene identification before I can annotate cell types, and a couple of collaborators only sent me Seurat RDS files that I'll need converted first.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scholar-evaluation",
+    "task": "A colleague sent me their draft research proposal outline and early-stage findings and asked for developmental feedback on the soundness and framing of the idea -- I want honest, evidence-traceable comments, not a numeric ranking or a verdict on whether it's fundable.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scientific-brainstorming",
+    "task": "My lab just wrapped up a big experiment and now I want to independently generate and transparently evaluate several candidate follow-up research directions with my team, capturing our assumptions and disagreements before we commit to one path.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scientific-critical-thinking",
+    "task": "I want to critically evaluate the methodology and evidence quality behind a set of clinical trials -- checking for confounders and biases and applying a formal evidence-grading framework -- before I decide how much weight to give their conclusions.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scientific-schematics",
+    "task": "I need a publication-quality diagram of a signaling pathway with labeled receptors and downstream effectors for my paper's figure, but I have no design skills and don't want to build it by hand -- I just want to describe it in words and get a finished image.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scientific-slides",
+    "task": "I'm giving a 15-minute conference talk next month on my recent findings and need to build a visually engaging slide deck with a clear narrative arc, not just bullet-point walls of text.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scientific-visualization",
+    "task": "I need to design and audit a multi-panel figure for my manuscript submission, making sure the color choices are colorblind-accessible, the uncertainty bars are honestly labeled, and the axes aren't quietly exaggerating the effect, before I send it to the journal.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scientific-writing",
+    "task": "I'm writing the methods and results sections of a manuscript and need every numeric claim to map back to verified evidence so I don't accidentally fabricate a p-value or citation, while keeping the unpublished data confidential from any external service.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scikit-bio",
+    "task": "I have 16S rRNA amplicon sequences and a sample-by-taxon abundance table from several soil sites, and I want to compute alpha and beta diversity, run PERMANOVA on the community differences between sites, and build an ordination plot from it all.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scikit-learn",
+    "task": "I have a tabular dataset and want to build and cross-validate a few classical classification models, tune their hyperparameters with a grid search, and compare them inside a clean preprocessing pipeline before picking a final model.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scikit-survival",
+    "task": "I have follow-up time and event/censoring data for a patient cohort and need to fit a Cox model alongside a random survival forest, then evaluate both with concordance and time-dependent prediction error while handling the patients lost to follow-up correctly.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scvelo",
+    "task": "I already have spliced and unspliced count layers for my single-cell dataset from a splicing-aware aligner, and I want to infer which direction cells are differentiating and find the driver genes behind that transition, building on the embedding I already made in my usual single-cell toolkit.",
+    "accept": [
+      "scvi-tools"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "scvi-tools",
+    "task": "I'm integrating single-cell RNA-seq data from multiple sequencing batches and want a deep generative model that removes the batch effects while giving me an uncertainty-aware differential expression test between conditions, something I can later use to map newly collected cells onto the same reference latent space.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "seaborn",
+    "task": "I have a pandas DataFrame from an experiment and just want to quickly throw together box plots, violin plots, and a correlation heatmap to explore group differences before I decide what's worth polishing into a final figure.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "shap",
+    "task": "I already have a trained model and want to explain why it made specific predictions on a few held-out samples, using proper attribution values I can check actually add up to the model's real output, instead of just guessing which features mattered.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "simpy",
+    "task": "I need to build a discrete-event simulation of patients arriving at a clinic, queueing for a limited number of exam rooms, and being served by staff with random service times, then compare average wait times across a few staffing levels using multiple replications.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "stable-baselines3",
+    "task": "I want to train a reinforcement learning agent with a well-documented, off-the-shelf algorithm like PPO or SAC on a standard Gymnasium environment, without writing the training loop or policy network myself from scratch.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "statistical-analysis",
+    "task": "I ran an experiment comparing three treatment groups and need to pick the right hypothesis test, check whether my data actually meets its assumptions, compute effect sizes, and write the results up in a way a journal reviewer couldn't poke holes in.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "statistical-power",
+    "task": "I'm designing a new study and need to work out how many participants I should enroll to have 80% power to detect a clinically meaningful effect, so I can justify the sample size in my IRB submission and grant application.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "statsmodels",
+    "task": "I need to fit a generalized linear model and get full coefficient tables, standard errors, and diagnostic tests for heteroskedasticity and autocorrelation -- the kind of detailed statistical output I'd need for a rigorous econometrics write-up.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "sympy",
+    "task": "I need to solve a differential equation symbolically and get an exact closed-form expression, not a numerical approximation, then turn that expression into compilable code I can drop straight into a simulation.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "tamarind",
+    "task": "I want to predict the 3D structure of a protein-ligand complex and screen a batch of candidate binders through docking, all running on managed cloud GPUs, since I don't want to provision or maintain any local GPU infrastructure for these structure-prediction jobs.",
+    "accept": [
+      "rowan",
+      "diffdock"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "tiledbvcf",
+    "task": "I have VCF files from an ongoing population genomics cohort study and need to load them into a queryable store that lets me add new samples incrementally without re-merging everything, then pull out variant calls for specific genomic regions across thousands of samples efficiently.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "timesfm-forecasting",
+    "task": "I have a univariate time series of daily sales and want a quick zero-shot forecast with calibrated prediction intervals, without training or fine-tuning any custom model myself.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "torch-geometric",
+    "task": "I'm building a graph neural network to classify nodes in a large heterogeneous graph using message-passing layers, and I need help with mini-batch neighbor sampling so training scales to a graph too big to fit in memory all at once.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "torchdrug",
+    "task": "I have a dataset of molecules represented as graphs and want to pretrain a self-supervised graph representation model on them, then fine-tune it for property prediction and also try a retrosynthesis prediction task, all within one consistent graph-learning framework.",
+    "accept": [
+      "deepchem"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "transformers",
+    "task": "I want to download a pretrained language model, run it through a text-classification pipeline on my own dataset, then fine-tune it with a standard training loop and custom training arguments.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "treatment-plans",
+    "task": "Our clinical team has already decided on a patient's intervention plan, and I need to format that decision into a structured record with goals, checkpoints, and a clear trail back to the clinician who approved it -- I'm not deciding anything clinical myself.",
+    "accept": [
+      "clinical-reports",
+      "clinical-decision-support"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "umap-learn",
+    "task": "I have a high-dimensional dataset and want to project it into two dimensions for visualization while preserving both the local neighborhood structure and the broader global structure, ideally with a version that lets me later embed new points using labels from a subset of my data.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "uncertainty-and-units",
+    "task": "I have calibration certificates and repeatability measurements for a lab instrument and need to build a full measurement uncertainty budget with a defensible coverage factor, while also double-checking that my unit conversions between the raw sensor output and the final reported value are dimensionally correct.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "usfiscaldata",
+    "task": "I need current numbers on the U.S. national debt and recent Treasury securities auction results, pulled directly from an official government data source rather than approximated from memory, for a report I'm writing on federal borrowing trends.",
+    "accept": [
+      "database-lookup"
+    ],
+    "namesPlatform": true
+  },
+  {
+    "skill": "vaex",
+    "task": "I have a single tabular dataset of a few hundred million rows that's bigger than my machine's RAM, and I need to compute fast aggregate statistics and build a density heatmap from it without loading the whole thing into memory at once.",
+    "accept": [
+      "dask"
+    ],
+    "namesPlatform": false
+  },
+  {
+    "skill": "venue-templates",
+    "task": "I'm preparing my paper for a specific journal's submission and need to confirm their actual current page limits, required sections, and LaTeX style files rather than guessing from an old template I found online, plus get a starting scaffold I can build from.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "waypoint-bio",
+    "task": "I have taxonomic abundance tables from a 16S/shotgun metagenomics profiler and want to embed each microbiome sample into a fixed-size vector using a pretrained microbiome foundation model, so I can cluster samples and later fine-tune the same model to predict a phenotype from community composition.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "what-if-oracle",
+    "task": "Before I commit resources to one direction, I want to map out several branching scenarios for what might happen to my research program if a key reagent supplier suddenly can't deliver -- best case, worst case, most likely case, and a couple of wild cards -- each with rough probabilities and consequences.",
+    "accept": [],
+    "namesPlatform": false
+  },
+  {
+    "skill": "zarr-python",
+    "task": "I need to store a huge multi-dimensional array so I can read and write chunks of it in parallel, ideally straight to cloud object storage, and have it work smoothly downstream with NumPy and Xarray.",
+    "accept": [],
+    "namesPlatform": false
+  }
+]

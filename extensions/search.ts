@@ -11,9 +11,10 @@
  * Two rules shape the ranking, both from principle rather than taste:
  *
  * 1. Recall beats precision. `sci_find` does not have to pick the right skill,
- *    only get it into a list of eight with its full description attached. The
- *    calling model — even a small one — discriminates well between eight
- *    labelled options and badly among the whole catalogue in a system prompt.
+ *    only get it into a short list with its full description attached (3 hits
+ *    on a prompt's first search, then 5; `/sci find` lists 8). The calling
+ *    model — even a small one — discriminates well among a few labelled
+ *    options and badly among the whole catalogue in a system prompt.
  * 2. Never a confident wrong answer. Below `MIN_SCORE` nothing is returned at
  *    all. Handing a plausible-but-wrong skill to someone designing an
  *    experiment is worse than handing them nothing.
@@ -23,6 +24,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ALIASES } from "./aliases";
+import { type Bm25fIndex, buildIndex, passesNoMatchRule, rankAll } from "./bm25f";
 import { parseFrontmatter } from "./frontmatter";
 
 // ---------------------------------------------------------------------------
@@ -313,9 +315,68 @@ const EXACT_NAME_BONUS = 10;
  */
 const MIN_SCORE = 2;
 
+/** Hit count when the caller gives none (`/sci find`, the offline tools). */
 export const DEFAULT_LIMIT = 8;
-/** Caller-supplied ceiling for `limit` — index.ts clamps to this. */
+/** Ceiling for a caller-supplied count — catalog.ts clamps to this. */
 export const MAX_LIMIT = 20;
+
+/**
+ * Hits `sci_find` shows the model: the first search after the message that opens a
+ * prompt or run, then every later one. Chosen from the top-k rates in
+ * testing/runs/2026-09-27-find-ranker.md: under bm25f the target is in the
+ * top 3 for 98.7% of the first queries Bonsai 2 27B wrote and 96.4% of Haiku
+ * 4.5's. The current ranker's top 8 held 97.2% and 96.3%, so the top 3 is 1.5
+ * points higher for Bonsai and equal for Haiku.
+ */
+export const FIRST_SEARCH_LIMIT = 3;
+export const LATER_SEARCH_LIMIT = 5;
+
+/**
+ * Which ranker `sci_find` uses. "bm25f" (the default) is `bm25f.ts`;
+ * "current" (`PI_SCI_FIND_RANKER=current`, kept for one release) is the
+ * scoring below.
+ */
+export type Ranker = "current" | "bm25f";
+
+export const findRanker = (): Ranker => (process.env.PI_SCI_FIND_RANKER === "current" ? "current" : "bm25f");
+
+/**
+ * One BM25F index per catalogue array. It reads every SKILL.md body (about
+ * 2 MB for the whole catalogue), so it is built on the first bm25f search, not
+ * at load, and kept: an installed package cannot change while pi runs.
+ */
+const bm25fIndexes = new WeakMap<readonly SkillEntry[], Bm25fIndex>();
+
+export const bm25fIndexFor = (catalog: readonly SkillEntry[]): Bm25fIndex => {
+  let index = bm25fIndexes.get(catalog);
+  if (index === undefined) {
+    index = buildIndex(catalog);
+    bm25fIndexes.set(catalog, index);
+  }
+  return index;
+};
+
+/** Every skill BM25F scores above 0 for the query, best first (no floor, no limit). */
+export const rankBm25f = (catalog: readonly SkillEntry[], query: string): SearchHit[] =>
+  rankAll(bm25fIndexFor(catalog), expandQuery(query).terms);
+
+/**
+ * The bm25f search: a query equal to a skill name lists that skill first;
+ * otherwise nothing is returned unless the no-match rule passes.
+ */
+const searchBm25f = (catalog: readonly SkillEntry[], query: string, limit: number): SearchHit[] => {
+  const index = bm25fIndexFor(catalog);
+  const { terms } = expandQuery(query);
+  const hits = rankAll(index, terms);
+  const wholeQuery = compact(query.toLowerCase());
+  const exact = wholeQuery.length >= 3 ? catalog.find((entry) => compact(entry.name.toLowerCase()) === wholeQuery) : undefined;
+  if (exact) {
+    const rest = hits.filter((hit) => hit.entry !== exact);
+    return [{ entry: exact, score: hits.find((hit) => hit.entry === exact)?.score ?? 0 }, ...rest].slice(0, Math.max(1, limit));
+  }
+  if (hits.length === 0 || !passesNoMatchRule(index, terms, hits[0].score)) return [];
+  return hits.slice(0, Math.max(1, limit));
+};
 
 /**
  * Rank the catalogue against a query.
@@ -327,7 +388,9 @@ export const search = (
   catalog: readonly SkillEntry[],
   query: string,
   limit: number = DEFAULT_LIMIT,
+  ranker: Ranker = findRanker(),
 ): SearchHit[] => {
+  if (ranker === "bm25f") return searchBm25f(catalog, query, limit);
   const { terms, boosted } = expandQuery(query);
   if (terms.length === 0 && boosted.size === 0) return [];
 

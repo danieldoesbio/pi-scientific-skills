@@ -47,12 +47,12 @@ profile layer on top so you don't have to do that 162 times:
 
 ```bash
 /sci            # interactive menu
-/sci search     # recommended — load Core, reach the rest on demand
+/sci search     # recommended — no skills in the prompt, sci_find finds them
 /sci find <q>   # search all 162 by what you're trying to do
 /sci status     # what's active now, and what it costs
 /sci profiles   # jump straight to the picker
 /sci all        # re-enable everything
-/sci none       # disable all skills from this package
+/sci none       # same as /sci search
 /sci reset      # forget saved profiles, re-enable everything
 ```
 
@@ -61,15 +61,17 @@ profile layer on top so you don't have to do that 162 times:
 Choosing a profile means betting on what you'll need before the work starts.
 When the bet is wrong, the skill you needed is simply invisible.
 
-`/sci search` removes the bet. It loads the ten Core skills — **~1.4k tokens
-instead of ~23k** — and the model reaches everything else through a `sci_find`
-tool that searches all 162 by description and returns the path to load:
+`/sci search` removes the bet. It keeps every skill out of the system prompt —
+**~0 tokens instead of ~23k** — and the model reaches all 162 through a
+`sci_find` tool, listed in the system prompt, that searches their names,
+descriptions and SKILL.md text and returns the 3 best matches with the path to
+load (5 on a follow-up search):
 
 ```
 > I have a sorted BAM and need to call variants from it
 
   sci_find("variant calling from a bam file")
-    → pysam, pathogen-variant-surveillance, genomic-intelligence …
+    → pysam, tiledbvcf, polars-bio
   read .../skills/pysam/SKILL.md
 ```
 
@@ -78,9 +80,11 @@ on demand — pushed one level further, so narrowing what's always loaded no
 longer means making anything unreachable.
 
 `sci_find` is registered whether or not you run `/sci search`, so it works
-alongside any profile, and `/sci find` runs the same search for you. Verified
-against a small model (deepseek-v4-flash), not just a frontier one — the whole
-point is the low end.
+alongside any profile. `/sci find` uses the same ranker for you and lists the
+top 8. Profiles still put a field's skills straight into the prompt when you
+want them there.
+Verified against small models, not just a frontier one — the whole point is the
+low end.
 
 `/skill:<name>` typed at the prompt loads any skill in the package whether or
 not your filter includes it: the extension hands pi the same skill block pi
@@ -116,11 +120,12 @@ extension leaves your settings working. See
 [Uninstalling](DOCUMENTATION.md#uninstalling) for the one-time files `/sci`
 leaves behind.
 
-Overrides you wrote by hand (`!pattern`, `+path`, `-path`) are preserved. The one
-exception is disabling everything (`/sci none`, or applying an empty selection),
-which has to write an empty list and can't carry them. If your settings are
-malformed, or a project-local `.pi/settings.json` would override the global one,
-`/sci` names the file and refuses to write rather than guess.
+Overrides you wrote by hand (`!pattern`, `+path`, `-path`) survive your profile
+choices. Search mode (`/sci search`, `/sci none`, or applying an empty
+selection) writes an empty list, which can't carry them. It drops them and names
+each one in its message. If your settings are malformed, or a project-local
+`.pi/settings.json` would override the global one, `/sci` names the file and
+refuses to write rather than guess.
 
 Your `settings.json` is never written unless you ask for it. `/sci` keeps one
 small state file of its own in `~/.pi/agent/` so it asks its first-run
@@ -128,6 +133,13 @@ question once. On a first run `/sci` *offers* search mode and does nothing if
 you decline, escape, or ignore it. On an upgrade it tells you once what
 changed and leaves your selection exactly as it was — your `settings.json` is
 not touched by an upgrade you didn't ask for.
+
+### What 1.7.0 changed
+
+- Search mode loads no skills (~0 tokens instead of Core's ~1.4k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
+- A BM25F ranker shows 3 hits on a prompt's first search and 5 on later ones. On 321 held-out requests its top 3 held the target 310 times; the old ranker's top 8, 283 times ([run](testing/runs/2026-09-27-find-ranker.md)).
+- In a live A/B on Gemma 4 26B-A4B, the new search read the right skill +6.0 points more often and used 867.5 fewer prompt tokens at the choice turn (paired median; [run](testing/runs/2026-09-29-openrouter-ab.md)).
+- `/sci none` is now the same as `/sci search`. To load Core again: `/sci profiles`, tick Core, press Enter.
 
 ## What's inside
 
@@ -141,33 +153,43 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   description, checked by the validator on every change and by a tarball smoke
   test on every release. Frontmatter passes a validator that reimplements pi's
   rules with 0 warnings and 0 hard issues.
-- **43 skills have been run end to end in pi** under a small model
+- **43 skills have been run end to end in pi** mostly under a small model
   (`deepseek/deepseek-v4-flash`): loaded, followed, and in most cases producing a
   real result — a live ARAX knowledge-graph query, a full non-compartmental PK
   analysis, a BIDS dataset layout, a time-series classifier trained to 100% on
-  GunPoint, a live CELLxGENE Census query. Coverage grows by a batch every
-  release. The per-skill record is `testing/ledger.json`, with the notes in
+  GunPoint, a live CELLxGENE Census query. Coverage grows with each skill
+  batch. The per-skill record is `testing/ledger.json`, with the notes in
   [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 120 behavioural checks
-  against a stubbed pi (`/sci search` writes the Core filter and preserves
-  hand-written `!pattern` overrides; a seeded prior-version config leaves
+- **`/sci` and `sci_find`, automated on every change:** 242 behavioural checks
+  against a stubbed pi (`/sci search` writes the empty search-mode filter;
+  `sci_find` renders in the tools section of pi's default system prompt, built by
+  pi's own builder;
+  `/sci all` preserves hand-written `!pattern` overrides; a seeded prior-version config leaves
   `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
   `/skill:../../etc/passwd` is not),
   490 byte-identity checks against pi's own `/skill:` expansion (every skill,
-  three argument forms), 47 ranking checks against the real 162 descriptions,
+  three argument forms), 106 ranking checks against the real 162 descriptions,
   7 checks that **pi itself** honours the filter through a real
   `DefaultPackageManager`, and 175 frontmatter parity checks against pi's own
   parser (every skill plus synthetic edge cases). The first-run offer is
   driven through **pi's real TUI** over a pty. `npm run try` opens this
   package in a throwaway pi; your own `~/.pi/agent` is never touched.
-- **Search mode against a small model, 3 of 3.** With only Core loaded,
-  `deepseek/deepseek-v4-flash` was asked three questions whose skills were not
-  in its prompt (call variants from a BAM, cluster a 10x matrix, dock a ligand).
-  It called `sci_find` unprompted every time, got a correct skill back, and read
-  the `SKILL.md`. Re-run against every release since 1.2.0 with the same result;
-  at 1.4.0 the same setup confirmed `/skill:pysam`, filtered out, reaches the
-  model as pi's skill block. Recorded under `extensionRuns` in
-  `testing/ledger.json`. The probes never name the skill.
+- **A 7.2 GB local model finds skills it cannot see.** Ternary Bonsai 2 27B,
+  running on a laptop with **no skill in its system prompt**, was given one
+  probe per skill — 161 requests written as a scientist would ask, none naming
+  its skill. It found the target through `sci_find` on the first attempt for
+  **143 of 157** valid probes, and within three attempts for 156. Its whole
+  starting context was about 1.8k tokens. Measured on 1.6.0, before `sci_find`
+  was listed in the system prompt; the report is
+  [`testing/report.md`](testing/report.md).
+- **Search mode against small models, 3 of 3.** Before 1.7.0, with only
+  Core loaded, `deepseek/deepseek-v4-flash` called `sci_find` unprompted for
+  three questions whose skills were not in its prompt, and read the `SKILL.md`
+  each time. Recorded for 1.1.0, 1.2.0, 1.3.0, 1.4.0 and 1.5.0, 3 of 3 each
+  time, under `extensionRuns` in `testing/ledger.json`. For 1.7.0, on pi
+  1.0.0 with no skill in the prompt, Bonsai 2 27B (local), Gemma 4 26B-A4B and
+  DeepSeek V4 Flash each called `sci_find` and found a matching skill for all
+  three.
 - **Upstream's own pytest suite passed at the last count** (upstream v2.62.0);
   details in
   [DOCUMENTATION.md](DOCUMENTATION.md#what-pi-does-and-does-not-enforce).

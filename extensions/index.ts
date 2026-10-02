@@ -30,24 +30,22 @@
 import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
-  describeCost,
+  createSearchStage,
   expandFilteredSkill,
   formatTokens,
   parseSkillCommand,
   runToolSearch,
-  skillsForSelection,
   SKILLS_DIR,
   type ToolParams,
 } from "./catalog";
 import { dispatch, hasSkillsFilter } from "./commands";
 import { PACKAGE_NAME, PACKAGE_VERSION } from "./package-info";
 import { describeError, report, settingsPath } from "./paths";
-import { BASELINE_TOKEN_COST, TOGGLES, TOTAL_SKILL_COUNT } from "./profiles";
-import { DEFAULT_LIMIT, MAX_LIMIT } from "./search";
+import { BASELINE_TOKEN_COST, TOTAL_SKILL_COUNT } from "./profiles";
+import { FIRST_SEARCH_LIMIT, LATER_SEARCH_LIMIT } from "./search";
 import { findPackageEntry, readConfig, readSettings, writeConfig } from "./settings";
 import {
   COMMAND_NAME,
-  DEFAULT_PROFILE_ID,
   SUBCOMMANDS,
   TOOL_NAME,
   type CommandContext,
@@ -73,18 +71,20 @@ import {
 /** How long the first-run question waits before giving up and doing nothing. */
 const OFFER_TIMEOUT_MS = 20_000;
 
-const OFFER_ACCEPT = `Yes — load Core + ${TOOL_NAME} (recommended)`;
-const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded`;
+// Declining keeps every skill loaded but not the tool set as it was: the tool is
+// registered whatever the answer, so the row says it stays available. It does
+// not say the prompt lists it: pi's default prompt does, a custom one (SYSTEM.md,
+// --system-prompt) drops the tools section.
+// scripts/test-tui-offer.py waits for "search mode:" and expects only the accept
+// row to carry it.
+const OFFER_ACCEPT = `Yes — search mode: ${TOOL_NAME} finds skills as needed (recommended)`;
+const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded (${TOOL_NAME} stays available)`;
 
-const offerTitle = (): string => {
-  const core = TOGGLES.find((toggle) => toggle.id === DEFAULT_PROFILE_ID);
-  const coreCost = core ? describeCost(skillsForSelection(new Set([DEFAULT_PROFILE_ID])).length) : "";
-  return (
-    `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
-    `~${formatTokens(BASELINE_TOKEN_COST)} tokens of context every session. ` +
-    `Load just Core (${coreCost}) instead? ${TOOL_NAME} still reaches all ${TOTAL_SKILL_COUNT} on demand.`
-  );
-};
+const offerTitle = (): string =>
+  `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +
+  `~${formatTokens(BASELINE_TOKEN_COST)} tokens of context every session. ` +
+  `Switch to search mode instead? No skills stay in the prompt, and ${TOOL_NAME} ` +
+  `finds any of the ${TOTAL_SKILL_COUNT} on demand.`;
 
 /**
  * "1.4.1" and "1.4.0" share a minor line. A patch release changes only the
@@ -120,11 +120,67 @@ export const compareVersions = (a: string, b: string): number => {
 const downgradeNotice = (from: string): string =>
   `${PACKAGE_NAME}: running ${PACKAGE_VERSION} after ${from}; your selection is unchanged.`;
 
+/** The release that shipped upstream snapshot v2.69.0. */
+const SNAPSHOT_RELEASE = "1.6.0";
+
+const SNAPSHOT_NEWS = [
+  `Upstream snapshot v2.69.0 (commit 49c6e97, in ${SNAPSHOT_RELEASE}) adds one skill: alphagenome`,
+  `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
+  `non-commercial API key). It also updates two skills: ontology-term-resolution`,
+  `gains Bioregistry, Identifiers.org, ZOOMA and Ontobee companions, and`,
+  `genomic-intelligence documents per-operation sync limits and an unreliable`,
+  `splice-orientation check.`,
+];
+
+/**
+ * Two facts both 1.7.0 news notices (`searchNews` and `filteredNotice`) give, in one place so `searchNews` and
+ * `filteredNotice` cannot drift apart. The 1.6.0 clause on `/sci none` stays in
+ * `searchNews`: someone who hand-filtered before ever running `/sci` never ran
+ * `/sci none`.
+ */
+const DEFAULT_PROMPT_NEWS =
+  `In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) ${TOOL_NAME} ` +
+  `is now listed, with a guideline to use it for scientific, research and analysis work.`;
+const EMPTY_FILTER_MEANING = `now means search mode, not off; ${TOOL_NAME} stays on.`;
+
+/**
+ * What 1.7.0 changed, written once for every 1.6.0 state: Core accepted, the
+ * offer declined, `/sci none`, Core plus a `pi config` override. It says what
+ * the commands and an empty filter mean now, never what the reader chose, so
+ * each line is true for someone who did nothing. `scripts/test-extension.mjs`
+ * checks it against three 1.6.0 states (Core accepted; offer declined, which leaves
+ * only the install entry; `/sci none`) and one with a `pi config` override added.
+ *
+ * - Search: a new ranker and hit counts for everyone, and no `limit` argument.
+ *   `PI_SCI_FIND_RANKER=current` brings back the old order, not the old count.
+ * - The listing and guideline are in pi's default system prompt only. pi builds
+ *   a custom one (SYSTEM.md, `--system-prompt`) without the tools section or
+ *   the guidelines (system-prompt.js, `if (customPrompt)`).
+ * - An empty `skills` filter is search mode now. 1.6.0's `/sci none` wrote one
+ *   to mean off; the tool stays on, and their settings are not touched.
+ * - `/sci search` writes an empty filter, where 1.6.0 wrote Core, and names the
+ *   `pi config` overrides that drops. The way back to Core is the picker.
+ * - `"extensions": []` on the package's object entry stops pi loading the
+ *   extension: no tool, no `/sci`. Checked against pi's own resolver in 0.84.3,
+ *   0.87.0 and 1.0.0; the `skills` filter then works as the user wrote it.
+ */
+const searchNews = (): string[] => [
+  `${TOOL_NAME} ranks with BM25F and shows ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,
+  `${LATER_SEARCH_LIMIT}; its "limit" argument is gone. PI_SCI_FIND_RANKER=current restores the old`,
+  `ranking order only.`,
+  DEFAULT_PROMPT_NEWS,
+  `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") ${EMPTY_FILTER_MEANING}`,
+  `"/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
+  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, press Enter.`,
+  `Turn ${TOOL_NAME} and /${COMMAND_NAME} off with "extensions": [] on the package's object entry`,
+  `in settings.json.`,
+];
+
 /**
  * `current` defaults to `PACKAGE_VERSION` for every real call site; it takes
  * an explicit value only in `scripts/test-extension.mjs`'s pure-function
  * tests, which check the patch and minor notice text against fixed pairs
- * (e.g. "1.5.3"→"1.5.4", "1.5.0"→"1.6.0") independent of whatever version
+ * (e.g. "1.5.3"→"1.5.4", "1.6.0"→"1.7.0") independent of whatever version
  * this release actually carries — the case that matters at `x.y.0`, where
  * there is no lower patch in the same minor line to derive through startup.
  */
@@ -136,17 +192,13 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
   if (sameMinorLine(from, current)) {
     return [...head, `Patch release: no change to the skills, and your settings are untouched.`].join(" ");
   }
+  // A user coming from before the snapshot release has not heard its news yet.
+  const missedSnapshot = from === undefined || compareVersions(from, SNAPSHOT_RELEASE) < 0;
   return [
     ...head,
-    `Upstream snapshot v2.69.0 (commit 49c6e97) adds one skill: alphagenome`,
-    `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
-    `non-commercial API key). It also updates two skills: ontology-term-resolution`,
-    `gains Bioregistry, Identifiers.org, ZOOMA and Ontobee companions, and`,
-    `genomic-intelligence documents per-operation sync limits and an unreliable`,
-    `splice-orientation check.`,
-    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} skills on demand.`,
-    `Run "/${COMMAND_NAME} search" to trim the always-loaded set to Core, or`,
-    `"/${COMMAND_NAME} status" to see where you stand.`,
+    ...searchNews(),
+    ...(missedSnapshot ? SNAPSHOT_NEWS : []),
+    `"/${COMMAND_NAME} status" shows where you stand.`,
   ].join(" ");
 };
 
@@ -159,6 +211,10 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
  * excludes. A filter was never a boundary — the model could always `read` any
  * SKILL.md — but shipping a tool that makes that routine without saying so
  * would be changing what they chose out from under them.
+ *
+ * It also gives the two facts both 1.7.0 news notices give, from the constants above:
+ * where the listing is (and is not), and what an empty filter means now. A
+ * `skills: []` written by hand meant "off" before 1.7.0.
  */
 const filteredNotice = (): string =>
   [
@@ -170,8 +226,10 @@ const filteredNotice = (): string =>
     `it. It also updates ontology-term-resolution (Bioregistry, Identifiers.org,`,
     `ZOOMA and Ontobee companions) and genomic-intelligence (per-operation sync`,
     `limits; the splice-orientation check is documented as unreliable).`,
-    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand —`,
+    `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand,`,
     `including any your filter leaves out of the system prompt.`,
+    DEFAULT_PROMPT_NEWS,
+    `An empty "skills" filter ${EMPTY_FILTER_MEANING}`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
 
@@ -295,23 +353,51 @@ export default function (pi: ExtensionAPI): void {
   });
 
   // The model-facing half of progressive disclosure. Registered unconditionally
-  // when the catalogue is locatable: ~150 tokens of tool definition against a
-  // ~23k index is not a trade worth a configuration flag, and a user running
-  // the full set still benefits from being able to look a skill up by need
-  // rather than by name.
+  // when the catalogue is locatable: a tool definition of about 200 tokens,
+  // plus a one-line snippet and one guideline, against a ~23k index is not a
+  // trade worth a configuration flag, and a user running the full set still
+  // benefits from being able to look a skill up by need rather than by name.
+  //
+  // pi lists a custom tool in the tools section of its default system prompt
+  // only when it has a promptSnippet (system-prompt.js filters on it). Without
+  // one the model sees sci_find only in the tool schema. In the 2026-09-23 live
+  // test, 15 of 19 misses on valid probes were attempts that never called it.
+  // Guidelines go into pi's own list with no tool heading, so each one names
+  // the tool. A custom system prompt drops the tools section and the guidelines;
+  // see `searchNews`.
   if (SKILLS_DIR) {
+    // A user message (the prompt, a steer or a follow-up) starts a new first
+    // search, and so does a custom message that opens an agent run
+    // (pi.sendMessage with triggerTurn); see createSearchStage. agent_start
+    // alone does not: pi emits it again for continue().
+    const searchStage = createSearchStage();
+    pi.on("agent_start", async () => searchStage.agentStart());
+    pi.on("message_start", async (event) => searchStage.messageStart(event.message?.role));
+    pi.on("turn_start", async () => searchStage.turnStart());
     pi.registerTool({
       name: TOOL_NAME,
       label: "Find scientific skill",
+      promptSnippet:
+        `Search the ${TOTAL_SKILL_COUNT} installed skills for scientific, research and ` +
+        `analysis work, and get the SKILL.md path to read`,
+      promptGuidelines: [
+        `Use ${TOOL_NAME} before you write code, install a package or set up a service for ` +
+          `scientific, research or analysis work: a skill may already cover it. Then read the ` +
+          `SKILL.md it returns.`,
+      ],
       description:
-        `Search ${TOTAL_SKILL_COUNT} installed scientific skills (biology, genomics, ` +
-        `chemistry, drug discovery, clinical research, imaging, physics, statistics, ML, ` +
-        `scientific writing) and get the path to load one. Most of these skills are NOT ` +
-        `listed in the system prompt, so this is the only way to discover them. Call it ` +
-        `with a natural-language description of the task ("variant calling from a bam ` +
-        `file", "fit a survival model"). Omit all arguments to list the profiles, or pass ` +
-        `a profile id to list its skills. Returns skill names, full descriptions, and the ` +
-        `SKILL.md path to read.`,
+        `Search ${TOTAL_SKILL_COUNT} installed skills for scientific, research and analysis ` +
+        `work (biology, genomics, chemistry, drug discovery, clinical research, imaging, ` +
+        `physics, statistics, ML, scientific writing) and get the path to load one. Skills ` +
+        `cover analysis methods, code and data work, databases, lab and cloud tools and ` +
+        `services, and writing. ` +
+        `Most of these skills are NOT listed in the system prompt, so this is the only ` +
+        `way to discover them. Call it with a natural-language description of the task ` +
+        `("variant calling from a bam file", "fit a survival model"). Omit all arguments ` +
+        `to list the profiles, or pass a profile id to list its skills. Returns skill ` +
+        `names, full descriptions, and the SKILL.md path to read. The first search ` +
+        `returns the best ${FIRST_SEARCH_LIMIT} matches and later searches the best ` +
+        `${LATER_SEARCH_LIMIT}; if none fits, search again with other words.`,
       parameters: Type.Object({
         query: Type.Optional(
           Type.String({ description: "What you are trying to do, in natural language." }),
@@ -319,16 +405,16 @@ export default function (pi: ExtensionAPI): void {
         profile: Type.Optional(
           Type.String({ description: "Profile id to list instead of searching." }),
         ),
-        limit: Type.Optional(
-          Type.Integer({
-            minimum: 1,
-            maximum: MAX_LIMIT,
-            description: `Maximum results (default ${DEFAULT_LIMIT}), 1 to ${MAX_LIMIT}.`,
-          }),
-        ),
       }),
       async execute(_toolCallId: string, params: ToolParams) {
-        const text = runToolSearch(params);
+        // No `limit` argument: in the 2026-09-27 panel the models set one in
+        // 578 of 1,341 calls, mostly 10 to 20, which undoes a short list. A
+        // stray `limit` from a model is ignored.
+        const text = runToolSearch({
+          query: params.query,
+          profile: params.profile,
+          limit: searchStage.limitFor(params),
+        });
         return { content: [{ type: "text" as const, text }], details: {} };
       },
     });
@@ -348,7 +434,8 @@ export default function (pi: ExtensionAPI): void {
         // sendUserMessage defaults expandPromptTemplates to false
         // (agent-session.js:1133): pi's intent there is *not* to expand, and
         // the event does not carry that flag, so source is the only readable
-        // proxy. pi's docs/extensions.md branches on the same field.
+        // proxy. pi's examples/extensions/input-transform.ts branches on the same
+        // field (so did docs/extensions.md up to pi 0.87).
         if (event.source === "extension") return passThrough;
 
         const command = parseSkillCommand(event.text);

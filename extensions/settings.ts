@@ -360,7 +360,20 @@ export const projectOverrideMessage = (path: string): string =>
   `in ${path} instead, or set "autoload": false there to make it a delta over the ` +
   `global entry.`;
 
-const applyToSettings = async (plan: ApplyPlan, cwd: string): Promise<ApplyResult> => {
+/**
+ * The override patterns this plan removes. Only an empty `filter` does: an
+ * array holding nothing but overrides would invert "none" into "all" (see
+ * `applyPlanToEntry`), so search mode cannot carry them. Every other plan keeps
+ * them. Read from the entry before it is replaced, so the list is what was
+ * stored, not what the plan would have written.
+ */
+const droppedOverrides = (entry: PackageEntry, plan: ApplyPlan): string[] =>
+  plan.kind === "filter" && plan.skills.length === 0 ? keptOverrides(entry) : [];
+
+/** `ApplyResult`, plus the overrides a write removed (absent when none). */
+type AppliedResult = ApplyResult & { readonly dropped?: readonly string[] };
+
+const applyToSettings = async (plan: ApplyPlan, cwd: string): Promise<AppliedResult> => {
   const overriding = await projectOverride(cwd);
   if (overriding) return { ok: false, message: projectOverrideMessage(overriding) };
 
@@ -397,7 +410,7 @@ const applyToSettings = async (plan: ApplyPlan, cwd: string): Promise<ApplyResul
     const target = await resolveWriteTarget(settingsPath());
     const mode = (await stat(target)).mode & 0o777;
     await writeFileAtomic(target, serialized, mode);
-    return { ok: true, changed: true };
+    return { ok: true, changed: true, dropped: droppedOverrides(location.entry, plan) };
   } finally {
     await release();
   }
@@ -471,9 +484,15 @@ export const commitPlan = async (
     profiles: nextProfiles(config, update),
     onboardingSeen: true,
   });
+  // A silent drop reads as "your overrides are still in force"; name them.
+  const dropped = result.dropped ?? [];
+  const note =
+    dropped.length > 0
+      ? ` Dropped pi config overrides: ${dropped.join(", ")}. Re-add them with pi config if you want them back.`
+      : "";
   report(
     ctx,
-    result.changed ? `${summary} Reloading…` : `${summary} (already applied)`,
+    result.changed ? `${summary}${note} Reloading…` : `${summary} (already applied)`,
     "info",
   );
   if (!result.changed) return;

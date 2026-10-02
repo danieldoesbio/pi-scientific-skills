@@ -199,6 +199,7 @@ extensions/picker.ts    # the /sci profiles checkbox list (focused multiselect +
 extensions/commands.ts  # /sci's subcommands and bare-menu dispatch (status, search, all/none/reset)
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 extensions/search.ts    # sci_find's catalogue + ranking, and skills/ root resolution
+extensions/bm25f.ts     # the BM25F ranker, the default (PI_SCI_FIND_RANKER=current for the old one)
 extensions/aliases.ts   # curated query→skill aliases, each from an observed miss
 extensions/frontmatter.ts    # the one YAML parser, shared with validate.mjs
 extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guards the drift
@@ -213,9 +214,24 @@ scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
+scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
+scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
+scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
+scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
+scripts/find-ab.sh           # two package commits through a cloud model, both arms at once, frozen sources
+scripts/find-ab-report.mjs   # the pre-registered outcomes of a find-ab run
+scripts/find-live-replay.mjs # replay the choice turn of a find-live run with another sci_find format
+scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
+scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
+scripts/find-rank-bench.mjs  # offline top-k rates of the sci_find rankers on the fixed query sets
+scripts/find-rank-heldout.mjs # the locked held-out set, scored once (counts only, never the texts)
+scripts/find-probes-styled.mjs # a probe file whose tasks are one paraphrase style
+scripts/find-panel.sh        # first sci_find queries of one query writer, per style, frozen sources
+scripts/find-panel-report.mjs # the writer panel's search rate and top-8 rates, current vs bm25f
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
+testing/find-rank/      # ranker query sets: recorded first sci_find queries, blind probe paraphrases
 testing/transcripts/    # raw pi output per graded run, kept as evidence
 metrics/downloads.json  # gitignored: npm daily series + publish dates, with revisions
 LICENSE.md              # upstream MIT verbatim
@@ -282,7 +298,8 @@ those to `resource-loader.js`'s `extendResources` (`:230`), which *merges*
 into the already-discovered set. No return value can remove a skill. (Line
 numbers as of pi 0.84.3; they move about one release at a time.)
 
-The filter is the documented object form (`settings.md`):
+The filter is the object form that pi documents in `docs/packages.md` (in
+`docs/settings.md` up to pi 0.87):
 
 ```json
 { "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy"] } ] }
@@ -294,28 +311,202 @@ Profiles solve the context budget for the **human**: you pick a field before the
 work starts. They do nothing for the **model**, and a profile is a bet — when it
 is wrong, the skill the scientist needed is invisible.
 
-`sci_find` closes that half. It loads no skills; it searches all 162 names and
-descriptions and returns the ones that match, with full descriptions and the
-absolute `SKILL.md` path for the model to `read`. That is mechanically identical
-to how pi loads a skill natively, one level further down: descriptions deferred
-rather than bodies.
+`sci_find` closes that half. It loads no skills; it searches the names,
+descriptions and SKILL.md text of all 162 skills and returns the ones that
+match, with full descriptions and the absolute `SKILL.md` path for the model to
+`read`. That is mechanically identical to how pi loads a skill natively, one
+level further down: descriptions deferred rather than bodies.
 
-`/sci search` applies Core (10 skills, ~1.4k tokens) through the same
-`commitPlan` path everything else uses — deliberately **no second write path**,
-so the empty-array footgun handling below stays single-sourced.
+`/sci search` writes an empty `skills` filter — no skill in the system prompt,
+~0 tokens — through the same `commitPlan` path everything else uses —
+deliberately **no second write path**, so the empty-array footgun handling
+below stays single-sourced. `/sci none` is an alias: while `sci_find` is
+registered, an empty filter is search mode, not "off".
+
+**Why no skills, since 1.7.0.** Before 1.7.0, search mode loaded the ten Core
+skills (~1.4k tokens). The 2026-09-23 live test
+([`testing/report.md`](testing/report.md)) ran a 27B local model with no skill
+in its prompt: it reached all ten Core targets through `sci_find` (8 on the
+first attempt), and 143 of 157 valid targets overall. The risk, stated: the two
+Core probes below first-attempt success (`exploratory-data-analysis`, `polars`)
+were attempts that never searched. With Core in the prompt, those skills would
+have been listed. The `promptSnippet` below exists to cover that. A small A/B
+pilot (`testing/runs/2026-09-24-bonsai2-snippet-ab.md`) showed no effect on the
+search rate (11/12 in both arms). A three-arm run over 161 probes then measured
+the default change itself (`testing/runs/2026-09-25-night-arms.md`): the model
+read the target skill on 157 with the 1.7.0 design as first built, 116 with 1.6.0
+search mode (+25.5 points, 95% CI 18.4 to 32.9) and 158 with all 162 skills
+listed. It read all ten Core targets in every arm. That 1.7.0 arm is the build at
+commit `08aff2e`, not the shipped tip: the old ranker, 8 hits and a `limit`
+argument the model could set. The BM25F ranker and the 3-then-5 list came later
+(`713d6e8`). The gain belongs to that design as a whole: it also added the
+`sci_find` snippet and guideline, which 1.6.0 did not have. The evidence for the
+shipped tip is a chain of two runs on two models: Bonsai 2 27B, first-built
+1.7.0 against 1.6.0, +25.5 points; then Gemma 4 26B-A4B, new search against old,
++6.0 points (below). No single run compares the shipped tip with 1.6.0 on one
+model. Profiles still put a field's skills in the prompt for anyone who wants
+them there. Existing users keep their filter; the 1.7.0 upgrade notice says what
+changed and how to get Core back (below).
+
+**`sci_find` in the system prompt, since 1.7.0.** pi lists a custom tool in the
+tools section of its default system prompt only when it has a `promptSnippet`
+(`system-prompt.js` filters on it); until 1.7.0 the model saw `sci_find` only in
+the tool schema. In the 2026-09-23 test, 15 of the 19 misses on valid probes
+were attempts that never called it. The tool now carries a one-line snippet and
+one guideline: use `sci_find` before writing code, installing a package or
+setting up a service for scientific, research or analysis work. pi puts
+guidelines into its own list with no tool heading, so the guideline names the
+tool. `test-extension.mjs` renders both through pi's own `buildSystemPrompt`.
+The scope reads "scientific, research and analysis" and not only "scientific":
+in the pilot's one treatment miss (`parallel-web`), the model's thinking named
+`sci_find` as a tool for "scientific skills" and judged a web-monitoring task
+out of its scope. The wording does not name web search, because that would fit
+one probe directly. Known trade-off: "analysis" lets the guideline fire in
+ordinary data-coding sessions, which costs one tool call. The live tests cannot
+measure that, because every probe has a target.
+
+**A custom system prompt gets neither the listing nor the guideline.** pi adds
+a tool's snippet and guidelines only when it builds its own default prompt. With
+a custom one (`SYSTEM.md` or `--system-prompt`) it leaves out the tools section
+and the guidelines (`buildSystemPrompt` in pi's `system-prompt.js`, the
+`customPrompt` branch; pi 0.84.3, 0.87.0 and 1.0.0 all do this). `sci_find` is still
+registered and in the tool schema, but the prompt never names it. In search
+mode that is the state of the 2026-09-23 run, where 15 of the 19 misses on valid
+probes were attempts that never called it. If you use a custom prompt, add a
+line that names `sci_find`, for example the package's own guideline: "Use
+`sci_find` before you write code, install a package or set up a service for
+scientific, research or analysis work: a skill may already cover it. Then read
+the SKILL.md it returns." No live run used a custom prompt, so the effect of
+that line is not measured.
+
+**Codemode (checked on pi 1.0.0; codemode first shipped in 0.99.0).** Codemode
+is off by default. With
+`codemode.mode: "only"`, pi's tools list shows only `codemode`; scripts call
+`sci_find` as `tools.sci_find`, the guideline stays in the prompt, and the
+3-then-5 hit rule still applies. pi also turns codemode on when an MCP server
+with the default `codemode` exposure connects; `"autoEnableCodemode": false`
+beside `mcpServers` in `mcp.json` stops that (pi's `docs/mcp.md`). Codemode
+adds its own tool and a line to each tool description, so with a small local
+model keep it off unless you use it.
+
+**`/sci none`, `/sci search` and the way back to Core (1.7.0).** An empty
+`skills` filter now means search mode, not "off": `sci_find` stays registered.
+1.6.0's `/sci none` wrote an empty filter to mean off, and 1.7.0 reads that
+same file as search mode without changing it. `/sci search` writes an empty
+filter where 1.6.0 wrote the Core list. An empty filter cannot carry pi config
+overrides (`!x`, `+x`, `-x`; see "The empty-array footgun" below), so
+`/sci search` drops them, and its report names each one: "Dropped pi config
+overrides: !polars. Re-add them with pi config if you want them back." The way
+back to Core is the picker: `/sci profiles`, tick Core, press Enter.
+`test-extension.mjs` starts from four settings files: three 1.6.0 states
+(Core accepted; offer declined, which leaves only the install entry;
+`/sci none`) and one with a pi config override added (Core plus `!polars`). It
+checks that startup leaves each byte-identical and that the round trip
+(`/sci search`, then Core through the picker) restores the Core file byte for
+byte. To turn `sci_find` and `/sci` off, set
+`"extensions": []` on the package's object entry in `settings.json`; this was
+checked against pi's own resolver in 0.84.3, 0.87.0 and 1.0.0, and the `skills` filter
+then works as written.
 
 **Design decisions worth not re-deriving:**
 
-- **The tool is registered unconditionally**, not behind a mode flag. ~150 tokens
-  of tool definition against a ~23k index is not a trade worth a config toggle,
+- **The tool is registered unconditionally**, not behind a mode flag. About 200
+  tokens of tool definition, snippet and guideline against a ~23k index is not
+  a trade worth a config toggle,
   and someone running all 162 still benefits from looking a skill up by need
   rather than by name. `/sci status` says so.
-- **Recall beats precision.** `sci_find` does not have to pick the right skill,
-  only get it into a list of eight with full descriptions attached. Even a small
-  model discriminates well among eight labelled options and badly among 162 in a
-  system prompt. That is why scoring is OR-based: requiring every term to match
-  returns nothing for ordinary phrasings ("variant calling" matches no single
-  description verbatim).
+- **Recall beats precision, in a short list.** `sci_find` does not have to
+  pick the right skill, only get it into a short list with full descriptions
+  attached. Even a small model discriminates well among a few labelled options
+  and badly among 162 in a system prompt. That is why scoring is OR-based:
+  requiring every term to match returns nothing for ordinary phrasings
+  ("variant calling" matches no single description verbatim).
+- **3 hits, then 5.** The first turn that searches after a prompt gets
+  the top 3 (parallel calls in that turn too); later turns get the top 5
+  (`createSearchStage` in `catalog.ts`, fed by pi's `agent_start`,
+  `message_start` and `turn_start` events). A user message starts a new first
+  search: the prompt, and each steer and follow-up message. So does a custom
+  message that opens an agent run. An extension's `pi.sendMessage` with
+  `triggerTurn: true` on an idle agent starts a run with no user message, and pi sends its
+  custom message to the model as one. A custom message later in a run does not
+  start a new first search. Nor does a retry or compaction that restarts the
+  agent loop (`agent_start`, no new message). Profile listings do not count as
+  a search. The result text is most of the prefill of the turn after a search,
+  so a shorter list is a faster turn: about 850 characters per hit, and 8 hits
+  took about 17 of the 25 seconds on 2026-09-25. Under bm25f the target is in
+  the top 3 for 98.7% of the first queries Bonsai 2 27B wrote and 96.4% of
+  Haiku 4.5's. The old ranker's top 8 held 97.2% and 96.3%: equal for Haiku,
+  1.5 points lower for Bonsai. There is no `limit` argument: in the same data
+  the models set one in 578 of 1,341 calls, mostly 10 to 20. `/sci find` and
+  callers that pass no count get 8, from the same ranker.
+- **After a miss, and the live A/B.** When the target is not in the 3, the tool
+  description tells the model to search again with other words. One run
+  measured what it does
+  ([`testing/runs/2026-09-29-openrouter-ab.md`](testing/runs/2026-09-29-openrouter-ab.md)):
+  Gemma 4 26B-A4B through OpenRouter, the old search (commit `0a8ddfd`: old
+  ranker, up to 8 hits, a `limit` argument) against the new one, 319 units (161
+  probes in two paraphrase styles). The target's `SKILL.md` was read in 244 of
+  319 with the new search and 225 of 319 with the old (+6.0 points, 95% CI 1.0
+  to 10.9; the pre-registered test was non-inferiority, which it met). The
+  choice turn's prompt tokens fell by a paired median of 867.5 (n 226). Among
+  attempts whose first list lacked the target (19 new, 17 old), the model called
+  `sci_find` again in 12 and read the target in 10 with the new search, against
+  6 and 4 with the old; those counts are small. When Gemma called `sci_find` at
+  all, it read the right skill in 244 of 255 attempts (95.7%) with the new
+  search and 225 of 245 (91.8%) with the old. Most of its misses never
+  searched (64 of 75, against 74 of 94). Limits: one model, an unpinned
+  provider, and the paraphrases were development data for the ranker, which
+  favours the new search.
+- **A compact result format is experimental, behind a flag, and off.** With
+  `PI_SCI_FIND_FORMAT=compact`, `sci_find` shows the top 2 hits
+  in full and the others with the first sentence of their description only
+  (with 3, then 5 hits, that is 1 or 3 short ones). `/sci find` and other
+  callers that pass no count then get 6 hits, not 8; `sci_find` itself always
+  passes 3 or 5, so the 6 never applies to it. On 2026-09-25 the top 6 held
+  the target in 152 of 158 searches, and the choice turn after the search spent
+  most of its time in prefill of the result. The first choice-turn replay
+  ([`testing/runs/2026-09-27-find-compact-replay.md`](testing/runs/2026-09-27-find-compact-replay.md))
+  was inconclusive: the target was read in 155 of 158 choice turns with
+  `compact` and 158 of 158 with `full` (95% CI −5.4 to 0.8 points, margin −5),
+  and `compact` saved a median 951 prompt tokens. The second sample, pooled
+  with the first, was non-inferior
+  ([`testing/runs/2026-09-27-find-compact-replay-2.md`](testing/runs/2026-09-27-find-compact-replay-2.md)).
+  The flag stays off by decision, not for lack of a replay: the shorter list
+  (3, then 5) took its place as the way to cut result tokens. Profile listings
+  and no-match results are the same in both formats.
+- **The ranker is BM25F (since 1.7.0).** `sci_find` ranks with BM25F over three fields
+  per skill: name, description and SKILL.md body (`extensions/bm25f.ts`). A
+  word's weight falls with the number of skills that use it, and the body lets
+  a query reach a skill through words its description does not use. The
+  settings are fixed; they came from cross-validation on 425 recorded first
+  `sci_find` queries. A query equal to a skill name lists that skill first.
+  The no-match rule is its own: the best score must reach 2.5, or 35% of the
+  most the query could score. On development data it put the target in the
+  top 8 for 99.8% of recorded queries (current ranker: 97.2%) and 95.0% of
+  plain-language rewrites of the probes (current: 77.0%), and lost none of
+  1,069 development queries to the no-match rule. It also returns hits for
+  fewer requests that no skill covers. On agent-written sets (60 off-domain
+  and 40 in-domain requests with no matching skill), a hit came back for 16 and
+  11 as queries (current ranker: 26 and 19) and for 34 and 29 with the full
+  request text as the query (current: 37 and 33). Every count is lower than the
+  current ranker's, yet most full-text requests with no skill still get hits, so
+  the no-match rule is a filter, not a guarantee; the in-domain set has only 40
+  items. Its cost: it has no alias boost, so a query made only of common words
+  can miss ("write the methods section of my paper" ranks `scientific-writing`
+  11th; `test-search.mjs` lists it as a known miss). The index is built on the
+  first call (about 120 ms) and later calls take under 3 ms. Before it became
+  the default:
+  a choice-turn replay (the model read the target in 158 of 158 turns with
+  bm25f lists, against 156 of 158), a panel of two query writers (Claude
+  Haiku 4.5 and Bonsai 2 27B; top 8 99.3% against 96.7%), and one run on a
+  locked held-out set of 321 requests no setting was chosen on (top 3 96.6%
+  against the old ranker's top 8, 88.2%). All in
+  [`testing/runs/2026-09-27-find-ranker.md`](testing/runs/2026-09-27-find-ranker.md).
+  With 3 hits, the "methods section" miss above shows no writing skill; a
+  query that names the kind of writing ("scientific manuscript methods")
+  does. `PI_SCI_FIND_RANKER=current` restores the old ranking order for one
+  release. It is the order only: the first search still shows 3 hits, later
+  ones 5, and there is still no `limit` argument.
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
   than no answer. Matching is **word-boundary, not substring** — raw substring
@@ -411,8 +602,8 @@ all 162 loaded, which means giving up the `settings.json` filter and having
 **The stopgap.** An `input`-event handler in `extensions/index.ts`. `prompt()`
 runs extension commands, then `emitInput`, then `_expandSkillCommand`, then
 `expandPromptTemplate` (`agent-session.js:802-831`), with nothing touching the
-text in between; pi's `docs/extensions.md` shows a literal "intercept skill
-commands before expansion" example on this hook. The handler:
+text in between; pi 0.87's `docs/extensions.md` showed a literal "intercept
+skill commands before expansion" example on this hook. The handler:
 
 1. stands down for `source === "extension"` (`sendUserMessage` defaults
    `expandPromptTemplates` to false, and the event does not carry that flag,
@@ -477,14 +668,18 @@ paths that still forward literal text are written down here, where someone who
 finds a literal `/skill:` in a transcript will look. Until 1.4.1 the status
 line repeated items 1 and 3 to every filtered user; it no longer does.
 
-1. **`steer()` and `followUp()` bypass the hook.** Both call
-   `_expandSkillCommand` directly with no `emitInput` (`agent-session.js:995`,
-   `:1012`). Reached from `interactive-mode.js` (`flushCompactionQueue`, lines
-   3640-3680: on the retry branch every queued message bypasses; on the normal
-   branch the first goes through `prompt()` and the rest bypass) and from
-   `rpc-mode.js:322,326` (RPC `steer` and `follow_up`, unconditionally). So a
-   `/skill:<filtered>` typed while compaction is running, or sent as an RPC
-   steer, still forwards literal text. Not closable from the input hook.
+1. **On pi 0.84 and 0.85, `steer()` and `followUp()` bypass the hook.** Both
+   call `_expandSkillCommand` directly with no `emitInput` (0.84.3
+   `agent-session.js:995`, `:1012`). Reached from `interactive-mode.js`
+   (`flushCompactionQueue`, lines 3640-3680: on the retry branch every queued
+   message bypasses; on the normal branch the first goes through `prompt()` and
+   the rest bypass) and from `rpc-mode.js:322,326` (RPC `steer` and
+   `follow_up`, unconditionally). So on those versions a `/skill:<filtered>`
+   typed while compaction is running, or sent as an RPC steer, still forwards
+   literal text. Not closable from the input hook. pi's changelog lists the RPC
+   fix in 0.86.0 (0.86 code not checked). On pi 0.87.0 (code) and 1.0.0 (code
+   and an RPC run) every queued path runs the hook, and the filtered skill
+   reaches the model expanded.
 2. **No autocomplete.** `interactive-mode.js:520` builds the `/skill:`
    completion list from `getSkills().skills` only. The user types the name
    from `/sci find` output.
@@ -585,20 +780,22 @@ path (finds pi on `PATH`, rebuilds the alias map, imports `jiti/lib/jiti-static.
 directly), so the suites exercise the same module graph pi does. An installed pi
 is therefore a hard prerequisite for `npm test`.
 
-`npm test` runs five things, none of which spend model tokens:
+`npm test` runs seven things, none of which spend model tokens:
 
 | Script | What it proves |
 |---|---|
 | `validate.mjs` | All 162 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
-| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including four queries that must return *nothing*. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
-| `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes Core, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
+| `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`), and the first-search facts of `find-ab-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
+| `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
 
-`npm run typecheck` (`scripts/typecheck.mjs`) is a sixth check, kept separate
+`npm run typecheck` (`scripts/typecheck.mjs`) is one more check, kept separate
 from `npm test`: it runs real `tsc` against `extensions/*.ts`, using pi's own
 shipped `.d.ts` files as the types for `@earendil-works/pi-coding-agent` and
 `typebox` — the same declarations an installed pi actually exposes, not a
@@ -614,7 +811,7 @@ in — so this script shells out to `npx --yes -p typescript@5 tsc`, which
 downloads it into npm's cache on first run. That download is why it is its
 own script and its own CI step rather than folded into `npm test`.
 
-Two things are worth knowing before changing these:
+Three things are worth knowing before changing these:
 
 - `resolve()` returns *all* resources with an `enabled` flag, so `.length` does
   not change when a filter applies. Count `resolve().skills.filter(s => s.enabled)`
@@ -628,13 +825,283 @@ Two things are worth knowing before changing these:
 
 `scripts/test-find-live.mjs` is the release gate and is **not** in `npm test`
 because it spends tokens. It installs the packed tarball into a throwaway agent
-dir filtered to Core and asks a small model three questions whose skills are not
-loaded, then checks the transcript for a `sci_find` call. If a weak model does
+dir in search mode (no skill in the prompt) and asks a small model three
+questions whose skills are not loaded, then checks the transcript for a `sci_find` call. If a weak model does
 not reach for the tool, the tool description and `aliases.ts` are the fix — not
-the test. It copies `auth.json` into the throwaway dir (deleted at exit,
-including under `--keep`): without that, every probe fails with "No API key
-found" and the run reports a model that declined to call the tool when in fact
-no model ran. It separates "never ran" from "declined" for exactly that reason.
+the test. It never copies `auth.json` into the throwaway dir: the model can
+read anything there (Gemma 4 26B-A4B listed `../agent/auth.json` with `ls -R ..`,
+2026-09-29). For a cloud model the harness reads the API key itself (from
+`auth.json`, else `<PROVIDER>_API_KEY`) and holds it in a proxy on 127.0.0.1
+(`scripts/lib/key-proxy.mjs`); the throwaway `models.json` points the provider
+at that proxy with a placeholder key, and the proxy swaps in the real one on
+the way upstream, in the auth header only (swapped in the path or another
+header, the model could make the upstream echo the key back). Neither a deny rule for the file nor an environment variable
+works instead: pi and its bash tool run under one sandbox profile, so a deny
+would block pi too, and the bash tool inherits pi's whole environment. Without
+a key pi fails every probe with "No API key found", so the harness separates
+"never ran" from "declined". It copies `models.json` too, so a local provider
+(Ollama, MLX) resolves, and for a cloud model `models-store.json`, pi's cached
+model list, which holds no credentials.
+
+The model keeps pi's default tools: restricting them to `read,sci_find` leaves
+it little else to do but search, which inflates the score. Some probe tasks
+invite real action ("review my screen activity"), and with bash a model will
+try — an unsandboxed run once searched the whole home directory. So every pi
+run happens under a macOS `sandbox-exec` profile (`scripts/lib/sandbox.mjs`):
+reads and writes only inside that attempt's own directory (its agent-dir copy,
+a fake `HOME`, `TMPDIR`, working directory and session file), the staged
+package read-only, and the network limited to one loopback port: the local
+provider's, or the key proxy's for a cloud provider. pi gets an allowlisted
+environment, not the caller's, with no API keys: the model can run `printenv`,
+and a shell environment carries tokens and paths into the real home. It also
+sets `MPLBACKEND=Agg`: the profile does not fence the window server, and with
+matplotlib's macOS backend a model's `plt.show()` opened windows on the
+user's screen and blocked until someone closed them (2026-09-29).
+The profile also denies programs that act through another process, outside the
+sandbox: `launchctl` (launchd starts a loaded job unsandboxed), `open`,
+`osascript`, `automator` and `shortcuts`, and it blocks Apple events. A model
+asked for "a recurring check" tried `launchctl load` (parallel-web,
+2026-09-23); it failed, probably on a wrong path. Limits that remain: the model
+can reach its own inference server on the allowed port (one model sent itself
+chat completions with `curl`); through the key proxy that bills the key but
+does not show it. It can also see host process names (`pgrep`, `lsof`). `--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
+so no attempt can read another's.
+
+The harness starts a bare `pi`, and under the profile that is the first `pi`
+on `PATH` the sandbox can read. Reads are denied under `/Users`, `/Volumes`,
+`/private/tmp` and `/private/var/folders`, so a pi installed there and put
+first on `PATH` is passed over with no warning, and the next `pi` runs (the
+1.7.0 gate's first pass ran pi 0.84.3 this way). To test another pi version,
+install it outside those paths (for example under `/private/var/tmp`) and
+check `command -v pi; pi --version` inside a profile first.
+
+With `--probes testing/find-probes.json` it runs one supervised probe per skill
+instead of the three built-in ones (`scripts/lib/converse.mjs`): 162
+first-person tasks that never name their skill, each with a `target` and an
+optional `accept` list of siblings that also fit. A probe is up to
+`--attempts` (3) fresh conversations of up to `--responses` (5) model
+responses. Between responses a blind persona (`scripts/lib/supervisor.mjs`,
+`claude-opus-5-5` at low effort via the `claude` CLI) plays the scientist: it
+answers follow-up questions and ends the conversation when the request is
+answered. It sees only the task and the assistant's visible text — never the
+target, the tool calls or `sci_find` output. The target *reaches* the model
+when a `sci_find` result lists it, a bash command's output points at it, or a
+file inside it is read; a result naming more than 20 skills is a catalogue dump
+and counts for none. An attempt that ends without a reach is wiped and the
+probe starts again. Grade: reached in attempt 1 = `success`, 2 =
+`partial-success`, 3 = `functional`, never = `fail`, reported for the target
+alone and for target-or-accepted. The harness polls the session while the
+model works and stops the response the moment the target is reached
+(`stoppedEarly`); nothing after that changes the grade. A response past
+`--timeout` ends its attempt and the attempt counts. The limit is a budget per
+response, not a loop detector — a slow local model can spend it on real work —
+so each timeout is flagged and the summary counts the grades a timeout
+touched. `no-run` and `supervisor-error` are harness
+failures and never a grade. Persona replies that name a skill the assistant
+never said, or nudge toward search, are flagged for review. `--results`
+appends one JSON line per probe as it finishes and `--resume` skips graded
+ones, so a long local-model batch survives a restart. `--offline` spends
+nothing: it ranks each task's full text through `sci_find`'s own search, to
+tell a vague probe or a search gap apart from a model that did not search.
+`--prompt-skills none` (the default since 1.7.0, matching `/sci search`)
+empties the skills filter, so no skill is listed in the system prompt and
+`sci_find` is the only way in; `core` lists the Core profile, what
+`/sci search` wrote before 1.7.0, where a listed skill can stand in for a
+search. `all` sets no filter: every skill is listed, as in a normal install.
+Each result line records which one ran; a line from before the option
+existed counts as `core`.
+
+Options for comparing configurations (added for the 2026-09-25 three-arm run,
+[`testing/runs/2026-09-25-night-arms.md`](testing/runs/2026-09-25-night-arms.md)):
+
+- `--no-extension` writes `extensions: []` into the package entry: pi loads the
+  skills but not the extension, so there is no `sci_find`, no `/sci` and no
+  input hook. Not `--exclude-tools sci_find`, which would leave the hook
+  running.
+- `--package-dir <dir>` packs another package tree (an older release from
+  `git archive`), and `--package-label` records it on every line.
+- `--endpoint read` moves the endpoint from "listed" to "read": the model read
+  the target's SKILL.md with `read`, or printed it with bash (the command names
+  `<target>/SKILL.md` and the output holds its `name:` line). With every skill
+  in the prompt a listing proves nothing, so `--prompt-skills all` requires
+  it. The first listing is still recorded (`listed`, `listedSeconds`).
+- `--gate-calls <n>` ends an attempt as `gated`, a miss, once its first n tool
+  calls hold no skill-seeking call (`sci_find`, or a `read` or bash call that
+  touches a SKILL.md or a `/skills/` path segment). On 2026-09-23 every
+  reaching attempt looked for a skill by its eighth call, and n = 10 would have
+  ended 12 of 28 misses early (10 of them timeouts) and lost no reach.
+- `--warmup` sends one ungraded request first, so the cold prefill of a large
+  system prompt does not count against the first probe (llama.cpp keeps the
+  prefix; pi's skills block comes before the working-directory line).
+- `--archive-to <dir>` copies the transcripts and a tarball of the workspaces
+  out of the temporary directory at the end.
+- `--endpoint first-find` has no target: the attempt stops at the model's
+  first `sci_find` call and ends as `searched`, with the query in `queries[0]`.
+  It measures which query a model writes and how often it searches (with
+  `--gate-calls`, an attempt with no search in its first n calls ends as
+  `gated`). It needs `--attempts 1`. The queries are ranked offline.
+- `--find-ranker <current|bm25f>` sets `PI_SCI_FIND_RANKER` for pi, and is
+  recorded on every line. The default is `bm25f`, the package default since
+  1.7.0. A package older than 5123f67 has no bm25f and runs `current`: pass
+  `current` for it, so the lines record what ran.
+- `--models-json <file>` seeds the throwaway agent dir with that models.json
+  instead of the real one (a provider on another port, say); the real agent
+  dir is not written.
+- `scripts/find-probes-styled.mjs <synonym|plain|expert>` writes a probe file
+  whose tasks are one paraphrase style from `testing/find-rank/`.
+- The harness refuses a probe whose task names its own skill (the name, or
+  the name with its hyphens as spaces or removed). It matches whole words
+  only, so "Shapley" in the expert paraphrase for `shap` passes.
+
+`scripts/find-panel.sh --out <dir> --writer <label> --model <id>` runs one
+query writer over one or more styles (`--styles plain,synonym,expert`, or
+`original`) with `--endpoint first-find --attempts 1`. It `git archive`s
+`--ref` into `<dir>/src/` at the first start and runs from there; running it
+again with the same `--out` continues (`--resume`). A local writer needs
+`--health-url`, checked before each style. Each invocation archives into its
+own time-stamped folder. `<dir>/src/scripts/find-panel-report.mjs <dir>...`
+(the frozen copy, so the rankers match the run) reads
+`results-<writer>-<style>.jsonl`: the search rate by outcome, then the target
+in the top 8 for the first query of the first `sci_find` message, paired
+bm25f − current (Newcombe method 10, McNemar exact) per writer and style.
+Pooled rows repeat each target once per style, so they add a cluster
+bootstrap by target. A writer with fewer than 50 searched attempts (30 in
+the plain style, for the 4b rule) counts toward no rule. The union of that
+message's queries and the raw request text are secondary rows.
+
+Every attempt now also records the first request's prompt size (pi usage:
+input + cacheRead + cacheWrite), peak context, output tokens, tool calls, the
+index of the first skill-seeking call, pi's `compaction` entries and provider
+overflow errors. A response that ends on an overflow pi could not recover from
+ends its attempt as `overflow`. A response that ends on any other provider
+error (the server died, an HTTP 500) is a harness error, `no-run`, not a
+grade: `--resume` runs it again.
+
+`scripts/find-live-arms.sh` runs several arms unattended. It `git archive`s
+the two commits into `<out>/src/` at the start and runs only from there, so an
+edit to the working tree cannot change an arm mid-run. It starts the model
+server from a script you pass, checks it before each invocation and restarts
+it once if it died, stops after three harness errors in a row, and runs under
+`caffeinate`. Probes run in chunks (Core first, then a seeded shuffle); each
+chunk runs every arm, with the order rotated per chunk, so a run stopped at a
+chunk boundary is still balanced and paired. `--stop-after HH:MM` starts no
+chunk after that time; the same `--out` continues on a later night.
+
+`scripts/find-live-timing.mjs <out>` splits each attempt's time by the
+server. It pairs every finished request in `llama-server.log` with the pi
+message it produced: pi's `usage.input` is the prompt tokens llama.cpp
+processed and `usage.output` the tokens it generated, and the clock offset is
+fit from the pairs. Per attempt and warm-up it gives prefill and generation
+seconds, tokens processed and cached, and the **queue wait**: the time from
+pi's request to the server starting it. The queue wait exists because a stop
+(reach or gate) kills pi, but llama.cpp finishes the prefill of the cancelled
+request first, about 11 s (v16) to 17 s (`full`) on 2026-09-25. The next
+attempt's first request waits for it, inside its recorded time to read.
+`endpointSecondsNet` is the time to read without that wait. A stop can also
+slow the next request's prefill (2026-09-25, whole night: `full` 44 against
+78 tok/s, `v16` 93 against 110, `v17` no change);
+that stays inside the net time, and `firstAfterStop` marks the attempts it
+can touch. The script also prints prefill and generation tok/s by prompt
+size per arm, without warm-ups and requests right after a stop. It needs the
+archived session files: an invocation stopped by a signal archives nothing,
+so its attempts are not timed.
+
+`scripts/find-live-arms-report.mjs <out> [--timing <jsonl>]` gives the
+pre-registered outcomes. The analysis set is the chunks with a results line
+in every arm, less any probe with a harness error in any arm; an intersection
+of finished probes would let a part-done chunk in. Per arm it gives the read
+rate (Core and non-Core apart), how attempts ended, the context and output
+medians, compactions and overflow errors. For `v17 − v16` (non-inferiority
+at −5 points) and `v17 − full` it gives the paired difference with the
+Newcombe method 10 interval and McNemar's exact test, for all probes, Core,
+non-Core and without probe-invalid probes; the discordant probes with how the
+miss ended; and the paired time to read on probes read in both arms. With
+`--timing` (the `--jsonl` output of `find-live-timing.mjs`) it adds the
+server-exact and queue-net times, labelled post hoc.
+
+`scripts/find-ab.sh --out <dir> --models-json <file>` compares two package
+commits (`--old-ref`, default 0a8ddfd, the last commit before the 3-then-5
+search; `--new-ref`, default HEAD) through a cloud model (default Gemma 4
+26B-A4B on OpenRouter). It `git archive`s both into `<dir>/src/` and runs the
+harness and probes from `src/new`. The probes are paraphrase styles
+(`--styles plain,expert`); each chunk of probe ids starts every arm × style
+invocation at the same moment, so both arms of a probe meet the same provider
+routing and load. A second pass retries the chunks with a harness error; the
+same `--out` continues. `scripts/find-ab-report.mjs <dir>` gives the
+read-rate difference new − old pooled over styles (Newcombe method 10, and a
+bootstrap over probes, since the styles of one probe share a target), then
+per style, among attempts that searched in both arms, and without
+provider errors or timeouts. Per arm it gives the search rate, `sci_find`
+calls, the first result's hits and characters, whether it listed the target,
+the `limit` the model set, and the prompt tokens of the choice turn (the
+request after the first result), from the archived session files.
+
+`scripts/find-live-replay.mjs <run-dir> --out <dir>` replays one turn of a
+finished run: the model response after the first `sci_find` result (the
+choice turn). It cuts each recorded session after that result and writes two
+copies: the recorded text (`full`), and the same hits rendered by the compact
+format (`compact`). A parser gate first renders each recorded hit list again
+in the full format and requires a byte-identical match. For each copy,
+`scripts/lib/replay-worker.mjs` runs in a child process with its own `HOME`
+and agent dir, opens the session with pi's SDK (`SessionManager.open`), and
+continues the agent for one turn. Every tool is a stub that throws, and the
+turn stops at the first assistant message (`--prove-stub` lets it reach
+`turn_end` to show the stub ran). The runner needs the model server; it
+checks `/health` from `models.json` and does not start the server.
+`--dry-run` prepares every probe without it and prints the target's rank,
+the recorded choices and the text sizes. `full` replays record prompt-token
+parity with the recorded request. `scripts/find-live-replay-report.mjs <out>`
+gives the pre-registered outcomes. The analysis set needs both variants ok,
+parity, and the same system prompt and tool hashes within a probe (the
+system prompt holds the recorded working directory, so it differs across
+probes). A validity line compares the `full` replay with the recorded choice
+before any comparison of the formats. `--flip-order` starts each probe with the other arm, for a
+second sample. `scripts/find-live-replay-pooled.mjs <sample-1> <sample-2>`
+pools two samples: validity per sample, then `compact` − `full` over the
+(probe, sample) pairs with two intervals (Newcombe method 10, and a cluster
+bootstrap over probes with a fixed seed); a verdict counts only when both
+give it. `--variants full,bm25f` replaces `compact` with `bm25f`: each
+`sci_find` call of the choice turn runs again through the extension's own
+`runToolSearch` under `PI_SCI_FIND_RANKER=bm25f`, in the full format, with
+the recorded package's paths. Before that, the same call under the current
+ranker must reproduce the recorded result byte for byte, or the probe is an
+error. `find-live-replay-report.mjs --variant bm25f` reports `bm25f` − `full`.
+
+Two summary lines show recovery: the
+response in which the target was reached, and every attempt split by when it
+first called `sci_find` (response 1, later, never) with how many of each
+reached the target. A late first search that still reaches is recovery inside
+a conversation; a grade below `success` is recovery by a fresh attempt.
+
+A fail can mean the probe, not the model, is wrong: the model answered the
+request well without the skill. `scripts/lib/probe-check.mjs` checks each
+graded probe, whatever its final grade, in which the persona ended an attempt
+satisfied before any wanted skill reached the model. A judge (`--judge-model`, default
+`claude-fable-5-1`, via the `claude` CLI) sees the task, the target's
+SKILL.md and that attempt's conversation. It answers two questions: (a) did
+the first request go unserved while the target could have served it in the
+sandbox (drift the model caused), and (b) would the target have materially
+improved the model's answer? Being on topic is not enough, and a yes must
+name the concrete gap the target fills; an unnamed benefit counts as no. When
+every judged attempt is no on both, the line gets `probeCheck.invalid`. It
+keeps its raw grade, but the summary counts it as `probe-invalid`, leaves it
+out of the grades and the recovery lines, and lists it with the judge's
+reason as a probe to rewrite. A probe reached in its first attempt is never
+audited, so a probe that did not need its skill but was searched at once
+keeps its success: the summary therefore also prints the raw target line,
+with each probe-invalid at its raw grade, and a report quotes both.
+`scripts/check-probes.mjs <results.jsonl> --transcripts <dir> -o <file>`
+runs the check again on a finished run from its kept transcripts (for a run
+made before the check or its current rule, or with another judge), and
+writes the latest line per probe with a fresh `probeCheck`. A judge failure is `check-error`: the grade stands and the
+run goes on. Rewrites must make the skill necessary and must not name it.
+Probes the model failed where the skill was needed are never rewritten, so
+the score cannot drift upward through prompt edits. Each line records its
+`task` text: `--resume` and the summary count a line only for the probe's
+current wording, so a rewritten probe runs fresh. A probe with `untestable`
+set (a skill that runs only on local state the sandbox cannot supply) loads
+but never runs. Each run names it at the start, and `--only` refuses it.
+`testing/README.md` records the criterion and each case.
 
 ## Port process (how a new upstream version lands)
 
@@ -835,6 +1302,17 @@ record by release" below, and the caveats that used to sit on the README are
 under "What pi does and does not enforce". The README is the landing page on
 npm and GitHub and stays positive and short; this file is where the hedges live.
 
+The README reports the search test with `deepseek/deepseek-v4-flash` (Core in
+the prompt, three questions, `sci_find` called unprompted each time) for 1.1.0,
+1.2.0, 1.3.0, 1.4.0 and 1.5.0 (1.4.1 has no entry). `extensionRuns` holds no
+entry for that test with this model for 1.6.0. The 1.6.0 search test is the
+local-model run of 2026-09-23 (Ternary Bonsai 2 27B, no skill in the prompt;
+report in `testing/report.md`). For 1.7.0 the same three questions ran on pi
+1.0.0 with no skill in the prompt, on Bonsai 2 27B, Gemma 4 26B-A4B and
+`openrouter/deepseek/deepseek-v4-flash` (entry of 2026-10-02). The model read
+an expected `SKILL.md` on all three questions with Bonsai and DeepSeek, and on
+two with Gemma.
+
 ```bash
 npm run test:batch -- --version 1.0.3 --include <skills-new-this-release>
 ```
@@ -970,6 +1448,27 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   and `deeptools` were held to; nothing here claims the AlphaGenome Atlas
   itself was queried, only that pi loaded and followed the skill up to the
   key it does not have.
+- **1.7.0 (0):** no skill batch. `skills/` is the same git tree as in 1.6.0
+  (`786d69d`), so `test-batch` was not run, as in 1.4.1, and the count of
+  skills run stays at 43. The release changes search, not skills. Three runs
+  measured its design. Each has an `extensionRuns` entry in
+  `testing/ledger.json` and a notebook in `testing/runs/`:
+  `2026-09-25-night-arms.md` (Bonsai 2 27B, three arms over 161 probes: the
+  target skill read on 157 with the 1.7.0 design as first built, on 116 with
+  1.6.0 search mode, on 158 with all 162 skills listed),
+  `2026-09-27-find-ranker.md` (offline, 321 held-out requests: BM25F top 3
+  held the target 310 times, the old ranker's top 8, 283 times) and
+  `2026-09-29-openrouter-ab.md` (Gemma 4 26B-A4B, old search against new
+  search over 319 units: new on 244, old on 225, +6.0 points, non-inferior).
+  All three ran on pre-release builds (the package content of `08aff2e`,
+  `69eea24` and `713d6e8`), before the fix commits that came after, so none of
+  them ran the final tarball. The release gates then ran on the packed
+  tarball on pi 1.0.0 (2026-10-02, one `extensionRuns` entry):
+  `scripts/try-it.sh new --check` and `upgrading --check` passed, the
+  discovery probe found the four skills it asked for and not the made-up one,
+  and `node scripts/test-find-live.mjs` passed on three small models (Bonsai 2
+  27B, Gemma 4 26B-A4B, DeepSeek V4 Flash): `sci_find` called and an expected
+  skill returned on 3 of 3 questions for each.
 - The other 119 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
@@ -1015,7 +1514,8 @@ claims about adoption and coverage have something behind them.
 
 ## Publishing checklist
 
-- [ ] `npm test` clean — validation plus the four offline suites (requires an
+- [ ] `npm test` clean — validation plus the six offline suites (search,
+      extension, filter, skill-expand, frontmatter and live-lib; requires an
       installed pi; they load the extension through pi's own jiti)
 - [ ] Read `sync-upstream.sh`'s main-ahead warning. When upstream `main` has
       moved past the tag, sync a SHA on `main` instead of the stale tag

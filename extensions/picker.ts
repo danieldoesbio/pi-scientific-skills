@@ -3,7 +3,7 @@
  * or RPC mode, and the real focused checkbox list for everything else.
  */
 
-import { describeCost, skillsForSelection } from "./catalog";
+import { describeCost, describeSearchMode, skillsForSelection } from "./catalog";
 import { TOGGLES } from "./profiles";
 import { commitPlan, findPackageEntry, isOverridePattern, readConfig, readSettings } from "./settings";
 import { report, settingsPath } from "./paths";
@@ -209,8 +209,8 @@ const confirmReplacingUnknownFilter = async (
   return ctx.ui.confirm(
     "Replace the existing filter?",
     `${settingsPath()} lists ${includes.length} skill pattern(s) that /${COMMAND_NAME} ` +
-      `did not write. Applying a profile replaces that list (\`pi config\` overrides ` +
-      `are kept). Continue?`,
+      `did not write. Applying a profile replaces that list. \`pi config\` overrides stay, ` +
+      `unless you choose no profile: search mode drops them and names each one. Continue?`,
   );
 };
 
@@ -236,7 +236,7 @@ export const runPicker = async (ctx: CommandContext): Promise<void> => {
   const skills = skillsForSelection(chosen);
   const summary =
     skills.length === 0
-      ? "All scientific skills disabled."
+      ? `No profile chosen. Search mode: ${describeSearchMode()}.`
       : `Active: ${describeCost(skills.length)}.`;
   await commitPlan(ctx, { kind: "filter", skills }, { kind: "set", ids: [...chosen] }, summary);
 };

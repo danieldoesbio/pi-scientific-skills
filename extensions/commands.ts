@@ -1,12 +1,12 @@
 /**
  * `/sci`'s subcommands and its bare-menu dispatch: status, the profile picker,
- * search mode, find, and the all/none/reset bulk actions.
+ * search mode (and its alias `none`), find, and the all/reset bulk actions.
  */
 
-import { catalog, describeCost, runToolSearch, skillsForSelection, SKILLS_DIR } from "./catalog";
+import { catalog, describeCost, describeSearchMode, runToolSearch, SKILLS_DIR } from "./catalog";
 import { report, settingsPath } from "./paths";
 import { runPicker } from "./picker";
-import { TOGGLES, TOTAL_SKILL_COUNT } from "./profiles";
+import { TOTAL_SKILL_COUNT } from "./profiles";
 import {
   commitPlan,
   describeFailedRead,
@@ -19,7 +19,6 @@ import {
 } from "./settings";
 import {
   COMMAND_NAME,
-  DEFAULT_PROFILE_ID,
   SUBCOMMANDS,
   TOOL_NAME,
   usage,
@@ -72,8 +71,9 @@ const describeSkillsFilter = (skills: readonly unknown[]): string => {
     return 'packages entry has a malformed "skills" value';
   }
   const patterns = skills as readonly string[];
-  // pi treats a literally empty array as "disable every resource of this type".
-  if (patterns.length === 0) return describeCost(0);
+  // pi treats a literally empty array as "disable every resource of this type":
+  // no skill in the prompt, which is search mode.
+  if (patterns.length === 0) return `search mode: ${describeSearchMode()}`;
 
   const overrides = patterns.filter(isOverridePattern);
   const includes = patterns.filter((pattern) => !isOverridePattern(pattern));
@@ -143,8 +143,8 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
   );
 
   // The input hook rebuilds /skill:<name> for a filtered-out skill typed at the
-  // prompt. The paths it cannot see (compaction queue, RPC steer, other
-  // packages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
+  // prompt. The paths it cannot see (other packages; on pi 0.84 and 0.85 also
+  // queued messages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
   // status answers "what can I do now", and the answer is "type the name".
   if (hasSkillsFilter(location)) {
     lines.push(
@@ -165,7 +165,7 @@ const MAIN_MENU = [
   "Choose profiles…",
   "Show status",
   `Enable all ${TOTAL_SKILL_COUNT} skills`,
-  "Disable all skills",
+  "Search only (no skills in the prompt)",
   "Reset (forget profiles, enable all)",
   "Cancel",
 ] as const;
@@ -178,14 +178,6 @@ const enableAll = (ctx: CommandContext): Promise<void> =>
     `All skills active (${describeCost(TOTAL_SKILL_COUNT)}). Saved profiles kept.`,
   );
 
-const disableAll = (ctx: CommandContext): Promise<void> =>
-  commitPlan(
-    ctx,
-    { kind: "filter", skills: [] },
-    { kind: "set", ids: [] },
-    "All scientific skills disabled (~0 tokens).",
-  );
-
 const resetAll = (ctx: CommandContext): Promise<void> =>
   commitPlan(
     ctx,
@@ -195,29 +187,29 @@ const resetAll = (ctx: CommandContext): Promise<void> =>
   );
 
 /**
- * Trim the always-loaded index to Core and lean on `sci_find` for the rest.
+ * Keep every skill out of the system prompt and let `sci_find` reach them.
  *
- * This is the recommended shape: the everyday statistics/EDA/figures/writing
- * skills stay in the system prompt where the model will simply use them, and
- * the rest stay reachable through search instead of being invisible.
+ * This is the recommended shape. In the 2026-09-23 live test, a 27B local
+ * model with no skill in its prompt reached the target through `sci_find`
+ * within three attempts for 156 of 157 valid probes (143 on the first), and
+ * all ten Core targets within three attempts (8 on the first)
+ * (testing/report.md). Profiles, `pi config` and `/skill:<name>` still put a
+ * skill in front of the model directly. `/sci none` is an alias: an empty
+ * filter no longer means "off", because the tool stays.
  */
-const enableSearchMode = async (ctx: CommandContext): Promise<void> => {
-  const core = TOGGLES.find((toggle) => toggle.id === DEFAULT_PROFILE_ID);
-  if (!core) {
-    report(ctx, `Internal error: no "${DEFAULT_PROFILE_ID}" profile.`, "error");
-    return;
-  }
-  const skills = skillsForSelection(new Set([DEFAULT_PROFILE_ID]));
-  await commitPlan(
+const enableSearchMode = (ctx: CommandContext): Promise<void> =>
+  commitPlan(
     ctx,
-    { kind: "filter", skills },
-    { kind: "set", ids: [DEFAULT_PROFILE_ID] },
-    `Search mode: ${core.label} loaded (${describeCost(skills.length)}); ` +
-      `${TOOL_NAME} reaches all ${TOTAL_SKILL_COUNT}.`,
+    { kind: "filter", skills: [] },
+    { kind: "set", ids: [] },
+    `Search mode: ${describeSearchMode()}.`,
   );
-};
 
-/** Human-facing search — also the fallback for models too weak to tool-call. */
+/**
+ * Human-facing search — also the fallback for models too weak to tool-call.
+ * Same ranker as `sci_find`, but no hit count is passed, so it lists the top 8
+ * where the model gets 3, then 5.
+ */
 const runFind = (ctx: UiContext, query: string): void => {
   report(ctx, runToolSearch({ query }), SKILLS_DIR ? "info" : "warning");
 };
@@ -233,7 +225,7 @@ const showMainMenu = async (ctx: CommandContext): Promise<void> => {
     case MAIN_MENU[2]:
       return enableAll(ctx);
     case MAIN_MENU[3]:
-      return disableAll(ctx);
+      return enableSearchMode(ctx);
     case MAIN_MENU[4]:
       return resetAll(ctx);
     default:
@@ -271,7 +263,7 @@ export const dispatch = async (args: string, ctx: CommandContext): Promise<void>
     case "all":
       return enableAll(ctx);
     case "none":
-      return disableAll(ctx);
+      return enableSearchMode(ctx);
     case "reset":
       return resetAll(ctx);
   }
