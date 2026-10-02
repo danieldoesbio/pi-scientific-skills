@@ -75,7 +75,7 @@ The bootstrap interval is usually wider when the losses fall on few probes.
   is planned together with the `sci_find` ranker work, so it runs on the
   ranker that the ranker work keeps.
 - **Inferior:** stop. `full` stays the only format, and the flag is removed.
-- **Inconclusive:** no third sample. The flag stays experimental and Daniel
+- **Inconclusive:** no third sample. The flag stays experimental and the maintainer
   decides.
 
 ## Predictions

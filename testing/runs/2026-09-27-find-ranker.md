@@ -195,7 +195,7 @@ gain of bm25f is in the lists (step 2) and in the queries of other models
 - **Inferior:** bm25f does not become the default. The discordant probes are
   examined.
 - **Inconclusive:** no default change and no automatic second sample.
-  Daniel decides.
+  The maintainer decides.
 
 ### Predictions
 
@@ -322,7 +322,7 @@ committed in 5123f67.
   ships.
 - **Rule B, better on average.** Over the counted writers, both lower
   bounds are above 0: met. Both at 0 or below: not met. They disagree:
-  inconclusive, and Daniel decides.
+  inconclusive, and the maintainer decides.
 - **4b skip rule.** If the plain-style gain is under 3 points for every
   counted writer, step 4b does not run. With no counted writer, 4b stays.
 - **Secondary.** The search rate by outcome, per writer and style; the
@@ -459,7 +459,7 @@ final only when the Gemma writers have run.
 
 Written before the held-out set is read and before any Gemma run.
 
-- **Gemma 4 12B and E4B do not run.** Daniel decided this on 2026-09-29,
+- **Gemma 4 12B and E4B do not run.** The maintainer decided this on 2026-09-29,
   after the Haiku and Bonsai results were in. The step 3 rules are final
   over the two counted writers: rule A met, rule B met (+2.6, Newcombe 1.6
   to 3.8, bootstrap by target 0.8 to 4.9), and the plain-style gain is 3
@@ -503,7 +503,7 @@ Written before the held-out set is read and before any Gemma run.
   style, bm25f top 3 − current top 8, paired by cell: the point estimate is
   0 or more and the Newcombe lower bound is above −5 points. Met for both
   styles: the work goes on to the code change and the live test. Not met for
-  either style: stop; Daniel decides; no default changes on this evidence.
+  either style: stop; the maintainer decides; no default changes on this evidence.
 - **Secondary.** Top 1, 2, 3, 5 and 8 and the no-hit share, both rankers.
   Top 5 is the size of later searches. An absolute 95% for top 3 applies to
   model queries (the panel); on raw text it is reported, not a bar.
@@ -578,7 +578,7 @@ Target in the top k (%), request text as the query:
   `read`. Pre-registered in testing/runs/2026-09-29-openrouter-ab.md (plain
   and expert probes).
 - Then release prep: the upgrade notice gets a line on the new search; the
-  usual release process; `npm publish` is Daniel's step.
+  usual release process; `npm publish` is the maintainer's step.
 
 ## Post-review regression check (2026-09-30)
 

@@ -117,7 +117,7 @@ before launch.
 ## Decision rule
 
 - **Non-inferior:** release prep for 1.7.0.
-- **Inconclusive:** Daniel decides, with the discordant units and why each
+- **Inconclusive:** the maintainer decides, with the discordant units and why each
   miss ended.
 - **Inferior:** 1.7.0 does not ship the 3-then-5 search as it is. First
   examine the misses: was the target in the first list, and did the model
@@ -205,7 +205,7 @@ cents.
 - **Why.** The sandbox does not fence the window server, pi's environment set
   no matplotlib backend, and the Python on PATH (miniforge) defaults to the
   macOS backend. A test model's `plt.show()` (seaborn, matplotlib and aeon
-  probes) opened windows on Daniel's screen and blocked the bash call until
+  probes) opened windows on the maintainer's screen and blocked the bash call until
   the window closed or the 300 s response timeout. So a person closing a
   window could change an attempt's outcome and time. The macOS log shows the
   backend loaded at 11:51 (matplotlib probe).
@@ -475,3 +475,21 @@ the package content of 08aff2e, launched from 49288d1: the old ranker, 8
 hits and a `limit` argument the model could set. The BM25F ranker and the
 3-then-5 list (713d6e8) came later. No single run compares the shipped tip
 with 1.6.0 on one model.
+
+### Recount of the key exposure (2026-10-02)
+
+The 11:55 addendum says that in the void first run "3 attempts listed the agent
+dir and saw `auth.json`, and 4 ran `env`". A recount of that run's local
+transcripts (`testing/transcripts/find-live/2026-09-29-openrouter-ab/archive/`,
+not in git) gives other numbers:
+
+- **4 attempts** listed the agent dir and saw `auth.json`: matlab in `new`
+  expert, molecular-dynamics in `old` expert, and paperzilla in both plain
+  arms.
+- **2 attempts** ran `env`: paperzilla in `new` plain and matlab in `old`
+  expert.
+- No tool call named `auth.json`, so no attempt read the file, as the addendum
+  says.
+
+The recount checked these three statements only. The void run's data stay
+unanalysed, and no rule or result changes.

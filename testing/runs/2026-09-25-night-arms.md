@@ -366,7 +366,7 @@ none.
 ### Deviation: external fans off for part of the run (not pre-registered)
 
 The external fans were on for the run, as planned, except 15:37:55–19:39:55
-on 2026-09-26, when Daniel turned them off to test them. Chunk 12: the first
+on 2026-09-26, when the maintainer turned them off to test them. Chunk 12: the first
 17 minutes of `full` had the fans on, the rest off. Chunk 13: all off. Chunk
 14: `v17` and `full` off, `v16` off for its first 47 minutes. Generation was
 3–5% slower with the fans off in every arm and prompt-size bin with data in
@@ -377,8 +377,8 @@ time. Details in the third-session notes below.
 
 ### Notes during the run
 
-**2026-09-25, first session (chunk 1 done, chunk 2 part done, paused).** Daniel
-stopped the run at 09:53 with `pkill`. Chunk 1 is complete in all arms.
+**2026-09-25, first session (chunk 1 done, chunk 2 part done, paused).** The
+maintainer stopped the run at 09:53 with `pkill`. Chunk 1 is complete in all arms.
 Chunk 2 is complete for `v17`; `full` finished 5 of 10; `v16` did not start.
 
 - **The stop hung** until llama-server got a second TERM: the driver sends
