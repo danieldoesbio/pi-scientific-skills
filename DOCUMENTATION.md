@@ -384,11 +384,9 @@ that line is not measured.
 `sci_find` as `tools.sci_find`, the guideline stays in the prompt, and the
 3-then-5 hit rule still applies. pi also turns codemode on when an MCP server
 with the default `codemode` exposure connects; `"autoEnableCodemode": false`
-stops that (pi's `docs/mcp.md`). Codemode adds its own tool and a line to each
-tool description: about 0.5k tokens per request with Gemma 4 12B and Bonsai in
-one exploratory check. With a small local model, keep it off unless you use it.
-In that check (8 probes, one run each) neither model called `sci_find` through
-codemode; both called it directly.
+beside `mcpServers` in `mcp.json` stops that (pi's `docs/mcp.md`). Codemode
+adds its own tool and a line to each tool description, so with a small local
+model keep it off unless you use it.
 
 **`/sci none`, `/sci search` and the way back to Core (1.7.0).** An empty
 `skills` filter now means search mode, not "off": `sci_find` stays registered.
