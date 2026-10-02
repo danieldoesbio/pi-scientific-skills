@@ -1297,8 +1297,13 @@ npm and GitHub and stays positive and short; this file is where the hedges live.
 The README reports the search test with `deepseek/deepseek-v4-flash` (Core in
 the prompt, three questions, `sci_find` called unprompted each time) for 1.1.0,
 1.2.0, 1.3.0, 1.4.0 and 1.5.0 (1.4.1 has no entry). `extensionRuns` holds no
-entry for that test with this model for 1.6.0 or 1.7.0. The 1.6.0 search test is the local-model run of 2026-09-23 (Ternary
-Bonsai 2 27B, no skill in the prompt; report in `testing/report.md`).
+entry for that test with this model for 1.6.0. The 1.6.0 search test is the
+local-model run of 2026-09-23 (Ternary Bonsai 2 27B, no skill in the prompt;
+report in `testing/report.md`). For 1.7.0 the same three questions ran on pi
+1.0.0 with no skill in the prompt, on Bonsai 2 27B, Gemma 4 26B-A4B and
+`openrouter/deepseek/deepseek-v4-flash` (entry of 2026-10-02). The model read
+an expected `SKILL.md` on all three questions with Bonsai, on one with Gemma
+and on two with DeepSeek.
 
 ```bash
 npm run test:batch -- --version 1.0.3 --include <skills-new-this-release>
@@ -1449,11 +1454,13 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   search over 319 units: new on 244, old on 225, +6.0 points, non-inferior).
   All three ran on pre-release builds (the package content of `08aff2e`,
   `69eea24` and `713d6e8`), before the fix commits that came after, so none of
-  them ran the final tarball. **Still owed for 1.7.0:**
-  `node scripts/test-find-live.mjs` on a small model, the tarball discovery
-  probe from the publishing checklist, and `scripts/try-it.sh new --check` and
-  `upgrading --check` on the packed tarball. None has been run against the
-  final tarball.
+  them ran the final tarball. The release gates then ran on the packed
+  tarball on pi 1.0.0 (2026-10-02, one `extensionRuns` entry):
+  `scripts/try-it.sh new --check` and `upgrading --check` passed, the
+  discovery probe found the four skills it asked for and not the made-up one,
+  and `node scripts/test-find-live.mjs` passed on three small models (Bonsai 2
+  27B, Gemma 4 26B-A4B, DeepSeek V4 Flash): `sci_find` called and an expected
+  skill returned on 3 of 3 questions for each.
 - The other 119 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce

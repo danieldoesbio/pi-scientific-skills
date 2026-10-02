@@ -182,11 +182,14 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   starting context was about 1.8k tokens. Measured on 1.6.0, before `sci_find`
   was listed in the system prompt; the report is
   [`testing/report.md`](testing/report.md).
-- **Search mode against a small cloud model, 3 of 3.** Before 1.7.0, with only
+- **Search mode against small models, 3 of 3.** Before 1.7.0, with only
   Core loaded, `deepseek/deepseek-v4-flash` called `sci_find` unprompted for
   three questions whose skills were not in its prompt, and read the `SKILL.md`
   each time. Recorded for 1.1.0, 1.2.0, 1.3.0, 1.4.0 and 1.5.0, 3 of 3 each
-  time, under `extensionRuns` in `testing/ledger.json`.
+  time, under `extensionRuns` in `testing/ledger.json`. For 1.7.0, on pi
+  1.0.0 with no skill in the prompt, Bonsai 2 27B (local), Gemma 4 26B-A4B and
+  DeepSeek V4 Flash each called `sci_find` and found a matching skill for all
+  three.
 - **Upstream's own pytest suite passed at the last count** (upstream v2.62.0);
   details in
   [DOCUMENTATION.md](DOCUMENTATION.md#what-pi-does-and-does-not-enforce).
