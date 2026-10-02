@@ -491,7 +491,8 @@ not in git) gives other numbers:
 - No tool call named `auth.json`. A glob or a recursive read would not name
   it, so this alone does not show that no attempt read the file. A count of
   the OpenRouter key prefix (`sk-or-`) found it in none of the 189 transcript
-  and log files and none of the 18,678 files in the archived workspaces.
+  and log files and none of the 8,372 files in the archived workspaces (macOS
+  `._*` metadata entries not counted).
 
 The recount checked these counts only. The void run's data stay
 unanalysed, and no rule or result changes.
