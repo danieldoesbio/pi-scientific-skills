@@ -867,6 +867,14 @@ chat completions with `curl`); through the key proxy that bills the key but
 does not show it. It can also see host process names (`pgrep`, `lsof`). `--no-sandbox` turns the profile off. Transcripts are written outside the sandbox,
 so no attempt can read another's.
 
+The harness starts a bare `pi`, and under the profile that is the first `pi`
+on `PATH` the sandbox can read. Reads are denied under `/Users`, `/Volumes`,
+`/private/tmp` and `/private/var/folders`, so a pi installed there and put
+first on `PATH` is passed over with no warning, and the next `pi` runs (the
+1.7.0 gate's first pass ran pi 0.84.3 this way). To test another pi version,
+install it outside those paths (for example under `/private/var/tmp`) and
+check `command -v pi; pi --version` inside a profile first.
+
 With `--probes testing/find-probes.json` it runs one supervised probe per skill
 instead of the three built-in ones (`scripts/lib/converse.mjs`): 162
 first-person tasks that never name their skill, each with a `target` and an
@@ -1302,8 +1310,8 @@ local-model run of 2026-09-23 (Ternary Bonsai 2 27B, no skill in the prompt;
 report in `testing/report.md`). For 1.7.0 the same three questions ran on pi
 1.0.0 with no skill in the prompt, on Bonsai 2 27B, Gemma 4 26B-A4B and
 `openrouter/deepseek/deepseek-v4-flash` (entry of 2026-10-02). The model read
-an expected `SKILL.md` on all three questions with Bonsai, on one with Gemma
-and on two with DeepSeek.
+an expected `SKILL.md` on all three questions with Bonsai and DeepSeek, and on
+two with Gemma.
 
 ```bash
 npm run test:batch -- --version 1.0.3 --include <skills-new-this-release>
