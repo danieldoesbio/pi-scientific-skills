@@ -298,7 +298,8 @@ those to `resource-loader.js`'s `extendResources` (`:230`), which *merges*
 into the already-discovered set. No return value can remove a skill. (Line
 numbers as of pi 0.84.3; they move about one release at a time.)
 
-The filter is the documented object form (`settings.md`):
+The filter is the object form that pi documents in `docs/packages.md` (in
+`docs/settings.md` up to pi 0.87):
 
 ```json
 { "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy"] } ] }
@@ -368,7 +369,7 @@ measure that, because every probe has a target.
 a tool's snippet and guidelines only when it builds its own default prompt. With
 a custom one (`SYSTEM.md` or `--system-prompt`) it leaves out the tools section
 and the guidelines (`buildSystemPrompt` in pi's `system-prompt.js`, the
-`customPrompt` branch; pi 0.84.3 and 0.87.0 both do this). `sci_find` is still
+`customPrompt` branch; pi 0.84.3, 0.87.0 and 1.0.0 all do this). `sci_find` is still
 registered and in the tool schema, but the prompt never names it. In search
 mode that is the state of the 2026-09-23 run, where 15 of the 19 misses on valid
 probes were attempts that never called it. If you use a custom prompt, add a
@@ -377,6 +378,17 @@ line that names `sci_find`, for example the package's own guideline: "Use
 scientific, research or analysis work: a skill may already cover it. Then read
 the SKILL.md it returns." No live run used a custom prompt, so the effect of
 that line is not measured.
+
+**Codemode (pi 0.99 and later).** Codemode is off by default. With
+`codemode.mode: "only"`, pi's tools list shows only `codemode`; scripts call
+`sci_find` as `tools.sci_find`, the guideline stays in the prompt, and the
+3-then-5 hit rule still applies. pi also turns codemode on when an MCP server
+with the default `codemode` exposure connects; `"autoEnableCodemode": false`
+stops that (pi's `docs/mcp.md`). Codemode adds its own tool and a line to each
+tool description: about 0.5k tokens per request with Gemma 4 12B and Bonsai in
+one exploratory check. With a small local model, keep it off unless you use it.
+In that check (8 probes, one run each) neither model called `sci_find` through
+codemode; both called it directly.
 
 **`/sci none`, `/sci search` and the way back to Core (1.7.0).** An empty
 `skills` filter now means search mode, not "off": `sci_find` stays registered.
@@ -394,7 +406,7 @@ checks that startup leaves each byte-identical and that the round trip
 (`/sci search`, then Core through the picker) restores the Core file byte for
 byte. To turn `sci_find` and `/sci` off, set
 `"extensions": []` on the package's object entry in `settings.json`; this was
-checked against pi's own resolver in 0.84.3 and 0.87.0, and the `skills` filter
+checked against pi's own resolver in 0.84.3, 0.87.0 and 1.0.0, and the `skills` filter
 then works as written.
 
 **Design decisions worth not re-deriving:**
@@ -591,8 +603,8 @@ all 162 loaded, which means giving up the `settings.json` filter and having
 **The stopgap.** An `input`-event handler in `extensions/index.ts`. `prompt()`
 runs extension commands, then `emitInput`, then `_expandSkillCommand`, then
 `expandPromptTemplate` (`agent-session.js:802-831`), with nothing touching the
-text in between; pi's `docs/extensions.md` shows a literal "intercept skill
-commands before expansion" example on this hook. The handler:
+text in between; pi 0.87's `docs/extensions.md` showed a literal "intercept
+skill commands before expansion" example on this hook. The handler:
 
 1. stands down for `source === "extension"` (`sendUserMessage` defaults
    `expandPromptTemplates` to false, and the event does not carry that flag,
@@ -657,14 +669,18 @@ paths that still forward literal text are written down here, where someone who
 finds a literal `/skill:` in a transcript will look. Until 1.4.1 the status
 line repeated items 1 and 3 to every filtered user; it no longer does.
 
-1. **`steer()` and `followUp()` bypass the hook.** Both call
-   `_expandSkillCommand` directly with no `emitInput` (`agent-session.js:995`,
-   `:1012`). Reached from `interactive-mode.js` (`flushCompactionQueue`, lines
-   3640-3680: on the retry branch every queued message bypasses; on the normal
-   branch the first goes through `prompt()` and the rest bypass) and from
-   `rpc-mode.js:322,326` (RPC `steer` and `follow_up`, unconditionally). So a
-   `/skill:<filtered>` typed while compaction is running, or sent as an RPC
-   steer, still forwards literal text. Not closable from the input hook.
+1. **On pi 0.84 and 0.85, `steer()` and `followUp()` bypass the hook.** Both
+   call `_expandSkillCommand` directly with no `emitInput` (0.84.3
+   `agent-session.js:995`, `:1012`). Reached from `interactive-mode.js`
+   (`flushCompactionQueue`, lines 3640-3680: on the retry branch every queued
+   message bypasses; on the normal branch the first goes through `prompt()` and
+   the rest bypass) and from `rpc-mode.js:322,326` (RPC `steer` and
+   `follow_up`, unconditionally). So on those versions a `/skill:<filtered>`
+   typed while compaction is running, or sent as an RPC steer, still forwards
+   literal text. Not closable from the input hook. pi's changelog lists the RPC
+   fix in 0.86.0 (0.86 code not checked). On pi 0.87.0 (code) and 1.0.0 (code
+   and an RPC run) every queued path runs the hook, and the filtered skill
+   reaches the model expanded.
 2. **No autocomplete.** `interactive-mode.js:520` builds the `/skill:`
    completion list from `getSkills().skills` only. The user types the name
    from `/sci find` output.

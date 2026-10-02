@@ -161,8 +161,8 @@ const EMPTY_FILTER_MEANING = `now means search mode, not off; ${TOOL_NAME} stays
  * - `/sci search` writes an empty filter, where 1.6.0 wrote Core, and names the
  *   `pi config` overrides that drops. The way back to Core is the picker.
  * - `"extensions": []` on the package's object entry stops pi loading the
- *   extension: no tool, no `/sci`. Checked against pi's own resolver in 0.84.3
- *   and 0.87.0; the `skills` filter then works as the user wrote it.
+ *   extension: no tool, no `/sci`. Checked against pi's own resolver in 0.84.3,
+ *   0.87.0 and 1.0.0; the `skills` filter then works as the user wrote it.
  */
 const searchNews = (): string[] => [
   `${TOOL_NAME} ranks with BM25F and shows ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,

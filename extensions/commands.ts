@@ -143,8 +143,8 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
   );
 
   // The input hook rebuilds /skill:<name> for a filtered-out skill typed at the
-  // prompt. The paths it cannot see (compaction queue, RPC steer, other
-  // packages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
+  // prompt. The paths it cannot see (other packages; on pi 0.84 and 0.85 also
+  // queued messages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
   // status answers "what can I do now", and the answer is "type the name".
   if (hasSkillsFilter(location)) {
     lines.push(
