@@ -379,7 +379,8 @@ scientific, research or analysis work: a skill may already cover it. Then read
 the SKILL.md it returns." No live run used a custom prompt, so the effect of
 that line is not measured.
 
-**Codemode (pi 0.99 and later).** Codemode is off by default. With
+**Codemode (checked on pi 1.0.0; codemode first shipped in 0.99.0).** Codemode
+is off by default. With
 `codemode.mode: "only"`, pi's tools list shows only `codemode`; scripts call
 `sci_find` as `tools.sci_find`, the guideline stays in the prompt, and the
 3-then-5 hit rule still applies. pi also turns codemode on when an MCP server
@@ -396,9 +397,9 @@ filter where 1.6.0 wrote the Core list. An empty filter cannot carry pi config
 overrides (`!x`, `+x`, `-x`; see "The empty-array footgun" below), so
 `/sci search` drops them, and its report names each one: "Dropped pi config
 overrides: !polars. Re-add them with pi config if you want them back." The way
-back to Core is the picker: `/sci profiles`, tick Core, choose "Apply and
-reload". `test-extension.mjs` starts from four settings files: three 1.6.0
-states (Core accepted; offer declined, which leaves only the install entry;
+back to Core is the picker: `/sci profiles`, tick Core, press Enter.
+`test-extension.mjs` starts from four settings files: three 1.6.0 states
+(Core accepted; offer declined, which leaves only the install entry;
 `/sci none`) and one with a pi config override added (Core plus `!polars`). It
 checks that startup leaves each byte-identical and that the round trip
 (`/sci search`, then Core through the picker) restores the Core file byte for

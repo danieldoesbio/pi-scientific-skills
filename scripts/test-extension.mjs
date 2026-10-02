@@ -1485,14 +1485,14 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
   // What applies to one state on top of that.
   const coreBack = [
     ['"/sci search" no longer loads Core', /"\/sci search" no longer loads Core/],
-    ["the way back to Core", /"\/sci profiles", tick Core, choose "Apply and reload"\./],
+    ["the way back to Core", /"\/sci profiles", tick Core, press Enter\./],
   ];
   const emptyFilter = [
     ['an empty "skills" filter means search mode, not off', /empty "skills" filter.*search mode, not off/],
   ];
   const namedOverrides = [
     ["/sci search names the pi config overrides it drops", /names any pi config overrides it drops/],
-    ["the way back to Core", /"\/sci profiles", tick Core, choose "Apply and reload"\./],
+    ["the way back to Core", /"\/sci profiles", tick Core, press Enter\./],
   ];
 
   const seen160 = { onboardingSeen: true, lastSeenVersion: "1.6.0", version: 1 };
@@ -1568,7 +1568,9 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
 
   // The notice makes claims about commands. Run them.
   {
-    // (b) The way back to Core: /sci search, then /sci profiles, tick Core, Apply and reload.
+    // (b) The way back to Core: /sci search, then /sci profiles, tick Core, press Enter.
+    // This harness has no ui.custom, so it drives the select() fallback, where
+    // Enter on the row under the cursor ("Apply and reload") applies.
     const paths = newAgentDir();
     writeFileSync(paths.settings, CORE_STATE.settings);
     writeFileSync(paths.config, CORE_STATE.config);
@@ -1586,7 +1588,7 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
     const back = makeHarness({ mode: "tui", selectAnswer: tickCore });
     await register(back).commandHandler("profiles", back.ctx);
     check(
-      "accepted the offer: /sci profiles, tick Core, Apply and reload restores 1.6.0's Core settings byte for byte",
+      "accepted the offer: /sci profiles, tick Core, press Enter restores 1.6.0's Core settings byte for byte",
       readFileSync(paths.settings, "utf8") === CORE_STATE.settings,
       readFileSync(paths.settings, "utf8"),
     );

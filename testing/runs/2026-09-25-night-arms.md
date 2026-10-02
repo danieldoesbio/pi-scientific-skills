@@ -615,3 +615,10 @@ and a `limit` argument the model could set. The BM25F ranker and the
 Gemma 4 26B-A4B, in
 [`2026-09-29-openrouter-ab.md`](2026-09-29-openrouter-ab.md) (+6.0 points).
 No single run compares the shipped tip with 1.6.0 on one model.
+
+### Name edit (2026-10-02)
+
+In two lines, the maintainer's first name became "the maintainer" (746a655):
+one in "Deviation: external fans off for part of the run" and one in "Notes
+during the run". Neither is pre-registered text. Wording only: no rule,
+number or result changed.

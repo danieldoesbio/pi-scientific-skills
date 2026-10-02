@@ -791,3 +791,12 @@ from `git log` (-0700).
   ignores itself, and `testing/transcripts/**/*.jsonl` is ignored. A reader
   of this repository cannot re-derive the top-3 figures. They rest on this
   notebook, and the 3-hit first search of 1.7.0 rests partly on them.
+
+### Name edit (2026-10-02)
+
+In five lines, the maintainer's first name became "the maintainer" (746a655).
+Three are inside pre-registered text: the step 4a "Decision rule", the step
+3 "Rules fixed before this run" and "Held-out run (pre-registered
+2026-09-29, before the set is read)". The other two are in "Addendum
+2026-09-29: two writers, and the design to ship" and "Next". Wording only: no rule,
+number or result changed.

@@ -15,7 +15,8 @@ jobs:
           # Keep this node version in sync with "engines.node" in package.json.
           - pi: "0.87.0"
             node: "22.18.0"
-          # pi 1.0 needs Node 22.19 or later.
+          # pi declares Node >=22.19.0 (since pi 0.75.0), so this row runs pi 1.0
+          # on that floor. The 0.87 row runs on this package's floor; npm only warns.
           - pi: "1.0.0"
             node: "22.19.0"
     steps:

@@ -139,7 +139,7 @@ not touched by an upgrade you didn't ask for.
 - Search mode loads no skills (~0 tokens instead of Core's ~1.4k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
 - A BM25F ranker shows 3 hits on a prompt's first search and 5 on later ones. On 321 held-out requests its top 3 held the target 310 times; the old ranker's top 8, 283 times ([run](testing/runs/2026-09-27-find-ranker.md)).
 - In a live A/B on Gemma 4 26B-A4B, the new search read the right skill +6.0 points more often and used 867.5 fewer prompt tokens at the choice turn (paired median; [run](testing/runs/2026-09-29-openrouter-ab.md)).
-- `/sci none` is now the same as `/sci search`. To load Core again: `/sci profiles`, tick Core, choose "Apply and reload".
+- `/sci none` is now the same as `/sci search`. To load Core again: `/sci profiles`, tick Core, press Enter.
 
 ## What's inside
 

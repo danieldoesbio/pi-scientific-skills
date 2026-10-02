@@ -171,7 +171,7 @@ const searchNews = (): string[] => [
   DEFAULT_PROMPT_NEWS,
   `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") ${EMPTY_FILTER_MEANING}`,
   `"/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
-  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, choose "Apply and reload".`,
+  `overrides it drops. To load Core: "/${COMMAND_NAME} profiles", tick Core, press Enter.`,
   `Turn ${TOOL_NAME} and /${COMMAND_NAME} off with "extensions": [] on the package's object entry`,
   `in settings.json.`,
 ];
@@ -434,7 +434,8 @@ export default function (pi: ExtensionAPI): void {
         // sendUserMessage defaults expandPromptTemplates to false
         // (agent-session.js:1133): pi's intent there is *not* to expand, and
         // the event does not carry that flag, so source is the only readable
-        // proxy. pi's docs/extensions.md branches on the same field.
+        // proxy. pi's examples/extensions/input-transform.ts branches on the same
+        // field (so did docs/extensions.md up to pi 0.87).
         if (event.source === "extension") return passThrough;
 
         const command = parseSkillCommand(event.text);

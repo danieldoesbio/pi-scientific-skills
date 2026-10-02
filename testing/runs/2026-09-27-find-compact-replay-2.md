@@ -145,3 +145,9 @@ Discordant 0:3, McNemar exact p 0.25. All three losses are in sample 1
 A/B together with the ranker work (step 4b of
 [`2026-09-27-find-ranker.md`](2026-09-27-find-ranker.md)), so it runs on
 the ranker that step keeps. The flag stays experimental until then.
+
+### Name edit (2026-10-02)
+
+In one line of the pre-registered "Decision rule", the maintainer's first
+name became "the maintainer" (746a655). Wording only: no rule,
+number or result changed.

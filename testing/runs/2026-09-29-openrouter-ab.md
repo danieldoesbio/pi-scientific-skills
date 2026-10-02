@@ -488,8 +488,17 @@ not in git) gives other numbers:
   arms.
 - **2 attempts** ran `env`: paperzilla in `new` plain and matlab in `old`
   expert.
-- No tool call named `auth.json`, so no attempt read the file, as the addendum
-  says.
+- No tool call named `auth.json`. A glob or a recursive read would not name
+  it, so this alone does not show that no attempt read the file. A count of
+  the OpenRouter key prefix (`sk-or-`) found it in none of the 189 transcript
+  and log files and none of the 18,678 files in the archived workspaces.
 
-The recount checked these three statements only. The void run's data stay
+The recount checked these counts only. The void run's data stay
 unanalysed, and no rule or result changes.
+
+### Name edit (2026-10-02)
+
+In two lines, the maintainer's first name became "the maintainer" (746a655):
+one in the pre-registered "Decision rule" and one in "Addendum 2026-09-29
+12:35". Wording only: no rule,
+number or result changed.
