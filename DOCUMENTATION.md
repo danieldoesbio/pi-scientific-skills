@@ -794,7 +794,7 @@ is therefore a hard prerequisite for `npm test`.
 
 | Script | What it proves |
 |---|---|
-| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
+| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others) are still in the synced skills. |
 | `test-search.mjs` | `sci_find`'s ranking, against the **real** 176 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
