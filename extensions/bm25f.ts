@@ -166,8 +166,11 @@ export const rankAll = (index: Bm25fIndex, terms: readonly string[]): { entry: S
  * joined pair of a hyphenated word scores only when the index holds it
  * ("massspec" is in no field). A pair that can never score must not hold a
  * short hyphenated query under the share.
+ * minShare was 0.35 until the v2.72.0 sync, whose condensed descriptions
+ * dropped "read alignment" to 0.30 while the highest negative ("bamboo
+ * growth") sits at 0.27; 0.28 splits them (testing/runs/2026-10-05-v2.72.0-sync.md).
  */
-export const NO_MATCH = { minTop: 2.5, minShare: 0.35 } as const;
+export const NO_MATCH = { minTop: 2.5, minShare: 0.28 } as const;
 
 export const passesNoMatchRule = (index: Bm25fIndex, terms: readonly string[], top: number): boolean => {
   if (top >= NO_MATCH.minTop) return true;
