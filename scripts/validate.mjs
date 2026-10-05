@@ -290,6 +290,67 @@ function validateLicenseSha256() {
 }
 
 // ---------------------------------------------------------------------------
+// Third-party terms the README says the skills carry
+// ---------------------------------------------------------------------------
+
+/**
+ * README's License & Credits section tells users that these skills carry
+ * upstream's restrictive or attribution language. The skills are synced
+ * wholesale, so a sync that drops or rewords one of these notices would leave
+ * that promise false with nothing else to notice it. Phrases are matched over
+ * each skill's Markdown files with whitespace collapsed, since upstream wraps
+ * lines freely. If upstream rewords a notice, update the phrase; if it drops
+ * one, update README before shipping.
+ */
+const REQUIRED_NOTICES = [
+  ["deepspot-m", "concurrent commercial affiliations"],
+  ["deepspot-m", "a noncommercial intention alone does not establish eligibility"],
+  ["deepspot-m", "Research use only, not clinical or diagnostic use"],
+  ["timesfm-forecasting", "non-commercial, non-production"],
+  ["molfeat", "noncommercial license acknowledgement"],
+  ["alphagenome", "non-commercial"],
+  ["latex-posters", "GPL notice"],
+  ["pathogen-variant-surveillance", "Pathoplexus terms"],
+  ["protocolsio-integration", "CC BY"],
+  ["dhdna-profiler", "does not relicense"],
+  ["what-if-oracle", "CC BY-NC-SA 4.0"],
+];
+
+function markdownText(dir) {
+  const parts = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) parts.push(markdownText(path));
+    else if (entry.name.endsWith(".md")) parts.push(readFileSync(path, "utf8"));
+  }
+  return parts.join("\n");
+}
+
+function validateRequiredNotices() {
+  const texts = new Map();
+  for (const [skill, phrase] of REQUIRED_NOTICES) {
+    if (!texts.has(skill)) {
+      try {
+        texts.set(skill, markdownText(join(skillsDir, skill)).replace(/\s+/g, " "));
+      } catch {
+        problems.hard.push(`skills/${skill} is gone, but README's License & Credits section still names its terms`);
+        texts.set(skill, null);
+      }
+    }
+    const text = texts.get(skill);
+    if (text !== null && !text.includes(phrase)) {
+      problems.hard.push(
+        `skills/${skill} no longer says "${phrase}" — README's License & Credits section promises that notice; ` +
+          `check what upstream changed and update REQUIRED_NOTICES or README`,
+      );
+    }
+  }
+  if (!problems.hard.some((p) => p.includes("License & Credits"))) {
+    console.log(`Validated third-party notices: ${REQUIRED_NOTICES.length} phrases across ${texts.size} skills`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Excluded skills must never reappear under skills/
 // ---------------------------------------------------------------------------
 
@@ -562,6 +623,7 @@ await validateAliases(onDiskNames);
 await validatePackageInfo();
 validateLicenseSha256();
 validateExcludedSkills(onDiskNames);
+validateRequiredNotices();
 checkTokenEstimate(profiles, corpus);
 validateReadmeCounts(onDiskNames.length);
 

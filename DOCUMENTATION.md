@@ -13,17 +13,17 @@ as-is — no translation layer, no code conversion. The "port" consists of:
 1. Packaging (`package.json` with a `pi` manifest and the `pi-package` keyword so
    the package appears in the [pi package gallery](https://pi.dev/packages)).
 2. A pinned snapshot of upstream skills (`skills/`), kept byte-identical apart
-   from four deliberately excluded skills (see Provenance).
+   from deliberately excluded skills (see Provenance).
 3. Tooling to re-sync from upstream and to validate against pi's rules.
 
 ## Provenance
 
 - **Upstream:** https://github.com/K-Dense-AI/scientific-agent-skills
-- **Upstream version:** 2.69.0 (from `pyproject.toml`), recorded in
+- **Upstream version:** 2.72.0 (from `pyproject.toml`), recorded in
   `package.json` as `upstreamVersion`
 - **Our version is independent of upstream's.** This package uses its own semver
   line starting at 1.0.0. It deliberately does *not* mirror the upstream number:
-  the two artifacts differ (162 skills vs upstream's 166, plus the `/sci`
+  the two artifacts differ (176 skills vs upstream's 177, plus the `/sci`
   extension), and upstream ships patch releases — 16 of 106 tags at v2.69.0
   have a non-zero patch, e.g. `v2.37.2`. Mirroring would mean an
   extension-only fix has to burn a number like `2.63.1` that upstream may
@@ -39,8 +39,9 @@ as-is — no translation layer, no code conversion. The "port" consists of:
   `upstreamVersion`. The two diverge whenever a sync takes a SHA on `main`
   instead of a tag: `upstreamVersion` still records the latest tag by semver
   (a human-readable line), while `upstreamCommit` records exactly what was
-  copied. This snapshot is `main@49c6e97` on the v2.69.0 line — nine commits
-  past the `v2.69.0` tag, untagged upstream at the time of the sync.
+  copied. This snapshot is the `v2.72.0` tag itself (`526ebce`); upstream
+  `main` was two commits past it (a docs pin and a security-scan report, neither
+  touching `skills/`).
 - **License:** MIT, © 2025 K-Dense Inc. (`LICENSE.md` is the upstream text verbatim).
 - **Relationship:** this repo is an independent distribution of the open-source
   skill collection. It is not affiliated with K-Dense Inc.
@@ -65,10 +66,19 @@ RESTRICTIONS forbid, verbatim:
 > - Distribute, sublicense, or transfer these materials to any third party
 
 Publishing this package to npm and hosting it in a public git repo does all
-three. They are therefore **excluded from this distribution**, which is why the
-package ships 162 skills and not upstream's 166. `scripts/sync-upstream.sh`
-strips them after every sync (`EXCLUDED_SKILLS`), so a re-vendor cannot quietly
-reintroduce them. Everything else in `skills/` remains byte-identical to upstream.
+three. They were therefore **excluded from this distribution**. Upstream
+dropped them itself on 2026-10-01 (`f7a50ed2`, first released in v2.72.0), but
+they stay in `scripts/excluded-skills.txt` so a re-vendor cannot quietly
+reintroduce them: `scripts/sync-upstream.sh` strips them after every sync
+(`EXCLUDED_SKILLS`).
+
+From v2.72.0 the list also excludes **`fictiv`**, for a different reason. It
+drives app.fictiv.com in the user's logged-in browser through to checkout and
+can place paid manufacturing orders that its own references say cannot be
+cancelled. A skill that spends money irreversibly on a commercial platform does
+not belong in a redistributed package, and `/sci` has no browser-automation
+surface to run it. That one exclusion is why the package ships 176 skills and
+not upstream's 177. Everything else in `skills/` remains byte-identical to upstream.
 
 Two traps for whoever touches this next:
 
@@ -189,7 +199,7 @@ custom skill.
 
 ```
 package.json            # pi manifest: "pi": { "skills": [...], "extensions": [...] }, keyword "pi-package"
-skills/                 # 162 skill directories, each with SKILL.md (+ references/scripts/assets)
+skills/                 # 176 skill directories, each with SKILL.md (+ references/scripts/assets)
 extensions/index.ts     # the ONLY file that registers anything with pi (command, tool, hooks); onboarding notices
 extensions/types.ts     # shared constants + types (COMMAND_NAME, SUBCOMMANDS, UiContext, ...) — no imports
 extensions/paths.ts     # settings.json / config-file paths, and the report() output helper
@@ -207,7 +217,7 @@ scripts/lib/load-extension.mjs  # loads extensions/ the way pi does (jiti + host
 scripts/doc-count.mjs   # each suite checks the check-count the README claims for it
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
 scripts/validate.mjs    # pi-rule validation across all skills + extensions/ drift checks
-scripts/test-search.mjs # sci_find ranking against the real 162 descriptions
+scripts/test-search.mjs # sci_find ranking against the real 176 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
 scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to pi's, oracle = pi's own method
@@ -263,8 +273,8 @@ So `extensions/index.ts` is the only file allowed to call `pi.registerCommand`,
 Pi injects every skill's name, description, and absolute `SKILL.md` path into
 the system prompt at startup, one XML-escaped `<skill>` block each
 (`formatSkillsForPrompt` in pi's `core/skills.js`); only skill *bodies* are
-deferred. Measured across this collection as pi renders it: about 99k
-characters ≈ **23k tokens**, about 143 tokens per skill, of which the bare
+deferred. Measured across this collection as pi renders it: about 104k
+characters ≈ **25k tokens**, about 143 tokens per skill, of which the bare
 description is roughly 88 (recipe and both tokenizers in `profiles.ts`'s
 `TOKENS_PER_SKILL` comment).
 That is most of a 32k context and more than a 16k context can hold. Pi
@@ -272,7 +282,7 @@ is frequently run with small local models, so the index cost — not the skill
 content — is the binding constraint.
 
 Two distinct problems follow, and the profile design addresses both: the context
-budget, and selection accuracy (a small model discriminates poorly among 162
+budget, and selection accuracy (a small model discriminates poorly among 176
 similar descriptions, many of which are near-neighbours).
 
 ### Why it writes settings.json rather than filtering at runtime
@@ -284,7 +294,7 @@ Four mechanisms could filter skills. Only one is compatible with this port:
 | `disable-model-invocation: true` in frontmatter | **Rejected.** Edits `SKILL.md`, breaking byte-identity with upstream, and `sync-upstream.sh` replaces `skills/` wholesale — every sync would silently wipe the user's selection. |
 | Intercept `resources_discover` and return filtered `skillPaths` | **Impossible**, not merely undesirable — see below. |
 | `before_agent_start` returning a rewritten `systemPrompt` | **Rejected.** Would strip the skills index while leaving pi's registry intact — the only route that preserves `/skill:<name>`. But it is per-turn prompt surgery, fragile across pi versions, and invisible to `pi config`. |
-| Set `disableModelInvocation` on the live `Skill[]` at runtime (via `ctx.getSystemPromptOptions().skills` or `before_agent_start`'s `systemPromptOptions`, both returned by reference) | **Rejected (decided at 1.4.0).** This is the one pi feature whose semantics match "hide from the prompt, keep `/skill:`": `formatSkillsForPrompt` (`skills.js:276`) is the only consumer of the flag, and pi's own comment says such skills "can only be invoked explicitly via /skill:name". But it requires **all 162 to load** so `/skill:` can resolve, which means abandoning the `settings.json` filter entirely. That costs `pi config` composition, hand-editability, and survival of extension removal — and `pi config` would then show all 162 enabled while the prompt carried 10, actively misreporting rather than merely not knowing. |
+| Set `disableModelInvocation` on the live `Skill[]` at runtime (via `ctx.getSystemPromptOptions().skills` or `before_agent_start`'s `systemPromptOptions`, both returned by reference) | **Rejected (decided at 1.4.0).** This is the one pi feature whose semantics match "hide from the prompt, keep `/skill:`": `formatSkillsForPrompt` (`skills.js:276`) is the only consumer of the flag, and pi's own comment says such skills "can only be invoked explicitly via /skill:name". But it requires **all 176 to load** so `/skill:` can resolve, which means abandoning the `settings.json` filter entirely. That costs `pi config` composition, hand-editability, and survival of extension removal — and `pi config` would then show all 176 enabled while the prompt carried 10, actively misreporting rather than merely not knowing. |
 | Write pi's own per-package filter into `settings.json` | **Chosen.** Native, inspectable, hand-editable, composes with `pi config`, survives sync, and outlives the extension. |
 
 **`resources_discover` cannot filter at all.** An earlier version of this document
@@ -312,7 +322,7 @@ work starts. They do nothing for the **model**, and a profile is a bet — when 
 is wrong, the skill the scientist needed is invisible.
 
 `sci_find` closes that half. It loads no skills; it searches the names,
-descriptions and SKILL.md text of all 162 skills and returns the ones that
+descriptions and SKILL.md text of all 176 skills and returns the ones that
 match, with full descriptions and the absolute `SKILL.md` path for the model to
 `read`. That is mechanically identical to how pi loads a skill natively, one
 level further down: descriptions deferred rather than bodies.
@@ -411,14 +421,14 @@ then works as written.
 **Design decisions worth not re-deriving:**
 
 - **The tool is registered unconditionally**, not behind a mode flag. About 200
-  tokens of tool definition, snippet and guideline against a ~23k index is not
+  tokens of tool definition, snippet and guideline against a ~25k index is not
   a trade worth a config toggle,
-  and someone running all 162 still benefits from looking a skill up by need
+  and someone running all 176 still benefits from looking a skill up by need
   rather than by name. `/sci status` says so.
 - **Recall beats precision, in a short list.** `sci_find` does not have to
   pick the right skill, only get it into a short list with full descriptions
   attached. Even a small model discriminates well among a few labelled options
-  and badly among 162 in a system prompt. That is why scoring is OR-based:
+  and badly among 176 in a system prompt. That is why scoring is OR-based:
   requiring every term to match returns nothing for ordinary phrasings
   ("variant calling" matches no single description verbatim).
 - **3 hits, then 5.** The first turn that searches after a prompt gets
@@ -517,7 +527,7 @@ then works as written.
   `esm`'s says ESMFold2 but never "protein structure prediction". Speculative
   aliases make results worse, and `validate.mjs` hard-fails on any alias naming
   a skill that no longer exists.
-- **The catalogue is read lazily from disk** (~18ms for 162 files, head 8KB
+- **The catalogue is read lazily from disk** (~18ms for 176 files, head 8KB
   each) and cached for the session. A committed generated catalog was rejected:
   it would duplicate ~65KB of upstream description text into `extensions/`,
   breaching the "everything in `skills/` is upstream's" claim this repo keeps
@@ -596,7 +606,7 @@ Two bounds on that, both of which matter:
 
 **Why not the `disable-model-invocation` route.** That is a real pi feature with
 exactly the wanted semantics — see the mechanism table above — but it needs
-all 162 loaded, which means giving up the `settings.json` filter and having
+all 176 loaded, which means giving up the `settings.json` filter and having
 `pi config` misreport. Recorded there so it is not re-derived.
 
 **The stopgap.** An `input`-event handler in `extensions/index.ts`. `prompt()`
@@ -685,7 +695,7 @@ line repeated items 1 and 3 to every filtered user; it no longer does.
    from `/sci find` output.
 3. **Only this package's skills.** The defect is global; another package's
    filtered skills, or a skill disabled through `pi config` in another
-   package, still leak literal text. This covers 162 names out of an open set.
+   package, still leak literal text. This covers 176 names out of an open set.
 4. **The multi-line variant is untouched**, deliberately (constraint 5).
 5. **Extension-injected `/skill:` is skipped** on `source === "extension"`.
    The proxy is lossy in both directions.
@@ -784,12 +794,12 @@ is therefore a hard prerequisite for `npm test`.
 
 | Script | What it proves |
 |---|---|
-| `validate.mjs` | All 162 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`. |
-| `test-search.mjs` | `sci_find`'s ranking, against the **real** 162 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
+| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others) are still in the synced skills. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 176 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
-| `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 162 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
-| `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 162 SKILL.md files and 13 edge cases the way pi's own parser does. |
+| `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
+| `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 176 SKILL.md files and 13 edge cases the way pi's own parser does. |
 | `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`), and the first-search facts of `find-ab-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
@@ -1236,7 +1246,7 @@ The parser is **not** defined here. It lives in `extensions/frontmatter.ts` and
 is shared with `search.ts`, which parses the same files at runtime to build the
 `sci_find` catalogue. Two copies would drift, and the drift would be invisible —
 validation would pass on files the runtime read differently. Importing it here
-also exercises it against all 162 real files on every release.
+also exercises it against all 176 real files on every release.
 
 Block scalars matter more than they look. Two skills (`bids`, `onekgpd`) write
 `description: >` with the text on following lines. A naive line-based parser
@@ -1286,7 +1296,7 @@ the one-time backup `settings.json.pi-scientific-skills.bak`.
 Two kinds of testing here, with very different costs:
 
 - **Discovery** — does pi offer the skill, with the right name and description.
-  Cheap, covers all 162, runs on every sync (`npm run validate` plus the tarball
+  Cheap, covers all 176, runs on every sync (`npm run validate` plus the tarball
   probe in the checklist below).
 - **Functional** — does pi load the skill and does a model follow SKILL.md.
   Costs a model call and several minutes each, so it accumulates a few skills

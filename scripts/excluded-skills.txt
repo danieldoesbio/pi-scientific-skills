@@ -12,3 +12,14 @@ docx
 pdf
 pptx
 xlsx
+
+# Upstream removed the four above itself on 2026-10-01 (f7a50ed2). They stay
+# listed as a guard in case they ever return.
+
+# fictiv drives app.fictiv.com in the user's logged-in browser through to
+# checkout: it can place paid manufacturing orders by card or purchase order,
+# and its own references say orders can't be cancelled once placed. A skill
+# that spends money irreversibly on a third-party commercial platform does not
+# belong in a redistributed package, and /sci has no browser-automation
+# surface to run it safely anyway. Added at the v2.72.0 sync.
+fictiv

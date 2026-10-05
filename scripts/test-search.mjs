@@ -107,14 +107,13 @@ const NEGATIVES = [
 /**
  * Golden queries that the bm25f ranker (the default) misses, each with its
  * reason. They are reported under bm25f, not checked. bm25f has no alias boost
- * (development data set it to 0), and the words below are in most SKILL.md
- * bodies, so they carry almost no weight (testing/runs/2026-09-27-find-ranker.md).
+ * (development data set it to 0), so a query made of words that are in most
+ * SKILL.md bodies carries almost no weight (testing/runs/2026-09-27-find-ranker.md).
  */
 const BM25F_KNOWN_MISSES = new Map([
-  [
-    "write the methods section of my paper",
-    '"write", "methods", "section", "paper" are in 76–148 of the 159 skill bodies; scientific-writing ranks 11th',
-  ],
+  // "write the methods section of my paper" was listed here until the v2.72.0
+  // sync, whose condensed descriptions put scientific-writing at #2. It is
+  // checked again.
 ]);
 
 const suite = createSuite("ranking checks");
