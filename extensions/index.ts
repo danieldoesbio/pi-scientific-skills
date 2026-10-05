@@ -123,6 +123,25 @@ const downgradeNotice = (from: string): string =>
 /** The release that shipped upstream snapshot v2.69.0. */
 const SNAPSHOT_RELEASE = "1.6.0";
 
+/** The release whose search changes `searchNews` describes. */
+const SEARCH_RELEASE = "1.7.0";
+
+/** The release that shipped upstream snapshot v2.72.0. */
+const SYNC_RELEASE = "1.8.0";
+
+/**
+ * What 1.8.0 changed. A profile selection is saved in settings.json as the
+ * skill names it held when it was applied (`skillsForSelection`), so the new
+ * skills reach a profile user only after the picker writes the filter again.
+ * Search mode reads skills/ directly and finds them at once.
+ */
+const SYNC_NEWS = [
+  `Upstream snapshot v2.72.0 (in ${SYNC_RELEASE}) adds 14 skills to the field profiles, among them`,
+  `primer-design, mageck, flowkit, qiime2-amplicon, cellprofiler, relion and pybamm. A saved`,
+  `profile picks them up when you open "/${COMMAND_NAME} profiles" and press Enter; search mode finds`,
+  `them already. fictiv is not shipped: it can place paid orders that cannot be cancelled.`,
+];
+
 const SNAPSHOT_NEWS = [
   `Upstream snapshot v2.69.0 (commit 49c6e97, in ${SNAPSHOT_RELEASE}) adds one skill: alphagenome`,
   `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
@@ -192,12 +211,15 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
   if (sameMinorLine(from, current)) {
     return [...head, `Patch release: no change to the skills, and your settings are untouched.`].join(" ");
   }
-  // A user coming from before the snapshot release has not heard its news yet.
-  const missedSnapshot = from === undefined || compareVersions(from, SNAPSHOT_RELEASE) < 0;
+  // Each release's news is owed to anyone who comes from before it, up to the
+  // release now running: someone skipping releases hears every one they missed.
+  const owed = (release: string): boolean =>
+    compareVersions(current, release) >= 0 && (from === undefined || compareVersions(from, release) < 0);
   return [
     ...head,
-    ...searchNews(),
-    ...(missedSnapshot ? SNAPSHOT_NEWS : []),
+    ...(owed(SYNC_RELEASE) ? SYNC_NEWS : []),
+    ...(owed(SEARCH_RELEASE) ? searchNews() : []),
+    ...(owed(SNAPSHOT_RELEASE) ? SNAPSHOT_NEWS : []),
     `"/${COMMAND_NAME} status" shows where you stand.`,
   ].join(" ");
 };
