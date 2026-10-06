@@ -94,7 +94,7 @@ right to redistribute.
 ### The citation block is carried, not stripped (arrived with v2.66.0)
 
 Upstream v2.66.0 appended a `## Citing Scientific Agent Skills` section to 135
-of its 163 skills. It asks the model to add upstream's paper
+of the 163 it shipped then. It asks the model to add upstream's paper
 (Kassis et al. 2026, arXiv:2609.00065) to the references or software section
 of any manuscript, report, presentation or code release the skill materially
 contributed to, and to tell the user it did so. It arrived here wholesale with
@@ -135,9 +135,9 @@ Reasons, so this isn't reopened on every sync:
   `name: scientific-agent-skills`, `version: 2.63.0`, and upstream's repository
   URL. None of those describe this package.
 - **Rewriting it would overclaim.** A manifest under our name asserts Agent
-  Plugins conformance for hosts this package has never been run against. 43
-  skills have been functionally exercised (see [Functional
-  testing](#functional-testing)), all in pi, none in Cursor/Codex/Copilot.
+  Plugins conformance for hosts this package has never been run against.
+  Every skill functionally exercised so far (see [Functional
+  testing](#functional-testing)) ran in pi, none in Cursor/Codex/Copilot.
   Advertising those clients on that basis is unsupported.
 - **It contradicts the independent-versioning decision above.** Upstream's
   `AGENTS.md` requires `plugin.json` `version` to track `pyproject.toml`. This
@@ -149,8 +149,8 @@ The size argument is not one of the reasons: the manifest is ~700 bytes against
 a 7 MB tarball. This is a scope decision, not a weight decision.
 
 **Scope note this establishes.** This package is a pi-focused distribution, not a
-strict mirror — it already excludes four skills, adds `/sci`, and versions
-independently. Divergence belongs in the *packaging layer*: what is excluded,
+strict mirror — it excludes skills by name (`scripts/excluded-skills.txt`),
+adds `/sci`, and versions independently. Divergence belongs in the *packaging layer*: what is excluded,
 what ships alongside, the docs, the extension. It must never move inside the
 contents of a vendored file, because `sync-upstream.sh` does a wholesale
 `rm -rf skills/ && cp -R` and would silently revert such an edit on the next
@@ -216,16 +216,22 @@ extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guar
 scripts/lib/load-extension.mjs  # loads extensions/ the way pi does (jiti + host aliases)
 scripts/doc-count.mjs   # each suite checks the check-count the README claims for it
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
+scripts/excluded-skills.txt  # skills the sync strips (Anthropic-licensed, fictiv); see Provenance
 scripts/validate.mjs    # pi-rule validation across all skills + extensions/ drift checks
 scripts/test-search.mjs # sci_find ranking against the real 176 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
 scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to pi's, oracle = pi's own method
+scripts/test-frontmatter.mjs # extensions/frontmatter.ts parses every SKILL.md the way pi's parser does
+scripts/typecheck.mjs   # real tsc over extensions/ against pi's shipped .d.ts (not in npm test)
+scripts/lib/harness.mjs # the pass/fail counter the offline suites share
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
 scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
+scripts/lib/            # the live harness: sandbox, key proxy, persona, probe check, session reader, replay, reports
+scripts/check-probes.mjs     # re-run the probe check on a finished live run from its kept transcripts
 scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
 scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
 scripts/find-ab.sh           # two package commits through a cloud model, both arms at once, frozen sources
@@ -241,6 +247,10 @@ scripts/find-panel-report.mjs # the writer panel's search rate and top-8 rates, 
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have actually been RUN, with verdicts (+ extensionRuns)
+testing/find-probes.json  # one first-person probe per skill for the live search test (162, from 1.6.0)
+testing/report.md, analysis.md  # the 2026-09-23 live search test and what it means for sci_find
+testing/runs/           # one notebook per live or offline run, the lab record
+testing/README.md       # which skills the live test cannot cover, and why
 testing/find-rank/      # ranker query sets: recorded first sci_find queries, blind probe paraphrases
 testing/transcripts/    # raw pi output per graded run, kept as evidence
 metrics/downloads.json  # gitignored: npm daily series + publish dates, with revisions
@@ -345,8 +355,8 @@ pilot (`testing/runs/2026-09-24-bonsai2-snippet-ab.md`) showed no effect on the
 search rate (11/12 in both arms). A three-arm run over 161 probes then measured
 the default change itself (`testing/runs/2026-09-25-night-arms.md`): the model
 read the target skill on 157 with the 1.7.0 design as first built, 116 with 1.6.0
-search mode (+25.5 points, 95% CI 18.4 to 32.9) and 158 with all 162 skills
-listed. It read all ten Core targets in every arm. That 1.7.0 arm is the build at
+search mode (+25.5 points, 95% CI 18.4 to 32.9) and 158 with every skill
+listed (162 at the time). It read all ten Core targets in every arm. That 1.7.0 arm is the build at
 commit `08aff2e`, not the shipped tip: the old ranker, 8 hits and a `limit`
 argument the model could set. The BM25F ranker and the 3-then-5 list came later
 (`713d6e8`). The gain belongs to that design as a whole: it also added the
@@ -490,8 +500,10 @@ then works as written.
   a query reach a skill through words its description does not use. The
   settings are fixed; they came from cross-validation on 425 recorded first
   `sci_find` queries. A query equal to a skill name lists that skill first.
-  The no-match rule is its own: the best score must reach 2.5, or 35% of the
-  most the query could score. On development data it put the target in the
+  The no-match rule is its own: the best score must reach 2.5, or 28% of the
+  most the query could score (`NO_MATCH` in `bm25f.ts`; 35% until the v2.72.0
+  sync, whose shorter descriptions pushed real queries below it, see
+  [`testing/runs/2026-10-05-v2.72.0-sync.md`](testing/runs/2026-10-05-v2.72.0-sync.md)). On development data it put the target in the
   top 8 for 99.8% of recorded queries (current ranker: 97.2%) and 95.0% of
   plain-language rewrites of the probes (current: 77.0%), and lost none of
   1,069 development queries to the no-match rule. It also returns hits for
@@ -514,8 +526,9 @@ then works as written.
   [`testing/runs/2026-09-27-find-ranker.md`](testing/runs/2026-09-27-find-ranker.md).
   With 3 hits, the "methods section" miss above shows no writing skill; a
   query that names the kind of writing ("scientific manuscript methods")
-  does. `PI_SCI_FIND_RANKER=current` restores the old ranking order for one
-  release. It is the order only: the first search still shows 3 hits, later
+  does. `PI_SCI_FIND_RANKER=current` restores the old ranking order. It was
+  meant to last one release and is still present in 1.8.0; removing it is
+  an open decision. It is the order only: the first search still shows 3 hits, later
   ones 5, and there is still no `limit` argument.
 - **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
   plausible-but-wrong skill handed to someone designing an experiment is worse
@@ -663,7 +676,8 @@ non-TTY stdin in `-p` mode, so a scripted run needs `</dev/null`.
 **Byte fidelity is proven, not assumed.** `scripts/test-skill-expand.mjs`
 borrows `AgentSession.prototype._expandSkillCommand` onto a fake `this` holding
 pi's own `loadSkillsFromDir` output and compares it against the handler across
-all 161 skills × 3 argument forms: 483 of 483 identical at 1.5.0. It is
+every skill × 3 argument forms: 483 of 483 identical at 1.5.0, when there
+were 161. It is
 circular on one axis — both sides read the same `skills/` — so it proves string
 fidelity, not that pi's package manager resolves the same path for an installed
 copy. `validate.mjs` guards the three content invariants the handler depends
@@ -794,7 +808,7 @@ is therefore a hard prerequisite for `npm test`.
 
 | Script | What it proves |
 |---|---|
-| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others) are still in the synced skills. |
+| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others) are still in the synced skills; the skill counts quoted in README, DOCUMENTATION.md and the `package.json` description match `skills/` and the ledger. |
 | `test-search.mjs` | `sci_find`'s ranking, against the **real** 176 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
@@ -887,7 +901,8 @@ check `command -v pi; pi --version` inside a profile first.
 
 With `--probes testing/find-probes.json` it runs one supervised probe per skill
 instead of the three built-in ones (`scripts/lib/converse.mjs`): 162
-first-person tasks that never name their skill, each with a `target` and an
+first-person tasks that never name their skill (written for 1.6.0's catalogue;
+the 14 skills new in v2.72.0 have no probe yet), each with a `target` and an
 optional `accept` list of siblings that also fit. A probe is up to
 `--attempts` (3) fresh conversations of up to `--responses` (5) model
 responses. Between responses a blind persona (`scripts/lib/supervisor.mjs`,
@@ -1173,7 +1188,8 @@ Pi does not require the name to match its parent directory.
 - Strips the skills listed in `scripts/excluded-skills.txt` (one name per
   line, `#` comments and blanks ignored — today `docx`, `pdf`, `pptx`, `xlsx`,
   vendored upstream from anthropics/skills under a licence that forbids
-  redistribution) from the clone's skill list before comparing or copying.
+  redistribution, and `fictiv`, which places uncancellable paid orders; see
+  Provenance) from the clone's skill list before comparing or copying.
 - Replaces `skills/` wholesale (`rm -rf` then copy), then deletes the excluded
   skills from the copy.
 - Copies `LICENSE.md` byte-identical from the upstream checkout (no
@@ -1232,6 +1248,15 @@ Pi does not require the name to match its parent directory.
   catalogue size, and "N skills have been run" against the unique `PASS`
   count in `testing/ledger.json`. Neither number is hardcoded in the
   validator — both are read from the same files the suites already trust.
+- Applies the same catalogue-size rule to the `package.json` description
+  (what npm and the pi gallery show) and to DOCUMENTATION.md: there, "N
+  skills", "N skill directories", "all N", "among N", "the real N" and "N
+  names" with N ≥ 100 are read as today's count, and "The other N have not
+  been exercised" must equal the catalogue less the ledger's PASS count. A
+  count from an earlier release is written another way ("162 at the time").
+  Each sync so far fixed these by hand; the check makes a missed one fail.
+  The GitHub repo's About text is outside the tree and is not checked (it
+  still said 162 after 1.8.0): update it by hand when the count changes.
 - Warns when `TOKENS_PER_SKILL` drifts more than 10% from what `skills/` now
   measures. It stays a constant because the picker needs a cost synchronously,
   before anything is on disk to measure — but every `/sci` figure derives from
@@ -1465,7 +1490,7 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   `testing/ledger.json` and a notebook in `testing/runs/`:
   `2026-09-25-night-arms.md` (Bonsai 2 27B, three arms over 161 probes: the
   target skill read on 157 with the 1.7.0 design as first built, on 116 with
-  1.6.0 search mode, on 158 with all 162 skills listed),
+  1.6.0 search mode, on 158 with every skill listed, 162 then),
   `2026-09-27-find-ranker.md` (offline, 321 held-out requests: BM25F top 3
   held the target 310 times, the old ranker's top 8, 283 times) and
   `2026-09-29-openrouter-ab.md` (Gemma 4 26B-A4B, old search against new
@@ -1501,10 +1526,11 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   full snapshot; `/sci` (or `pi config`) is how a user narrows it to what they
   intend to run. An enabled skill is third-party code the user is choosing to
   execute.
-- Upstream's own pytest battery passes on the byte-identical content. The
-  2,512-test figure quoted in early releases was counted at v2.62.0; later
-  upstream releases add suites for their new skills and it has not been
-  re-counted, so upstream's CI badge is the current source.
+- Upstream's own pytest battery passed on the byte-identical content at
+  v2.62.0, the last time it was counted (2,512 tests). It has not been
+  re-counted since;
+  later upstream releases add suites for their new skills, so upstream's CI
+  badge is the current source.
 
 ## Adoption metrics
 
@@ -1535,9 +1561,9 @@ claims about adoption and coverage have something behind them.
       extension, filter, skill-expand, frontmatter and live-lib; requires an
       installed pi; they load the extension through pi's own jiti)
 - [ ] Read `sync-upstream.sh`'s main-ahead warning. When upstream `main` has
-      moved past the tag, sync a SHA on `main` instead of the stale tag
-      (`bash scripts/sync-upstream.sh <40-hex-sha>`) — a tag-based sync would
-      otherwise be a silent no-op while real changes sit unsynced on `main`.
+      moved past the tag, decide whether to sync the tag as-is or a SHA on `main`
+      (`bash scripts/sync-upstream.sh <40-hex-sha>`): a tag can sit behind `main`
+      for weeks, and the warning is the only thing that says so.
 - [ ] License exceptions re-checked after any sync — `find skills -iname 'LICENSE*'` and
       `grep -h '^license:' skills/*/SKILL.md | sort -u`; record new non-MIT or
       NonCommercial skills under Provenance and in README credits
@@ -1550,11 +1576,14 @@ claims about adoption and coverage have something behind them.
       Note `-e .` does *not* load `pi.skills`, and `--no-tools` hides every skill
       (pi exposes them as a tool), so both read as a false zero. Check by name
       presence — the reported total also counts your personal skills.
-- [ ] `node scripts/test-batch.mjs --version <ver>` run, transcripts graded, and
-      `testing/ledger.json` updated with the new batch (see "Functional testing")
+- [ ] Skill batch: `node scripts/test-batch.mjs --version <ver>` run, transcripts
+      graded, and `testing/ledger.json` updated (see "Functional testing"). Not
+      required for a release that only takes a new upstream snapshot (the
+      maintainer's call since 1.8.0): the offline suites suffice, and "Run record
+      by release" says that no batch ran
 - [ ] `node scripts/test-find-live.mjs` passes on a **small** model, recorded under
-      `extensionRuns` in the ledger. This is the gate for search mode: if a weak
-      model does not reach for `sci_find`, the tool description and `aliases.ts`
+      `extensionRuns` in the ledger, whenever the release changes `sci_find`, its
+      description or `aliases.ts`: if a weak model does not reach for it, those
       are the fix, before release
 - [ ] `extensions/package-info.ts` `PACKAGE_VERSION` bumped alongside
       `package.json` — `npm run validate` hard-fails otherwise, but bump it
@@ -1564,11 +1593,8 @@ claims about adoption and coverage have something behind them.
       seeded prior-version config still leaves `settings.json` byte-identical
       (`npm run test:extension` asserts this; re-read the wording by hand)
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
-      the synced tag; README's `v<upstream>` mentions agree with it
-- [ ] Checked `sync-upstream.sh`'s drift warning (if it printed one) before
-      deciding whether to sync the tag as-is or re-run against a SHA on `main`
-      instead — a tag can sit behind `main` for weeks without its own version
-      bump, and the warning is the only thing that says so
+      the synced tag; README's `v<upstream>` mentions agree with it; the GitHub
+      repo's About text states the current skill count (not checked by validate)
 - [ ] git commit + push, PR merged to `main` (GitHub)
 - [ ] `npm publish` from `main` (requires npm login) → gallery auto-lists via
       `pi-package` keyword; confirm with `npm view pi-scientific-skills version`

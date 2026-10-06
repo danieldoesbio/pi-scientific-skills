@@ -467,7 +467,7 @@ async function validateAliases(onDisk) {
  * claim about the catalogue size) and checked on its own, against
  * `testing/ledger.json`'s unique PASS skills.
  */
-function validateReadmeCounts(onDiskCount) {
+function validateReadmeCounts(onDiskCount, uniquePass) {
   const readmePath = join(root, "README.md");
   const readme = readFileSync(readmePath, "utf8");
 
@@ -489,25 +489,82 @@ function validateReadmeCounts(onDiskCount) {
   const ranMatch = readme.match(/(\d+) skills have been run/);
   if (!ranMatch) {
     problems.hard.push(`README.md no longer says "N skills have been run" — the run-record claim has gone missing`);
-  } else {
-    const ledgerPath = join(root, "testing", "ledger.json");
-    let uniquePass;
-    try {
-      const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
-      uniquePass = new Set(
-        ledger.runs.filter((run) => run.verdict === "PASS").map((run) => run.skill),
-      ).size;
-    } catch (error) {
-      problems.hard.push(`could not read ${ledgerPath} to check the run-record claim (${error?.message ?? error})`);
-      return;
+  } else if (uniquePass !== undefined && Number(ranMatch[1]) !== uniquePass) {
+    problems.hard.push(
+      `README.md claims "${ranMatch[1]} skills have been run" but testing/ledger.json has ` +
+        `${uniquePass} unique PASS skills`,
+    );
+  }
+}
+
+/**
+ * Unique skills with a PASS verdict in `testing/ledger.json`, or undefined
+ * (with a hard problem recorded) when the ledger cannot be read.
+ */
+function ledgerUniquePass() {
+  const ledgerPath = join(root, "testing", "ledger.json");
+  try {
+    const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
+    return new Set(ledger.runs.filter((run) => run.verdict === "PASS").map((run) => run.skill)).size;
+  } catch (error) {
+    problems.hard.push(`could not read ${ledgerPath} to check the run-record claims (${error?.message ?? error})`);
+    return undefined;
+  }
+}
+
+/**
+ * The same catalogue-size rule, applied outside README: the npm description in
+ * `package.json` (what the registry and the pi gallery show) and
+ * DOCUMENTATION.md. Each sync so far updated them by hand; this makes a missed
+ * one fail instead of shipping (the GitHub About text, outside the tree, did
+ * stay at 162 after 1.8.0).
+ *
+ * DOCUMENTATION.md is a design record, so it also quotes counts from earlier
+ * releases. Those are written without the phrasings below ("161 probes",
+ * "the 163 it shipped then"); any phrasing below is read as a claim about today's
+ * catalogue: "N skills", "N skill directories", "all N", "among N", "the
+ * real N", "N names", for any N of 100 or more. Smaller numbers ("8 skills",
+ * "14 names") are subsets, not the catalogue. "The other N have not been
+ * exercised" is checked against the catalogue size less the ledger's PASS
+ * count.
+ */
+function validateOtherDocCounts(onDiskCount, uniquePass) {
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  const descMatches = [...String(pkg.description ?? "").matchAll(/(\d+)\s+(?:[A-Za-z-]+\s+){0,4}skills\b/gi)];
+  if (descMatches.length === 0) {
+    problems.hard.push(`package.json description no longer states the skill count — the npm listing's claim has gone missing`);
+  }
+  for (const match of descMatches) {
+    if (Number(match[1]) !== onDiskCount) {
+      problems.hard.push(`package.json description says "${match[0]}" but skills/ holds ${onDiskCount}`);
     }
-    const claimed = Number(ranMatch[1]);
-    if (claimed !== uniquePass) {
-      problems.hard.push(
-        `README.md claims "${claimed} skills have been run" but testing/ledger.json has ` +
-          `${uniquePass} unique PASS skills`,
-      );
+  }
+
+  const docPath = join(root, "DOCUMENTATION.md");
+  const lines = readFileSync(docPath, "utf8").split("\n");
+  const claim =
+    /\b(\d+) (?:skills\b|skill directories\b|names\b)|\b(?:all|among|the real)\s+\**(\d+)\b/gi;
+  lines.forEach((line, index) => {
+    for (const match of line.matchAll(claim)) {
+      const claimed = Number(match[1] ?? match[2]);
+      if (claimed >= 100 && claimed !== onDiskCount) {
+        problems.hard.push(
+          `DOCUMENTATION.md:${index + 1} says "${match[0].trim()}" but skills/ holds ${onDiskCount} — ` +
+            `that phrasing is read as a claim about today's catalogue; fix the number, or reword a ` +
+            `count from an earlier release so it reads as one (see validateOtherDocCounts)`,
+        );
+      }
     }
+  });
+
+  const untested = lines.join("\n").match(/The other (\d+) have not been exercised/);
+  if (!untested) {
+    problems.hard.push(`DOCUMENTATION.md no longer says "The other N have not been exercised" — the untested-count claim has gone missing`);
+  } else if (uniquePass !== undefined && Number(untested[1]) !== onDiskCount - uniquePass) {
+    problems.hard.push(
+      `DOCUMENTATION.md says "The other ${untested[1]} have not been exercised" but ${onDiskCount} skills ` +
+        `less ${uniquePass} unique PASS skills in testing/ledger.json is ${onDiskCount - uniquePass}`,
+    );
   }
 }
 
@@ -625,7 +682,9 @@ validateLicenseSha256();
 validateExcludedSkills(onDiskNames);
 validateRequiredNotices();
 checkTokenEstimate(profiles, corpus);
-validateReadmeCounts(onDiskNames.length);
+const uniquePass = ledgerUniquePass();
+validateReadmeCounts(onDiskNames.length, uniquePass);
+validateOtherDocCounts(onDiskNames.length, uniquePass);
 
 console.log(`Validated ${count} skills in ${skillsDir}`);
 console.log(`  ${modelInvocationDisabled} declare disable-model-invocation (pi hides those from the prompt only)`);
