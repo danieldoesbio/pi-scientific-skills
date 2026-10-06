@@ -221,11 +221,11 @@ scripts/test-search.mjs # sci_find ranking against the real 176 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
 scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to pi's, oracle = pi's own method
-scripts/test-pi-runtime.mjs  # sci_find's pi 1.0 tool fields in a real pi session, scripted faux model
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
 scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
+scripts/test-pi-runtime.mjs  # sci_find's pi 1.0 tool fields in a real pi session, scripted faux model
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
 scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
 scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
@@ -1518,10 +1518,16 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   tested on arrival. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test`
   (ranking re-checked on the rewritten descriptions,
   `testing/runs/2026-10-05-v2.72.0-sync.md`) and `npm run typecheck`. The
-  count of skills run stays at 43. `sci_find`'s pi 1.0 tool fields (see
-  "pi 1.0 tool fields" under Search mode) landed after that, still unreleased,
-  with `test-pi-runtime.mjs`; no live run covers them, and on the direct path
-  the model reads the same text as before.
+  count of skills run stays at 43.
+- **1.8.1 (0):** no skill batch and no live `sci_find` run. Released with
+  1.8.0's content (1.8.0 was never published) plus two extension and docs
+  changes: `sci_find`'s pi 1.0 tool fields (see "pi 1.0 tool fields" under
+  Search mode), checked in a real pi session by `test-pi-runtime.mjs`, and the
+  docs cleanup that taught `validate.mjs` to check the skill counts in
+  DOCUMENTATION.md and the `package.json` description. On the direct path the
+  model reads the same `sci_find` text as in 1.8.0, so no small-model run was
+  repeated. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and
+  `npm run typecheck`.
 - The other 133 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce

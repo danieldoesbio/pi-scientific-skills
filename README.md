@@ -134,6 +134,11 @@ you decline, escape, or ignore it. On an upgrade it tells you once what
 changed and leaves your selection exactly as it was — your `settings.json` is
 not touched by an upgrade you didn't ask for.
 
+### What 1.8.1 changed
+
+- On pi 1.0, `sci_find` declares itself read-only, so a permission extension that checks tool hints lets it run without asking. A codemode script gets its result as data (skill names, descriptions and SKILL.md paths), and an unknown profile is reported as a failed call. The model reads the same text as before, and on pi 0.87 nothing changes ([details](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
+- The validator now checks the skill counts quoted in DOCUMENTATION.md and the npm description, not only README, and stale notes from before the v2.72.0 sync are corrected.
+
 ### What 1.8.0 changed
 
 - Skills synced to upstream v2.72.0: 14 new skills (among them `primer-design`, `mageck`, `flowkit`, `qiime2-amplicon`, `cellprofiler`, `relion` and `pybamm`), all in the field profiles, and upstream's re-pinned dependencies and rewritten descriptions across the rest.
