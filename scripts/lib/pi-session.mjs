@@ -77,6 +77,24 @@ export function responses(messages) {
       call.result = textOf(message.content);
       call.isError = message.isError === true;
       call.resultAt = message.entryTime;
+      // pi 0.99+: calls a codemode script made through `tools.*` are not in
+      // the transcript as tool calls. pi records them, without their results,
+      // as `nestedCalls` on the script's own result (pi-ai NestedToolCallRecord).
+      // Each becomes a call of its own after the script's call, marked `via`,
+      // so a nested `read` of a SKILL.md reaches the read endpoint and a nested
+      // `sci_find` counts as seeking. `result` stays "": pi does not keep it.
+      for (const nested of message.nestedCalls?.calls ?? []) {
+        current.calls.push({
+          id: nested.id,
+          tool: nested.name,
+          args: nested.arguments ?? {},
+          result: "",
+          isError: nested.status !== "ok",
+          message: call.message,
+          resultAt: message.entryTime,
+          via: call.tool,
+        });
+      }
     }
   }
   return out;
@@ -167,7 +185,7 @@ export function skillReads(turns, want) {
             : call.tool === "bash" &&
               String(call.args.command ?? "").includes(`${skill}/SKILL.md`) &&
               new RegExp(`^name:\\s*${skill}\\s*$`, "m").test(call.result);
-        if (hit) found.push({ skill, by: call.tool, response: index + 1, at: call.resultAt ?? null });
+        if (hit) found.push({ skill, by: call.tool, ...(call.via && { via: call.via }), response: index + 1, at: call.resultAt ?? null });
       }
     }
   }

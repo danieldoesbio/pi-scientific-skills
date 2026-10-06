@@ -224,7 +224,7 @@ scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
-scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
+scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full, or direct / cm-on / cm-only), frozen sources
 scripts/test-pi-runtime.mjs  # sci_find's pi 1.0 tool fields in a real pi session, scripted faux model
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
 scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
@@ -832,7 +832,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 176 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`), and the first-search facts of `find-ab-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
+| `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test (with the calls a codemode script makes) and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`), the codemode settings the agent seed writes; the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`), and the first-search facts of `find-ab-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
 | `test-pi-runtime.mjs` | That pi **itself** honours `sci_find`'s 0.99+ tool fields, in a real `AgentSession` from the installed pi's SDK with pi-ai's scripted faux provider as the model (no network, no key). On 0.99+: pi reports the read-only hints, an unknown profile is a failed call, and a codemode script receives the result as an object with 3 hits on a first search. On 0.87: the same calls run, and the fields are inert. Every check runs on both versions with its version's expectation, so the count does not move between CI rows. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
@@ -978,6 +978,17 @@ Options for comparing configurations (added for the 2026-09-25 three-arm run,
   prefix; pi's skills block comes before the working-directory line).
 - `--archive-to <dir>` copies the transcripts and a tarball of the workspaces
   out of the temporary directory at the end.
+- `--codemode <off|on|only>` (added for
+  [`testing/runs/2026-10-06-codemode-bonsai.md`](testing/runs/2026-10-06-codemode-bonsai.md))
+  writes `defaultTools: ["+codemode"]` and `codemode.mode` into the throwaway
+  agent dir's settings. `on` adds pi's codemode tool beside the others; `only`
+  makes it the only declared tool. It needs pi 0.99 or later on PATH, and each
+  line records `codemode` and `piVersion`. pi keeps the calls a script makes
+  as `nestedCalls` on the codemode result, with arguments and status but no
+  result; the harness grades each as a call of its own marked `via:
+  "codemode"`. A script's `read` of the target's SKILL.md reaches the read
+  endpoint; a script's bash cannot, since its output is not kept (the line
+  counts those as `nestedBashTarget`).
 - `--endpoint first-find` has no target: the attempt stops at the model's
   first `sci_find` call and ends as `searched`, with the query in `queries[0]`.
   It measures which query a model writes and how often it searches (with
@@ -1028,7 +1039,10 @@ it once if it died, stops after three harness errors in a row, and runs under
 `caffeinate`. Probes run in chunks (Core first, then a seeded shuffle); each
 chunk runs every arm, with the order rotated per chunk, so a run stopped at a
 chunk boundary is still balanced and paired. `--stop-after HH:MM` starts no
-chunk after that time; the same `--out` continues on a later night.
+chunk after that time; the same `--out` continues on a later night. `--arms
+direct,cm-on,cm-only` runs the codemode design: `direct` is `v17`'s flags
+under a name that does not date it, and `cm-on` and `cm-only` add
+`--codemode on` and `--codemode only`.
 
 `scripts/find-live-timing.mjs <out>` splits each attempt's time by the
 server. It pairs every finished request in `llama-server.log` with the pi
@@ -1049,8 +1063,11 @@ size per arm, without warm-ups and requests right after a stop. It needs the
 archived session files: an invocation stopped by a signal archives nothing,
 so its attempts are not timed.
 
-`scripts/find-live-arms-report.mjs <out> [--timing <jsonl>]` gives the
-pre-registered outcomes. The analysis set is the chunks with a results line
+`scripts/find-live-arms-report.mjs <out> [--design night-arms|codemode]
+[--timing <jsonl>]` gives the pre-registered outcomes. `--design codemode`
+compares `cm-on − direct` and `cm-only − direct`, both non-inferiority at −5
+points, and adds a codemode line per arm (scripts, calls from scripts, reads
+through a script). The analysis set is the chunks with a results line
 in every arm, less any probe with a harness error in any arm; an intersection
 of finished probes would let a part-done chunk in. Per arm it gives the read
 rate (Core and non-Core apart), how attempts ended, the context and output
@@ -1527,7 +1544,10 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   DOCUMENTATION.md and the `package.json` description. On the direct path the
   model reads the same `sci_find` text as in 1.8.0, so no small-model run was
   repeated. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and
-  `npm run typecheck`.
+  `npm run typecheck`. A codemode run on Bonsai 2 27B is
+  pre-registered in `testing/runs/2026-10-06-codemode-bonsai.md` (`sci_find`
+  direct, beside codemode, and through codemode only); update this entry if
+  it runs before the release.
 - The other 133 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
