@@ -221,6 +221,7 @@ scripts/test-search.mjs # sci_find ranking against the real 176 descriptions
 scripts/test-extension.mjs   # command + startup behaviour against a stubbed ExtensionAPI
 scripts/test-filter.mjs # that pi itself honours the filter we write
 scripts/test-skill-expand.mjs  # the /skill: block we build is byte-identical to pi's, oracle = pi's own method
+scripts/test-pi-runtime.mjs  # sci_find's pi 1.0 tool fields in a real pi session, scripted faux model
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
@@ -398,6 +399,37 @@ with the default `codemode` exposure connects; `"autoEnableCodemode": false`
 beside `mcpServers` in `mcp.json` stops that (pi's `docs/mcp.md`). Codemode
 adds its own tool and a line to each tool description, so with a small local
 model keep it off unless you use it.
+
+**pi 1.0 tool fields (since 0.99; inert on 0.87).** `sci_find` declares three
+fields pi added in 0.99 (pi's `docs/extensions.md`, "Tools" and "Tool
+exposure"), and the model on the direct path reads the same text as before:
+
+- `annotations`: `readOnlyHint: true`, `destructiveHint: false`,
+  `idempotentHint: true`, `openWorldHint: false`. pi does not act on them
+  itself; a permission extension that confirms calls by these hints (the
+  example in pi's docs, modelled on Codex's approvals) lets `sci_find` through
+  without asking.
+- `outputSchema` and `structuredContent`: a codemode script's
+  `tools.sci_find(...)` resolves to an object, not the text:
+  `{ kind, query, profile, skills, profiles }`, where `kind` is `search`,
+  `no-match`, `profile`, `profile-index`, `unknown-profile` or `unavailable`,
+  each skill is `{ name, description, path, dir, notInAnyProfile }`, and every
+  field is present (`null` when not given). Same ranker, same hit count (3,
+  then 5) and same order as the text; descriptions are always full, whatever
+  `PI_SCI_FIND_FORMAT` says. The schema is never sent to a provider (pi-ai
+  serialises name, description and parameters only), so it costs nothing
+  without codemode; with codemode on, pi appends one line naming the five
+  fields to the tool's description.
+- `isError` on the result: an unknown profile id, or a package whose `skills/`
+  cannot be located, is a failed call on 1.0. The text is unchanged and still
+  lists the real profiles. A query that matches nothing is not an error.
+
+All three ride on the tool definition and the result object, with no version
+check. pi 0.87 ignores them: `wrapToolDefinition` copies only the fields it
+knows, and pi-agent-core's `createToolResultMessage` builds the message from
+`content`, `details` and `usage`. `index.ts` spreads them in from one object so
+the definition still type-checks against 0.87's declarations.
+`scripts/test-pi-runtime.mjs` checks both halves in a real pi session.
 
 **`/sci none`, `/sci search` and the way back to Core (1.7.0).** An empty
 `skills` filter now means search mode, not "off": `sci_find` stays registered.
@@ -801,6 +833,7 @@ is therefore a hard prerequisite for `npm test`.
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 176 SKILL.md files and 13 edge cases the way pi's own parser does. |
 | `test-live-lib.mjs` | The live harness's grading helpers on synthetic pi sessions: the read endpoint, the skill-seeking test and the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`); the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and the analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers, the replay's analysis set and validity rules (`find-live-replay.mjs`), the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`), and the first-search facts of `find-ab-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still gives numbers in a live run, so it is checked here. |
+| `test-pi-runtime.mjs` | That pi **itself** honours `sci_find`'s 0.99+ tool fields, in a real `AgentSession` from the installed pi's SDK with pi-ai's scripted faux provider as the model (no network, no key). On 0.99+: pi reports the read-only hints, an unknown profile is a failed call, and a codemode script receives the result as an object with 3 hits on a first search. On 0.87: the same calls run, and the fields are inert. Every check runs on both versions with its version's expectation, so the count does not move between CI rows. |
 | `test-tui-offer.py` | The first-run offer in pi's **real TUI**, driven through a pty: accepting writes the empty search-mode filter, declining and timing out write nothing. The only check that exercises the unstubbed accept path — and the only one that catches a missing `expandPromptTemplates`. Spends no tokens; needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite — a helper each suite calls last, so the check counts the README quotes cannot silently rot. Added because they already had: five checks landed and the README still said 44. |
 | `try-it.sh` | Not a test — a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. `~/.pi/agent` is never touched, the credential copy is deleted on any exit, and it reports afterwards whether `settings.json` moved. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -1485,7 +1518,10 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   tested on arrival. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test`
   (ranking re-checked on the rewritten descriptions,
   `testing/runs/2026-10-05-v2.72.0-sync.md`) and `npm run typecheck`. The
-  count of skills run stays at 43.
+  count of skills run stays at 43. `sci_find`'s pi 1.0 tool fields (see
+  "pi 1.0 tool fields" under Search mode) landed after that, still unreleased,
+  with `test-pi-runtime.mjs`; no live run covers them, and on the direct path
+  the model reads the same text as before.
 - The other 133 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce

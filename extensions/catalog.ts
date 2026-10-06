@@ -207,10 +207,16 @@ const firstSentence = (text: string): string => {
   return text;
 };
 
+/** The first sentence of the reason a skill is held out of every profile, if it is. */
+const heldOutReason = (name: string): string | undefined => {
+  const reason = unassignedReasons.get(name);
+  return reason ? firstSentence(reason) : undefined;
+};
+
 /** " — not in any profile: <reason>", or "" for a skill some profile lists. */
 const unassignedCaveat = (name: string): string => {
-  const reason = unassignedReasons.get(name);
-  return reason ? ` — not in any profile: ${firstSentence(reason)}` : "";
+  const reason = heldOutReason(name);
+  return reason ? ` — not in any profile: ${reason}` : "";
 };
 
 /**
@@ -292,7 +298,7 @@ const noMatchText = (query: string): string =>
 
 /**
  * The profile that `text` names, if any. This is the one test for "this text
- * is a profile id": `formatProfile` lists the profile it finds, and the search
+ * is a profile id": `runFind` lists the profile it finds, and the search
  * stage does not count a query it finds as a search. Keeping a single test
  * keeps the two from drifting apart.
  */
@@ -301,17 +307,20 @@ const profileNamed = (text: string): SkillProfile | undefined => {
   return PROFILES.find((profile) => profile.id === id);
 };
 
-/** Profile listing: the same taxonomy humans get in the `/sci` picker. */
-const formatProfile = (id: string): string | undefined => {
-  const profile = profileNamed(id);
-  if (!profile) return undefined;
-  const listed = profile.skills
+/** A profile's skills that are in the catalogue, in the profile's own order. */
+const profileEntries = (profile: SkillProfile): SkillEntry[] =>
+  profile.skills
     .map((name) => skillIndex().get(name))
     .filter((entry): entry is SkillEntry => entry !== undefined);
-  return [`# ${profile.label}`, profile.description, "", formatHits(listed.map((entry) => ({ entry, score: 0 })))].join(
-    "\n",
-  );
-};
+
+/** Profile listing: the same taxonomy humans get in the `/sci` picker. */
+const formatProfile = (profile: SkillProfile): string =>
+  [
+    `# ${profile.label}`,
+    profile.description,
+    "",
+    formatHits(profileEntries(profile).map((entry) => ({ entry, score: 0 }))),
+  ].join("\n");
 
 /** No arguments: the toggle list, so an unsure model has somewhere to start. */
 const formatProfileIndex = (): string =>
@@ -334,30 +343,114 @@ export interface ToolParams {
 }
 
 /**
+ * What a `sci_find` call returned, for programmatic callers. pi 1.0 hands this
+ * to codemode scripts (`tools.sci_find(...)`) in place of the text; the model
+ * itself only ever sees the text. `index.ts` declares the same shape as the
+ * tool's `outputSchema`.
+ *
+ * Every field is always present, with `null` for "not given", so a script
+ * never has to tell a missing field from an empty one. Type aliases, not
+ * interfaces: pi's `JsonValue` is an index-signature type, and an interface is
+ * not assignable to one.
+ */
+export const FIND_KINDS = ["search", "no-match", "profile", "profile-index", "unknown-profile", "unavailable"] as const;
+export type FindKind = (typeof FIND_KINDS)[number];
+
+export type FoundSkill = {
+  name: string;
+  description: string;
+  /** Absolute path to SKILL.md: what `read` takes. */
+  path: string;
+  /** The skill's folder: relative paths inside SKILL.md resolve against it. */
+  dir: string;
+  /** First sentence of why `profiles.ts` holds the skill out of every profile, or null. */
+  notInAnyProfile: string | null;
+};
+
+export type ListedProfile = { id: string; label: string; skillCount: number };
+
+export type FindStructured = {
+  kind: FindKind;
+  query: string | null;
+  profile: string | null;
+  /** Search hits in rank order, or the listed profile's skills. */
+  skills: FoundSkill[];
+  /** The profile taxonomy, on the kinds that offer it for browsing. */
+  profiles: ListedProfile[];
+};
+
+export interface FindResult {
+  /** What the model reads. */
+  readonly text: string;
+  readonly structured: FindStructured;
+  /** The call could not do what it was asked: an unknown profile, or no catalogue. */
+  readonly isError: boolean;
+}
+
+const foundSkill = (entry: SkillEntry): FoundSkill => ({
+  name: entry.name,
+  description: entry.description,
+  path: entry.path,
+  dir: entry.dir,
+  notInAnyProfile: heldOutReason(entry.name) ?? null,
+});
+
+const listedProfiles = (): ListedProfile[] =>
+  PROFILES.map((profile) => ({ id: profile.id, label: profile.label, skillCount: profile.skills.length }));
+
+/**
  * The one implementation behind both `sci_find` and `/sci find`: the same
  * ranker and the same rendering. The hit count differs on purpose. The tool
  * passes 3 (a prompt's first search) or 5 (later ones) through `limit`, and
  * `/sci find` passes none and gets DEFAULT_LIMIT, the top 8 (6 under the
  * experimental compact format). `format` applies to query hits only; profile
- * listings stay full.
+ * listings stay full. `structured` always carries full descriptions: a script
+ * chooses what to show.
  */
-export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat()): string => {
-  if (!SKILLS_DIR) {
-    return `${TOOL_NAME} is unavailable: this package's skills/ directory could not be located.`;
-  }
-
-  const profile = params.profile?.trim();
-  if (profile) {
-    return formatProfile(profile) ?? `No profile "${profile}".\n\n${formatProfileIndex()}`;
-  }
-
+export const runFind = (params: ToolParams, format: HitFormat = findFormat()): FindResult => {
   const query = params.query?.trim() ?? "";
-  if (query === "") return formatProfileIndex();
+  const requestedProfile = params.profile?.trim() ?? "";
+  const result = (
+    kind: FindKind,
+    text: string,
+    extra: { profile?: string; skills?: SkillEntry[]; profiles?: boolean } = {},
+  ): FindResult => ({
+    text,
+    isError: kind === "unknown-profile" || kind === "unavailable",
+    structured: {
+      kind,
+      query: query === "" ? null : query,
+      profile: extra.profile ?? (requestedProfile === "" ? null : requestedProfile),
+      skills: (extra.skills ?? []).map(foundSkill),
+      profiles: extra.profiles ? listedProfiles() : [],
+    },
+  });
+
+  if (!SKILLS_DIR) {
+    return result(
+      "unavailable",
+      `${TOOL_NAME} is unavailable: this package's skills/ directory could not be located.`,
+    );
+  }
+
+  if (requestedProfile) {
+    const named = profileNamed(requestedProfile);
+    if (!named) {
+      return result("unknown-profile", `No profile "${requestedProfile}".\n\n${formatProfileIndex()}`, {
+        profiles: true,
+      });
+    }
+    return result("profile", formatProfile(named), { profile: named.id, skills: profileEntries(named) });
+  }
+
+  if (query === "") return result("profile-index", formatProfileIndex(), { profiles: true });
 
   // A bare profile id passed as the query is a natural thing for a model to
   // try, and answering it beats a pedantic "no match".
-  const asProfile = formatProfile(query);
-  if (asProfile) return asProfile;
+  const asProfile = profileNamed(query);
+  if (asProfile) {
+    return result("profile", formatProfile(asProfile), { profile: asProfile.id, skills: profileEntries(asProfile) });
+  }
 
   const limit = Number.isInteger(params.limit)
     ? Math.min(Math.max(params.limit as number, 1), MAX_LIMIT)
@@ -365,8 +458,13 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
       ? COMPACT_DEFAULT_LIMIT
       : DEFAULT_LIMIT;
   const hits = search(catalog(), query, limit);
-  return hits.length === 0 ? noMatchText(query) : formatHits(hits, format);
+  if (hits.length === 0) return result("no-match", noMatchText(query), { profiles: true });
+  return result("search", formatHits(hits, format), { skills: hits.map(({ entry }) => entry) });
 };
+
+/** `runFind`'s text alone: what `/sci find` reports and the replay tooling compares. */
+export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat()): string =>
+  runFind(params, format).text;
 
 /**
  * How many hits `sci_find` shows the model. Every call in the first turn that
