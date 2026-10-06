@@ -1424,6 +1424,28 @@ console.log("\n-- upgradeNotice / compareVersions: pure functions, fixed version
     /BM25F/.test(skippedNotice) && /Upstream snapshot v2\.69\.0/.test(skippedNotice),
     skippedNotice,
   );
+
+  const syncNotice = upgradeNotice("1.7.0", "1.8.0");
+  check(
+    "minor pair (1.7.0→1.8.0): the v2.72.0 news and how a profile picks it up, not 1.7.0's search news again",
+    /updated to 1\.8\.0 \(from 1\.7\.0\)/.test(syncNotice) &&
+      /Upstream snapshot v2\.72\.0/.test(syncNotice) &&
+      /press Enter/.test(syncNotice) &&
+      !/BM25F/.test(syncNotice) &&
+      !/v2\.69\.0/.test(syncNotice),
+    syncNotice,
+  );
+  check("1.8.0 notice: short enough to read once", syncNotice.length <= 9 * 90, `${syncNotice.length} characters`);
+  check(
+    "1.6.0→1.7.0 does not announce a later release",
+    !/v2\.72\.0/.test(upgradeNotice("1.6.0", "1.7.0")),
+  );
+  const fromSixNotice = upgradeNotice("1.6.0", "1.8.0");
+  check(
+    "skipped minor (1.6.0→1.8.0): both the v2.72.0 news and the search news",
+    /v2\.72\.0/.test(fromSixNotice) && /BM25F/.test(fromSixNotice) && !/v2\.69\.0/.test(fromSixNotice),
+    fromSixNotice,
+  );
 }
 
 console.log("\n-- upgrade from each real 1.6.0 state --");

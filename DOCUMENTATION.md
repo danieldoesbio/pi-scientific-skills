@@ -1479,7 +1479,14 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   and `node scripts/test-find-live.mjs` passed on three small models (Bonsai 2
   27B, Gemma 4 26B-A4B, DeepSeek V4 Flash): `sci_find` called and an expected
   skill returned on 3 of 3 questions for each.
-- The other 119 have not been exercised here; they ship as upstream ships them.
+- **1.8.0 (0):** no skill batch and no live `sci_find` run. The release is the
+  upstream v2.72.0 snapshot, 14 skills new among 176, and the maintainer's
+  call is that new upstream skills join the untested pool rather than being
+  tested on arrival. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test`
+  (ranking re-checked on the rewritten descriptions,
+  `testing/runs/2026-10-05-v2.72.0-sync.md`) and `npm run typecheck`. The
+  count of skills run stays at 43.
+- The other 133 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
 

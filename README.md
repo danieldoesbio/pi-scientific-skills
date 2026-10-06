@@ -134,6 +134,13 @@ you decline, escape, or ignore it. On an upgrade it tells you once what
 changed and leaves your selection exactly as it was — your `settings.json` is
 not touched by an upgrade you didn't ask for.
 
+### What 1.8.0 changed
+
+- Skills synced to upstream v2.72.0: 14 new skills (among them `primer-design`, `mageck`, `flowkit`, `qiime2-amplicon`, `cellprofiler`, `relion` and `pybamm`), all in the field profiles, and upstream's re-pinned dependencies and rewritten descriptions across the rest.
+- A saved profile picks up the new skills when you open `/sci profiles` and press Enter. Search mode finds them already.
+- `fictiv` is not shipped: it drives a commercial manufacturing site through to orders that cannot be cancelled.
+- `sci_find` ranking was re-checked on the new descriptions ([run](testing/runs/2026-10-05-v2.72.0-sync.md)).
+
 ### What 1.7.0 changed
 
 - Search mode loads no skills (~0 tokens instead of Core's ~1.4k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
@@ -160,7 +167,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   GunPoint, a live CELLxGENE Census query. Coverage grows with each skill
   batch. The per-skill record is `testing/ledger.json`, with the notes in
   [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 242 behavioural checks
+- **`/sci` and `sci_find`, automated on every change:** 246 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
   `sci_find` renders in the tools section of pi's default system prompt, built by
   pi's own builder;
