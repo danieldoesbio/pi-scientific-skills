@@ -1,40 +1,40 @@
 /**
  * YAML frontmatter parsing for `SKILL.md` files.
  *
- * Shared deliberately: `scripts/validate.mjs` checks every skill on every
+ * Shared on purpose: `scripts/validate.mjs` checks every skill on every
  * release, and `search.ts` parses the same files at runtime to build the
- * `sci_find` catalogue. Two parsers would drift, and the drift would be
- * invisible — validation would pass on files the runtime read differently.
+ * `sci_find` catalogue. Two parsers would drift unnoticed: validation would
+ * pass on files the runtime read differently.
  *
- * The fence-finding step copies pi's own algorithm exactly (verified by
- * reading `dist/utils/frontmatter.js` in an installed pi): strip a leading
- * BOM, normalize `\r\n`/`\r` to `\n`, require the text to start with `---`,
- * then find the closing fence with `indexOf("\n---", 3)`. That is what keeps
- * a leading blank line, or a `---` rule inside an unfenced body, from being
- * misread as frontmatter. `scripts/test-frontmatter.mjs` checks this file
- * against pi's real parser, field by field, over every skill plus a set of
- * synthetic edge cases.
+ * The fence-finding step copies pi's `extractFrontmatter`
+ * (`dist/utils/frontmatter.js`): strip a leading BOM, normalize `\r\n`/`\r`
+ * to `\n`, require the text to start with `---`, then find the closing fence
+ * with `indexOf("\n---", 3)`. This keeps a leading blank line, or a `---`
+ * rule inside an unfenced body, from being misread as frontmatter.
+ * `scripts/test-frontmatter.mjs` compares this file with pi's real parser,
+ * field by field, over every skill plus synthetic edge cases.
  *
- * `validate.mjs` imports this through Node's TypeScript type stripping
- * (>= 22.18), the same mechanism it already uses for `profiles.ts`.
+ * `validate.mjs` imports this file through Node's TypeScript type stripping
+ * (>= 22.18), as it does `profiles.ts`.
  */
 
 /** Frontmatter as flat top-level scalars. Nested mappings are present-but-empty. */
 export type Frontmatter = Record<string, string>;
 
 /**
- * Parse the scalar on the right of `key:`, once it is known not to be a
+ * Parse the scalar to the right of `key:`, once it is known not to be a
  * block-scalar indicator or empty.
  *
  * A quoted value is walked character by character to its matching closing
  * quote; anything after that quote (typically `# a comment`) is dropped.
- * `\"` unescapes inside double quotes, `''` unescapes inside single quotes.
- * An unterminated quote is read leniently: whatever was collected before
- * running off the end of the line is returned as-is.
+ * `\"` unescapes inside double quotes and `''` inside single quotes. An
+ * unterminated quote is read leniently: whatever was collected before the
+ * end of the line is returned as-is.
  *
- * Escape support is deliberately narrower than full YAML — no `\n`, `\t`, or
- * `\uXXXX` — because no shipped skill description needs them (12
- * double-quoted descriptions in the corpus, none with a backslash).
+ * Escape support is narrower than full YAML (no `\n`, `\t` or `\uXXXX`)
+ * because no double-quoted description in the shipped skills contains a
+ * backslash. A skill that used one of those escapes would fail
+ * `scripts/test-frontmatter.mjs`, which compares every skill with pi's parser.
  *
  * An unquoted value is cut at the first whitespace-then-`#` (a YAML comment
  * needs the leading whitespace) and trimmed.
@@ -69,7 +69,7 @@ const parseScalar = (rest: string): string => {
   return (commentAt === -1 ? rest : rest.slice(0, commentAt)).trim();
 };
 
-/** Strip a leading BOM and normalize line endings, exactly as pi does. */
+/** Strip a leading BOM and normalize line endings, as pi does. */
 const normalize = (text: string): string => {
   const stripped = text.startsWith("\uFEFF") ? text.slice(1) : text;
   return stripped.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -81,8 +81,8 @@ const normalize = (text: string): string => {
  *
  * Folded (`>`) bodies join on spaces; literal (`|`) bodies join on newlines.
  * Trailing blank lines are chomped either way. An empty body (no indented
- * lines follow) resolves to `""` — the reason this exists at all, since a
- * naive parser would otherwise record the `>` indicator itself as the value.
+ * lines follow) resolves to `""`, which is why this function exists:
+ * `parseFrontmatter` explains what goes wrong without it.
  */
 const consumeBlockScalar = (
   lines: string[],
@@ -105,10 +105,10 @@ const consumeBlockScalar = (
 /**
  * Line-based parser for the top-level scalars this collection uses.
  *
- * It must resolve block scalars (`description: >` followed by indented lines),
- * because a naive parser records the `>` indicator itself as the value — which
- * makes a skill with an EMPTY block body look like it has a description and
- * slip past validation, even though pi would refuse to load it.
+ * It must resolve block scalars (`description: >` followed by indented lines).
+ * A naive parser records the `>` indicator itself as the value, so a skill
+ * with an empty block body would look as if it had a description and pass
+ * validation, although pi refuses to load a skill without one.
  *
  * Only top-level scalars are resolved. Nested mappings (`metadata:`) are
  * recorded as present-but-empty and skipped.

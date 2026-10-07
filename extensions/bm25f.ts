@@ -1,6 +1,5 @@
 /**
- * BM25F ranking for `sci_find`. It replaced an older word-match scorer in
- * 1.7.0; that scorer was removed after 1.8.0.
+ * BM25F ranking for `sci_find`.
  *
  * Three fields per skill: its name, its description and its SKILL.md body.
  * A term's weight falls with the number of skills that use it (IDF), so a
@@ -8,10 +7,10 @@
  * The body lets a query reach a skill through words its description does not
  * use.
  *
- * The settings are fixed. They came from a 2-fold cross-validation on 425
+ * The settings are fixed. They came from a 2-fold cross-validation on
  * recorded first `sci_find` queries (split by target skill) and were then
- * tested, unchanged, on paraphrased requests written blind to the skill
- * names, and once on a locked held-out set (testing/runs/2026-09-27-find-ranker.md).
+ * tested, unchanged, on paraphrased requests written blind to the skill names
+ * and once on a locked held-out set (testing/runs/2026-09-27-find-ranker.md).
  */
 
 import { readFileSync } from "node:fs";
@@ -45,9 +44,9 @@ const unigrams = (text: string): string[] => splitWords(text).map(fold);
  * the pair has 5 or more characters. A document is tokenized whole, so its
  * "rna seq" and its "rna-seq" both give the token "rnaseq". A query is
  * tokenized one term at a time (see `rankAll`), so it gets a pair only from a
- * hyphen inside a term: "rna-seq" and "rnaseq" meet those documents through
- * "rnaseq", but the query "rna seq" is two terms and matches through "rna"
- * and "seq" alone.
+ * hyphen inside a term: the queries "rna-seq" and "rnaseq" reach those
+ * documents through "rnaseq", while "rna seq" is two terms and matches
+ * through "rna" and "seq" alone.
  */
 export const tokenize = (text: string): string[] => {
   const words = splitWords(text);
@@ -120,7 +119,8 @@ export const buildIndex = (catalog: readonly SkillEntry[], bodyOf: (entry: Skill
 
 /**
  * Every skill with a score above 0 for `terms`, best first; ties break by
- * name. `terms` are raw query terms: each is tokenized here.
+ * name, so the order is deterministic. `terms` are raw query terms: each is
+ * tokenized here.
  */
 export const rankAll = (index: Bm25fIndex, terms: readonly string[]): { entry: SkillEntry; score: number }[] => {
   const {
@@ -157,18 +157,23 @@ export const rankAll = (index: Bm25fIndex, terms: readonly string[]): { entry: S
 /**
  * The no-match rule. A query gets hits only when the best skill scores at
  * least `minTop`, or reaches `minShare` of the most the query could score
- * (every query term at full weight). The absolute floor handles long
+ * (the summed IDF of its single words). The absolute floor handles long
  * queries; the share lets a short, exact query through ("genome",
  * "statistics"), whose best score is small because it has one term.
- * Chosen on development data to lose none of 1,069 queries whose target was
+ *
+ * Both were chosen on the development queries to drop none whose target was
  * in the top 8, and to return nothing for every query in test-search.mjs's
- * negative list. The most a query could score counts single words only. A
- * joined pair of a hyphenated word scores only when the index holds it
- * ("massspec" is in no field). A pair that can never score must not hold a
- * short hyphenated query under the share.
- * minShare was 0.35 until the v2.72.0 sync, whose condensed descriptions
- * dropped "read alignment" to 0.30 while the highest negative ("bamboo
- * growth") sits at 0.27; 0.28 splits them (testing/runs/2026-10-05-v2.72.0-sync.md).
+ * negative list (testing/runs/2026-09-27-find-ranker.md). `minShare` was
+ * later lowered, after the v2.72.0 sync's condensed descriptions cut the
+ * share of "read alignment" (must match), to sit between it and "bamboo
+ * growth" (the negative with the highest share). The margin is thin on both
+ * sides, so re-run the share table in
+ * testing/runs/2026-10-05-v2.72.0-sync.md after each upstream sync.
+ *
+ * The most a query could score leaves out the joined pair of a hyphenated
+ * word. Such a pair scores only when the index holds it, and one that never
+ * can ("massspec" is in no field) has the maximum IDF, so counting it would
+ * push a short hyphenated query under the share.
  */
 export const NO_MATCH = { minTop: 2.5, minShare: 0.28 } as const;
 

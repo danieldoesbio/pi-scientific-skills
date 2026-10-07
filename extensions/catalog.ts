@@ -1,7 +1,7 @@
 /**
- * Token accounting, the skill catalogue, and `sci_find`'s search — the model-
- * facing half of progressive disclosure, plus the `/skill:<name>` rebuild for
- * a skill a resource filter removed from pi's own registry.
+ * Token accounting, the skill catalogue, and `sci_find`'s search: the
+ * model-facing half of progressive disclosure. Also the `/skill:<name>`
+ * rebuild for a skill a resource filter removed from pi's own registry.
  */
 
 import { readFile } from "node:fs/promises";
@@ -28,7 +28,7 @@ import {
 import { SKILL_COMMAND_PREFIX, TOOL_NAME } from "./types";
 
 // ---------------------------------------------------------------------------
-// Token accounting — the entire point of the feature, so keep it visible
+// Token accounting: the point of the feature, so keep it visible
 // ---------------------------------------------------------------------------
 
 export const formatTokens = (tokens: number): string =>
@@ -42,14 +42,15 @@ export const describeCost = (skillCount: number): string => {
 };
 
 /**
- * An empty `skills` filter is search mode, not "off": no skill is in the
- * system prompt, and `sci_find` still reaches every one. Callers add the
- * "Search mode:" prefix in the case their sentence needs.
+ * An empty `skills` filter means search mode; it does not turn skills off. No
+ * skill is in the system prompt, and `sci_find` still reaches every one.
+ * Callers add the "Search mode:" prefix, upper- or lower-case as their
+ * sentence needs.
  */
 export const describeSearchMode = (): string =>
   `no skills in the system prompt (${describeCost(0)}); ${TOOL_NAME} finds all ${TOTAL_SKILL_COUNT} on demand`;
 
-/** Union of every toggled group's skills — profiles overlap heavily by design. */
+/** Union of every toggled group's skills, deduplicated: profiles overlap heavily by design. */
 export const skillsForSelection = (selected: ReadonlySet<string>): string[] => {
   const skills = new Set<string>();
   for (const toggle of TOGGLES) {
@@ -60,13 +61,13 @@ export const skillsForSelection = (selected: ReadonlySet<string>): string[] => {
 };
 
 // ---------------------------------------------------------------------------
-// Skill catalogue — the other half of progressive disclosure
+// Skill catalogue: the other half of progressive disclosure
 // ---------------------------------------------------------------------------
 
 /**
  * Where the package's own skills live, or `undefined` if that could not be
- * established. Resolved once at load: if it fails there is nothing to retry,
- * and every caller has to handle absence anyway.
+ * established. Resolved once at load: a failure has nothing to retry, and
+ * every caller has to handle absence anyway.
  */
 export const SKILLS_DIR = resolveSkillsDir();
 
@@ -84,15 +85,16 @@ export const catalog = (): SkillEntry[] => {
   return catalogCache;
 };
 
+let skillIndexCache: Map<string, SkillEntry> | undefined;
 /**
  * Name → catalogue entry, from the same catalogue `sci_find` uses.
  *
- * A Map, never `join(SKILLS_DIR, name, "SKILL.md")`: `/skill:` names arrive
- * from user input, and a path join would turn `/skill:../../../../etc/passwd`
- * into an arbitrary file read whose contents land in the user turn. The
- * catalogue enumerates real directory entries, so there is nothing to escape.
+ * Look skills up here, never with `join(SKILLS_DIR, name, "SKILL.md")`.
+ * `/skill:` names arrive from user input, and a path join would turn
+ * `/skill:../../../../etc/passwd` into an arbitrary file read whose contents
+ * land in the user turn. The catalogue enumerates real directory entries, so
+ * there is nothing to escape.
  */
-let skillIndexCache: Map<string, SkillEntry> | undefined;
 export const skillIndex = (): ReadonlyMap<string, SkillEntry> => {
   if (skillIndexCache === undefined) {
     skillIndexCache = new Map(catalog().map((entry) => [entry.name, entry]));
@@ -109,16 +111,16 @@ type Stripper = (text: string) => string;
 /**
  * pi's own frontmatter stripper, resolved lazily and optionally.
  *
- * Deliberately not a static named import. `peerDependencies` pins no floor
- * (`"*"`), so a pi build without this export is reachable, and a missing named
- * binding fails at module link and takes /sci and sci_find down with it. Lazy
- * and optional degrades to pi's existing behaviour instead of to a dead
- * extension. Exported from pi's `dist/index.js` (0.84.3: line 42). If anyone
- * converts this to a static import, `peerDependencies` needs a version floor.
+ * It is a dynamic import on purpose. `peerDependencies` pins no floor
+ * (`"*"`), so a pi build without this export is reachable, and a missing
+ * static named binding fails at module link and takes /sci and sci_find down
+ * with it. A lazy, optional lookup degrades to pi's existing behaviour
+ * instead, and the extension keeps working. pi exports `stripFrontmatter`
+ * from its package entry, `dist/index.js`. Converting this to a static
+ * import needs a version floor in `peerDependencies`.
  *
- * Not `./frontmatter`: that parser returns fields only, computes no body, and
- * its `m`-flag regex can match a mid-document `---` rule. Byte fidelity with
- * pi needs pi's stripper.
+ * `./frontmatter` cannot stand in: that parser returns fields only and
+ * computes no body. Byte fidelity with pi needs pi's stripper.
  */
 let stripperCache: Stripper | null | undefined;
 const getStripper = async (): Promise<Stripper | null> => {
@@ -139,14 +141,15 @@ export interface SkillCommand {
 }
 
 /**
- * Split `/skill:name args` exactly as pi does (agent-session.js:959-961).
+ * Split `/skill:name args` the way pi's `AgentSession._expandSkillCommand`
+ * does.
  *
- * The split is on the first literal space, not the first whitespace, so
- * `/skill:foo\nbar` yields the name "foo\nbar" and misses. Reproduced on
- * purpose: stock pi does the same for an *unfiltered* skill, and diverging here
- * would make a filtered skill behave differently from an active one. That quirk
- * belongs upstream. Whitespace-only args trim to "" and take the no-args
- * branch, so no stray "\n\n" is appended.
+ * The name ends at the first space character only, so a newline does not end
+ * it: `/skill:foo\nbar` yields the name "foo\nbar" and finds no skill. This is
+ * reproduced on purpose. Stock pi does the same for an unfiltered skill, and
+ * diverging here would make a filtered skill behave differently from an
+ * active one; the fix belongs upstream. Whitespace-only args trim to "" and
+ * take the no-args branch, so no stray "\n\n" is appended.
  */
 export const parseSkillCommand = (text: string): SkillCommand | undefined => {
   if (!text.startsWith(SKILL_COMMAND_PREFIX)) return undefined;
@@ -159,11 +162,11 @@ export const parseSkillCommand = (text: string): SkillCommand | undefined => {
 };
 
 /**
- * Rebuild the block pi would have built (agent-session.js:966-969) for a skill
- * its resource filter removed from the registry. Byte-identical by
- * construction: same stripper, same template, same trims.
- * `scripts/test-skill-expand.mjs` pins it against pi's own method across every
- * skill in the catalogue.
+ * Rebuild the block pi's `AgentSession._expandSkillCommand` would have built
+ * for a skill its resource filter removed from the registry. Byte-identical
+ * by construction: same stripper, same template, same trims.
+ * `scripts/test-skill-expand.mjs` pins it against pi's own method across
+ * every skill in the catalogue.
  *
  * `undefined` means "nothing better than pi's own behaviour", and the caller
  * must then let the text through untouched.
@@ -191,11 +194,11 @@ const endsWithAbbreviation = (prefix: string): boolean => /\b[A-Za-z]\.[A-Za-z]\
 /**
  * Text up to and including the first sentence-ending period.
  *
- * A period ends the sentence only when followed by whitespace or the
- * string's end, AND is not the closing dot of a two-initial abbreviation.
- * usfiscaldata's reason opens with "U.S. Treasury Fiscal Data REST API" —
- * without both checks, the naive "first period" reading surfaces "U." or
- * "U.S." instead of the actual first sentence.
+ * A period ends the sentence only when whitespace or the string's end follows
+ * it and it is not the closing dot of a two-initial abbreviation.
+ * usfiscaldata's reason opens with "U.S. Treasury Fiscal Data REST API".
+ * Without both checks, taking the first period would surface "U." or "U.S."
+ * in place of the first sentence.
  */
 const firstSentence = (text: string): string => {
   for (const match of text.matchAll(/\.(?=\s|$)/g)) {
@@ -207,7 +210,7 @@ const firstSentence = (text: string): string => {
   return text;
 };
 
-/** " — not in any profile: <reason>", or "" for a skill some profile lists. */
+/** The "not in any profile: <reason>" heading suffix, or "" for a skill some profile lists. */
 const unassignedCaveat = (name: string): string => {
   const reason = unassignedReasons.get(name);
   return reason ? ` — not in any profile: ${firstSentence(reason)}` : "";
@@ -223,7 +226,7 @@ export type HitFormat = "full" | "compact";
 export const COMPACT_FULL_HITS = 2;
 /**
  * Hit count in compact mode for a caller that passes none, which is `/sci find`.
- * The top 6 held the target in 152 of 158 searches
+ * The top 6 held the target in 152 of 158 recorded searches
  * (testing/runs/2026-09-27-find-compact-replay.md). The `sci_find` tool never
  * reaches this: its search stage always passes 3 or 5.
  */
@@ -252,23 +255,21 @@ export const COMPACT_ALTERNATES_LINE =
  * Render hits for the model.
  *
  * "full" rests on the design bet that a model discriminates well among a few
- * fully-labelled options. The 2026-09-25 run, with 8 hits per search (before
- * 3-then-5), measured the cost: reading a median 6,816-character result (6,804
- * in the replay of the same searches) took about 17 of the 25 seconds between
- * the search and the read, while the target was the first hit in 78% of
- * searches and in the top two in 87%. "compact" keeps full labels for the top
- * two only. Both replays of the recorded choices are done: the first was
- * inconclusive and the two pooled were non-inferior
- * (testing/runs/2026-09-27-find-compact-replay.md and
- * testing/runs/2026-09-27-find-compact-replay-2.md). It stays experimental and
- * off by decision: the shorter list, 3 hits then 5, took its place as the way
- * to cut result tokens.
+ * fully-labelled options. Its cost is reading time: with 8 hits per search
+ * (before 3-then-5), reading the result took most of the time between the
+ * search and the read, while the target was usually the first or second hit.
+ * "compact" keeps full labels for the top two only. Replayed on the recorded
+ * choices, it was inconclusive on the first replay and non-inferior with both
+ * pooled (testing/runs/2026-09-27-find-compact-replay.md, whose Background
+ * has the timing and hit ranks, and
+ * testing/runs/2026-09-27-find-compact-replay-2.md).
+ * It stays experimental and off by decision: the shorter list, 3 hits then 5,
+ * took its place as the way to cut result tokens.
  *
- * A hit naming a skill `profiles.ts` held out of every profile gets a caveat
- * on its heading line — the model should know it is reaching for something no
- * curated profile ever surfaces. Harmless when called from `formatProfile`:
- * `validate.mjs` keeps PROFILES and UNASSIGNED disjoint, so a profile listing
- * never contains an unassigned skill and the caveat never fires there.
+ * A hit naming a skill `profiles.ts` holds out of every profile gets a caveat
+ * on its heading line, so the model knows it is reaching for something no
+ * curated profile surfaces. The caveat never fires in a `formatProfile`
+ * listing: `validate.mjs` keeps PROFILES and UNASSIGNED disjoint.
  */
 export const formatHits = (hits: readonly SearchHit[], format: HitFormat = "full"): string => {
   if (format === "full" || hits.length <= COMPACT_FULL_HITS) {
@@ -281,7 +282,7 @@ export const formatHits = (hits: readonly SearchHit[], format: HitFormat = "full
   ].join("\n\n");
 };
 
-/** Shown when nothing scores — with the taxonomy, so the model can browse. */
+/** Shown when nothing scores. It lists the profiles so the model can browse. */
 const noMatchText = (query: string): string =>
   [
     `No skill matched "${query}".`,
@@ -293,8 +294,8 @@ const noMatchText = (query: string): string =>
 /**
  * The profile that `text` names, if any. This is the one test for "this text
  * is a profile id": `formatProfile` lists the profile it finds, and the search
- * stage does not count a query it finds as a search. Keeping a single test
- * keeps the two from drifting apart.
+ * stage does not count such a query as a search. One shared test keeps the
+ * two from drifting apart.
  */
 const profileNamed = (text: string): SkillProfile | undefined => {
   const id = text.trim().toLowerCase();
@@ -324,8 +325,9 @@ const formatProfileIndex = (): string =>
 
 /**
  * A search request. `query` and `profile` are `sci_find`'s arguments; all
- * optional, and no args lists the profiles. `limit` is the caller's hit count
- * (the tool's search stage, or a replayed call), not a model argument.
+ * are optional, and no arguments lists the profiles. `limit` is the hit count
+ * the caller sets (the tool's search stage, or a replayed call); the model's
+ * arguments never set it.
  */
 export interface ToolParams {
   query?: string;
@@ -336,7 +338,7 @@ export interface ToolParams {
 /**
  * The one implementation behind both `sci_find` and `/sci find`: the same
  * ranker and the same rendering. The hit count differs on purpose. The tool
- * passes 3 (a prompt's first search) or 5 (later ones) through `limit`, and
+ * passes 3 (a prompt's first search) or 5 (later ones) through `limit`;
  * `/sci find` passes none and gets DEFAULT_LIMIT, the top 8 (6 under the
  * experimental compact format). `format` applies to query hits only; profile
  * listings stay full.
@@ -354,8 +356,8 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
   const query = params.query?.trim() ?? "";
   if (query === "") return formatProfileIndex();
 
-  // A bare profile id passed as the query is a natural thing for a model to
-  // try, and answering it beats a pedantic "no match".
+  // Models naturally try a bare profile id as the query; the profile listing
+  // serves them better than "no match".
   const asProfile = formatProfile(query);
   if (asProfile) return asProfile;
 
@@ -375,18 +377,20 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
  * profile id in `profile`, or as the whole `query`) and empty calls are not
  * searches and do not use up the first turn.
  *
- * index.ts feeds the stage two pi events, `agent_start` and `message_start`
- * (with the message's role). Two kinds of message start a new first search:
+ * index.ts feeds the stage three pi events: `agent_start`, `message_start`
+ * (with the message's role) and `turn_start`. Two kinds of message start a
+ * new first search:
  * - A role "user" message always does: the prompt, and each steer and
- *   follow-up message. `message_start` fires when a message enters the model's
- *   context, before the assistant's reply and so before its first tool call.
- * - A role "custom" message does when it opens an agent run. An extension that
- *   calls `pi.sendMessage` with `triggerTurn: true` on an idle agent starts a
- *   run with no user message, and `convertToLlm` hands the custom message to
- *   the model as a user message. `agentStart` sets a flag and the first
- *   `message_start` that is not a system message clears it, so only a message
- *   at the head of a run counts. A custom message later in a run (a steer, or a
- *   context message pi adds between turns) does not reset.
+ *   follow-up message. `message_start` fires when a message enters the
+ *   model's context, before the assistant's reply and so before its first
+ *   tool call.
+ * - A role "custom" message does when it opens an agent run. An extension
+ *   that calls `pi.sendMessage` with `triggerTurn: true` on an idle agent
+ *   starts a run with no user message, and `convertToLlm` hands the custom
+ *   message to the model as a user message. `agentStart` sets a flag and the
+ *   first `message_start` that is not a system message clears it, so only a
+ *   message at the head of a run counts. A custom message later in a run (a
+ *   steer, or a context message pi adds between turns) does not reset.
  *
  * A system message never resets and does not clear the flag. In pi 0.87 a
  * run whose tool loadout changed opens with a system message ahead of its
@@ -401,15 +405,15 @@ export const runToolSearch = (params: ToolParams, format: HitFormat = findFormat
  *
  * `agent_start` alone does not reset, because pi emits it again for an
  * `agent.continue()` after an auto-retry or a compaction. With no message
- * queued, that run opens with no new message (its first `message_start` is the
- * assistant's) and is not a new prompt. `agent_start` is not emitted at all
+ * queued, that run opens with no new message (its first `message_start` is
+ * the assistant's) and is not a new prompt. pi does not emit `agent_start`
  * for a steer or follow-up message that arrives inside a running agent loop.
  * `input` is not used: it fires when the user types, before pi queues the
  * message, so it can reset a turn that is still running.
  *
- * `turnStart` counts turns itself. pi's own `turnIndex` starts again at 0 at
- * every `agent_start`, so after a retry it would name the first searching turn
- * a second time.
+ * `turnStart` counts turns itself. pi's own `turnIndex` restarts at 0 at
+ * every `agent_start`, so after a retry it would name the first searching
+ * turn a second time.
  */
 export interface SearchStage {
   agentStart: () => void;

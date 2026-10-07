@@ -1,15 +1,14 @@
 /**
  * Curated query aliases for `sci_find`.
  *
- * Upstream descriptions are written for humans who already know the tool's
+ * Upstream descriptions are written for readers who already know the tool's
  * name. A scientist asks for "variant calling"; `pysam`'s description says
- * "VCF/BCF" and never once says "variant". Ranking cannot bridge that on its
- * own, so the gaps are bridged here, by hand, with evidence.
+ * "VCF/BCF" and never says "variant". Ranking cannot bridge that gap on its
+ * own, so these rules bridge it by hand.
  *
- * Every entry must come from an observed miss — a query that returned nothing
- * useful against the real descriptions — not from imagination. Adding aliases
- * speculatively makes results worse, because each one injects extra terms that
- * dilute genuine hits.
+ * Add an entry only for an observed miss: a query that returned nothing useful
+ * against the real descriptions. Speculative aliases make results worse,
+ * because each one injects extra terms that dilute the real hits.
  *
  * `scripts/validate.mjs` hard-fails if any `skills:` entry names a directory
  * that no longer exists, so an upstream rename cannot silently rot this file.
@@ -25,7 +24,8 @@ export interface Alias {
    * The skills this rule exists to help find. They get no ranking boost
    * (BM25F does better without one; testing/runs/2026-09-27-find-ranker.md).
    * `scripts/validate.mjs` checks each exists, and `scripts/test-search.mjs`
-   * checks each trigger phrase, searched alone, lists one of them in the top 3.
+   * checks each trigger phrase, searched alone, lists one of them in the top 3
+   * (phrases in its `ALIAS_KNOWN_MISSES` are exempt).
    */
   readonly skills?: readonly string[];
 }
@@ -227,11 +227,10 @@ export const ALIASES: readonly Alias[] = [
  * than `MIN_COMPACT_LENGTH` characters.
  *
  * These are safe only because `search.ts` matches triggers as whole words
- * (`matchesPhrase`), never as raw substrings — a short trigger under raw
- * substring matching would fire on almost anything ("bam" inside "bamboo").
- * Any new short trigger must be added here deliberately; `scripts/validate.mjs`
- * hard-fails an alias phrase this short that is missing from the list, and
- * hard-fails a listed entry that no alias actually uses.
+ * (`matchesPhrase`). Under raw substring matching a short trigger would fire
+ * on almost anything ("bam" inside "bamboo"). Add each new short trigger here
+ * deliberately: `scripts/validate.mjs` hard-fails an alias phrase this short
+ * that is missing from the list, and a listed entry that no alias uses.
  */
 export const SHORT_TRIGGER_ALLOWLIST: readonly string[] = [
   "snp",
@@ -252,7 +251,7 @@ export const SHORT_TRIGGER_ALLOWLIST: readonly string[] = [
 ];
 
 /**
- * Inert default export — see `frontmatter.ts` for why every module under
+ * Inert default export; see `frontmatter.ts` for why every module under
  * `extensions/` needs one.
  */
 export default function noopExtension(): void {}

@@ -1,12 +1,12 @@
 /**
  * Curated skill profiles for the pi-scientific-skills package.
  *
- * Data only. The taxonomy is reproduced verbatim from the package's published
- * curation so that the profile ids persisted in a user's config keep meaning the
- * same thing across releases: renaming an id silently invalidates saved selections.
+ * Data only. The taxonomy reproduces the package's published curation verbatim,
+ * so that profile ids saved in a user's config mean the same thing in every
+ * release: renaming an id silently invalidates saved selections.
  *
- * Nothing here touches skills/ on disk — profiles are applied by filtering the
- * package entry in settings.json, never by editing SKILL.md frontmatter.
+ * Profiles are applied by filtering the package entry in settings.json. Nothing
+ * here touches skills/ on disk or edits SKILL.md frontmatter.
  */
 
 /** A named bundle of skills a user can switch on or off as a unit. */
@@ -23,26 +23,28 @@ export interface UnassignedSkill {
   readonly reason: string;
 }
 
-/** Every skill shipped by the package. Used for the "vs. all skills" delta. */
+/** Number of skills the package ships. Used for the "vs. all skills" delta. */
 export const TOTAL_SKILL_COUNT = 176;
 
 /**
  * Measured cost of one skill in the system prompt, as pi renders it: an
- * indented, XML-escaped `<skill>` block with the name, the description, and
+ * indented, XML-escaped `<skill>` block with the name, the description and
  * the absolute path of the skill's SKILL.md (`formatSkillsForPrompt` in pi's
- * `core/skills.js`). The tags and the path are most of the difference from a
- * bare description count (about 88 tokens per skill): the model pays for them
- * every session all the same.
+ * `core/skills.js`). The tags and the path make up most of the difference
+ * from the bare description (about 88 tokens per skill), and the model pays
+ * for them all the same. The blocks stay in context for the whole session, so
+ * this is a per-session floor.
+ *
  * Recipe (2026-09-21): tiktoken over each skill's rendered block, with the
  * location set to the default npm install path under a generic home
  * (`/home/user/.pi/agent/npm/node_modules/pi-scientific-skills/skills/<name>/SKILL.md`),
- * across the real 162-skill catalogue — 99,296 chars, 23,282 tokens under
- * cl100k_base (143.7/skill), 23,194 under o200k_base (143.2/skill).
- * TOKENS_PER_SKILL is the rounded average of the two. A longer home directory
- * or a git install adds a few tokens per skill, and a model provider's own
- * tokenizer may count differently; this is an estimate, not a guarantee.
- * Descriptions stay in context permanently, so this is a per-session floor.
- * `scripts/validate.mjs` re-measures the same corpus on every run.
+ * across the 162-skill catalogue of that date: 99,296 chars, 23,282 tokens
+ * under cl100k_base (143.7/skill), 23,194 under o200k_base (143.2/skill).
+ * TOKENS_PER_SKILL is the rounded average of the two. It is an estimate: a
+ * longer home directory or a git install adds a few tokens per skill, and a
+ * model provider's own tokenizer may count differently.
+ * `scripts/validate.mjs` renders the current skills/ the same way on every
+ * run and warns when the result drifts more than 10% from this constant.
  */
 export const TOKENS_PER_SKILL = 143;
 
@@ -367,8 +369,9 @@ export const PROFILES: readonly SkillProfile[] = [
 ];
 
 /**
- * Skills held out of every profile. Kept as data (not deleted) so the reasoning
- * is auditable and so a future release can promote one without archaeology.
+ * Skills held out of every profile, listed with their reasons so the choice
+ * stays auditable and a later release can promote one without digging
+ * through history.
  */
 export const UNASSIGNED: readonly UnassignedSkill[] = [
   {
@@ -429,16 +432,16 @@ export const UNASSIGNED: readonly UnassignedSkill[] = [
 ];
 
 /**
- * Held-out skills that still deserve a one-click toggle. pi-agent is about the
- * harness itself rather than any scientific field, so it belongs to no profile —
- * but it is the single most useful skill for someone configuring pi, which is
- * exactly what they are doing when this picker is open.
+ * Held-out skills that still get a one-click toggle. pi-agent covers the
+ * harness itself rather than a scientific field, so it belongs to no profile.
+ * It is also the most useful skill for someone configuring pi, which is what
+ * a user with this picker open is doing.
  */
 export const STANDALONE_SKILL_IDS: readonly string[] = ["pi-agent"];
 
 /**
- * Toggle ids are persisted, so standalone skills are namespaced to guarantee they
- * can never collide with a profile id added by a later release.
+ * Toggle ids are persisted, so standalone skills are namespaced: their ids can
+ * never collide with a profile id a later release adds.
  */
 export const STANDALONE_ID_PREFIX = "skill:";
 
@@ -457,9 +460,7 @@ export const STANDALONE_PROFILES: readonly SkillProfile[] = STANDALONE_SKILL_IDS
 export const TOGGLES: readonly SkillProfile[] = [...PROFILES, ...STANDALONE_PROFILES];
 
 /**
- * Inert default export. Pi discovers extensions as `extensions/*.ts` as well as
- * `extensions/*\/index.ts`, so this data module may be loaded as an extension in
- * its own right. Registering nothing keeps that harmless instead of erroring on a
- * missing default export.
+ * Inert default export; see `frontmatter.ts` for why every module under
+ * `extensions/` needs one.
  */
 export default function noopExtension(): void {}

@@ -32,7 +32,11 @@ import {
 // Commands
 // ---------------------------------------------------------------------------
 
-/** Anything minimatch would expand — a pattern we cannot resolve to a count. */
+/**
+ * Characters minimatch reads as glob syntax. A pattern holding one cannot be
+ * resolved to an exact count (globToRegExp expands only `*` and `?`), so a
+ * count derived from it is marked approximate.
+ */
 const GLOB_CHARS = /[*?[\]{}]/;
 
 /** A `*`/`?` glob pattern as a regex; every other character matches literally. */
@@ -45,11 +49,11 @@ const globToRegExp = (pattern: string): RegExp => {
 };
 
 /**
- * How many real catalogue skills a set of patterns actually names — a plain
- * name counts as itself, a glob is expanded against the catalogue. Counting
- * `patterns.length` instead (what this replaces) reports one skill's worth of
- * tokens for a one-line `pi config` exclusion that in fact leaves every skill
- * but one loaded, wrong by two orders of magnitude in the reassuring direction.
+ * The skill names a set of patterns selects: a plain name counts as itself, a
+ * glob is expanded against the catalogue. Counting `patterns.length` instead
+ * would count each glob as one skill: an include such as `scientific-*` would
+ * understate the cost, and an exclusion such as `!scientific-*` would
+ * overstate it.
  */
 const matchedSkillNames = (patterns: readonly string[]): ReadonlySet<string> => {
   const names = catalog().map((entry) => entry.name);
@@ -65,26 +69,29 @@ const matchedSkillNames = (patterns: readonly string[]): ReadonlySet<string> => 
   return matched;
 };
 
-/** Describe a `skills` filter honestly, expanding any glob pattern first. */
+/** Describe a `skills` filter, expanding each glob to the skills it matches before counting. */
 const describeSkillsFilter = (skills: readonly unknown[]): string => {
   if (skills.some((value) => typeof value !== "string")) {
     return 'packages entry has a malformed "skills" value';
   }
   const patterns = skills as readonly string[];
-  // pi treats a literally empty array as "disable every resource of this type":
+  // pi reads a literally empty array as "disable every resource of this type":
   // no skill in the prompt, which is search mode.
   if (patterns.length === 0) return `search mode: ${describeSearchMode()}`;
 
   const overrides = patterns.filter(isOverridePattern);
   const includes = patterns.filter((pattern) => !isOverridePattern(pattern));
-  // "≈" marks every count below derived from expanding at least one glob:
-  // pi resolves patterns against a live directory, so the true count can
-  // still shift between this read and the next `pi install`/sync.
+  // "≈" marks a count derived from expanding at least one glob. pi resolves
+  // patterns against the live directory, so the true count can shift between
+  // this read and the next `pi install`/sync.
   const approx = (isGlob: boolean, text: string): string => (isGlob ? `≈${text}` : text);
 
   if (includes.length === 0) {
-    // No plain includes: pi starts from every skill and subtracts, so this is
-    // "all of them, minus whatever was switched off in `pi config`".
+    // No plain includes: pi starts from every skill and subtracts, so this
+    // means "all of them, minus whatever was switched off in `pi config`".
+    // Counting the array's entries as the active skills would read a one-line
+    // `pi config` exclusion as one skill's worth of tokens, two orders of
+    // magnitude too low.
     const excludes = overrides
       .filter((pattern) => pattern.startsWith("!") || pattern.startsWith("-"))
       .map((pattern) => pattern.slice(1));
@@ -134,8 +141,8 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
 
   const lines = [describeCurrentEntry(location), profileLine];
 
-  // Search reaches every skill regardless of the filter, so reporting only the
-  // active count would understate what the model can actually do.
+  // Search reaches every skill whatever the filter, so the active count alone
+  // would understate what the model can do.
   lines.push(
     SKILLS_DIR
       ? `${TOOL_NAME}: active — the model can find and load any of the ${TOTAL_SKILL_COUNT} skills on demand.`
@@ -143,9 +150,10 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
   );
 
   // The input hook rebuilds /skill:<name> for a filtered-out skill typed at the
-  // prompt. The paths it cannot see (other packages; on pi 0.84 and 0.85 also
-  // queued messages) are listed under "Residual limits" in DOCUMENTATION.md, not here:
-  // status answers "what can I do now", and the answer is "type the name".
+  // prompt. The paths it cannot see (other packages; on pi 0.84 and 0.85,
+  // queued messages too) are listed under "Residual limits" in
+  // DOCUMENTATION.md. Status leaves them out: it answers "what can I do now",
+  // and the answer is "type the name".
   if (hasSkillsFilter(location)) {
     lines.push(
       `/skill:<name>: typed at the prompt, loads any of this package's ${TOTAL_SKILL_COUNT}` +
@@ -160,7 +168,7 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
   report(ctx, lines.join("\n"), "info");
 };
 
-// Unnumbered for the same reason as the picker rows: nothing here is a hotkey.
+// Unnumbered, like the fallback picker's rows in picker.ts: nothing here is a hotkey.
 const MAIN_MENU = [
   "Choose profiles…",
   "Show status",
@@ -191,11 +199,12 @@ const resetAll = (ctx: CommandContext): Promise<void> =>
  *
  * This is the recommended shape. In the 2026-09-23 live test, a 27B local
  * model with no skill in its prompt reached the target through `sci_find`
- * within three attempts for 156 of 157 valid probes (143 on the first), and
- * all ten Core targets within three attempts (8 on the first)
- * (testing/report.md). Profiles, `pi config` and `/skill:<name>` still put a
- * skill in front of the model directly. `/sci none` is an alias: an empty
- * filter no longer means "off", because the tool stays.
+ * within three attempts for 156 of 157 valid probes (testing/report.md).
+ * Profiles, `pi config` and `/skill:<name>` still put a skill in front of the
+ * model directly.
+ *
+ * `/sci none` is an alias. An empty filter means search mode; it does not
+ * switch the skills off, because `sci_find` still reaches them.
  */
 const enableSearchMode = (ctx: CommandContext): Promise<void> =>
   commitPlan(
@@ -206,9 +215,9 @@ const enableSearchMode = (ctx: CommandContext): Promise<void> =>
   );
 
 /**
- * Human-facing search — also the fallback for models too weak to tool-call.
- * Same ranker as `sci_find`, but no hit count is passed, so it lists the top 8
- * where the model gets 3, then 5.
+ * Human-facing search, and the fallback for models too weak to tool-call.
+ * Same ranker as `sci_find`. It passes no hit count, so it lists more hits than
+ * the model is shown (see runToolSearch).
  */
 const runFind = (ctx: UiContext, query: string): void => {
   report(ctx, runToolSearch({ query }), SKILLS_DIR ? "info" : "warning");
@@ -240,8 +249,8 @@ export const dispatch = async (args: string, ctx: CommandContext): Promise<void>
   const trimmed = args.trim();
   if (trimmed === "") return showMainMenu(ctx);
 
-  // `find` carries a free-text query, so split the verb off rather than
-  // lowercasing the whole line — queries are case- and content-sensitive.
+  // Lowercase only the verb; the `find` query goes on as typed. The search
+  // normalises case itself, and a no-match reply quotes the query back.
   const separator = trimmed.search(/\s/);
   const verb = (separator === -1 ? trimmed : trimmed.slice(0, separator)).toLowerCase();
   const rest = separator === -1 ? "" : trimmed.slice(separator + 1).trim();

@@ -1,13 +1,12 @@
 /**
- * Reading and writing pi's settings.json (the package's `skills` filter) and
- * this extension's own config file, plus `commitPlan` — the one function that
+ * Reads and writes pi's settings.json (the package's `skills` filter) and this
+ * extension's own config file. Also holds `commitPlan`, the one function that
  * ties a filter change to a saved profile selection and a reload.
  *
- * `commitPlan` lives here rather than in `commands.ts` because both
- * `commands.ts` and `picker.ts` call it: putting it in either of those two
- * would make them import each other, which `tsc --strict` rejects as
- * use-before-define across the cycle. This is the lowest module both can
- * depend on instead.
+ * `commitPlan` lives here because both `commands.ts` and `picker.ts` call it,
+ * and `commands.ts` already imports `picker.ts` for `runPicker`: defining it in
+ * `commands.ts` would make the two import each other. This is the lowest
+ * module both can depend on.
  */
 
 import { constants as fsConstants } from "node:fs";
@@ -51,7 +50,7 @@ import type {
 // Atomic, non-destructive file writes
 // ---------------------------------------------------------------------------
 
-/** Temp file in the same directory + rename, so a crash cannot truncate config. */
+/** Temp file in the same directory, then rename, so a crash cannot truncate the file. */
 const writeFileAtomic = async (
   path: string,
   contents: string,
@@ -68,10 +67,11 @@ const writeFileAtomic = async (
 };
 
 /**
- * The file pi actually writes. rename(2) replaces a symlink rather than its
- * target, so writing atomically to the link path would sever a dotfiles-managed
- * settings.json (stow/chezmoi/yadm) from the repo it lives in — while pi's own
- * writer, plain writeFileSync, follows the link. Resolve first, write there.
+ * The file pi writes. rename(2) replaces a symlink, not its target, so an
+ * atomic write to the link path would sever a dotfiles-managed settings.json
+ * (stow/chezmoi/yadm) from the repo it lives in. pi's own writer
+ * (`FileSettingsStorage.withLock`, plain `writeFileSync`) follows the link.
+ * Resolve first, write there.
  */
 const resolveWriteTarget = async (path: string): Promise<string> => {
   try {
@@ -82,10 +82,10 @@ const resolveWriteTarget = async (path: string): Promise<string> => {
 };
 
 /**
- * COPYFILE_EXCL keeps the very first backup — the pristine, pre-/sci config.
- * Deliberately kept next to the *logical* settings path rather than the resolved
- * one: that is where every message here tells the user to look, and it keeps the
- * backup out of a dotfiles repo the resolved file may live in.
+ * COPYFILE_EXCL keeps the first backup: the pristine, pre-/sci config. The
+ * backup sits next to the logical settings path, not the resolved one, because
+ * every message here names the logical path, and because it keeps the backup
+ * out of a dotfiles repo the resolved file may live in.
  */
 const ensureBackup = async (): Promise<void> => {
   try {
@@ -107,7 +107,7 @@ const serializeSettings = (document: SettingsDocument, raw: string): string => {
 };
 
 // ---------------------------------------------------------------------------
-// Locking — share pi's lock, do not race it
+// Locking: share pi's lock, do not race it
 // ---------------------------------------------------------------------------
 
 const LOCK_ATTEMPTS = 10;
@@ -116,14 +116,15 @@ const LOCK_RETRY_MS = 20;
 const LOCK_STALE_MS = 10_000;
 
 /**
- * pi serialises every settings.json mutation behind proper-lockfile, which takes
- * its lock by `mkdir(`${file}.lock`)` — so creating that directory ourselves is
- * protocol-compatible without adding a dependency. Without it, a concurrent
+ * pi serialises every settings.json mutation behind proper-lockfile
+ * (`FileSettingsStorage.withLock`), which takes its lock by
+ * `mkdir(`${file}.lock`)`. Creating that directory ourselves follows the same
+ * protocol without adding a dependency. Without the lock, a concurrent
  * `pi install` or `pi config` read-modify-write silently discards either our
  * filter or their change.
  *
- * pi locks the *unresolved* path (`realpath: false`), so we must lock that same
- * path even though we write to the resolved one.
+ * pi locks the unresolved path (`realpath: false`), so we lock that same path
+ * even though we write to the resolved one.
  */
 const acquireSettingsLock = async (path: string): Promise<() => Promise<void>> => {
   const lock = `${path}.lock`;
@@ -138,8 +139,8 @@ const acquireSettingsLock = async (path: string): Promise<() => Promise<void>> =
     } catch (error) {
       if (errorCode(error) !== "EEXIST") throw error;
 
-      // proper-lockfile refreshes the lock's mtime while it is held, so an old
-      // one is debris from a crashed process. It steals such locks; so do we,
+      // proper-lockfile refreshes a held lock's mtime, so an old lock is debris
+      // from a crashed process. proper-lockfile steals such locks and so do we;
       // otherwise a single crash would wedge /sci permanently.
       const age = await stat(lock)
         .then((stats) => Date.now() - stats.mtimeMs)
@@ -177,8 +178,8 @@ export const readSettings = async (path: string): Promise<SettingsRead> => {
     }
     return { kind: "ok", document: parsed as SettingsDocument, raw };
   } catch (error) {
-    // JSONC comments land here too. Rewriting would silently delete them, so we
-    // refuse rather than "fixing" a file we cannot faithfully reproduce.
+    // JSONC comments land here too. Rewriting the file would silently delete
+    // them, so we refuse to write a file we cannot faithfully reproduce.
     return { kind: "malformed", detail: describeError(error) };
   }
 };
@@ -195,13 +196,14 @@ export const describeFailedRead = (path: string, read: FailedRead): string => {
 };
 
 /**
- * The spec with any `@ref` removed — under both rules that could apply, because
- * a source is one kind or the other and we cannot always tell which.
+ * The spec with any `@ref` removed, under both rules that could apply, because
+ * we cannot always tell whether a source is git or local. The spec itself is
+ * always kept as a candidate too.
  *
- * pi splits a git ref at the *first* `@` in the path portion, so a ref may
- * contain slashes (`…/repo@feature/trim`). A local path, by contrast, may hold a
- * legitimate `@` in a directory name (`~/dev/@work/pkg`), where only a trailing
- * `@version` is a ref. The spec itself is always kept as a candidate too.
+ * pi splits a git ref at the first `@` in the path portion (`splitRef` in
+ * utils/git.js), so a ref may contain slashes (`…/repo@feature/trim`). A local
+ * path may hold a legitimate `@` in a directory name (`~/dev/@work/pkg`), where
+ * only a trailing `@version` is a ref.
  */
 const withoutRef = (spec: string): string[] => {
   const candidates = [spec];
@@ -222,12 +224,13 @@ const withoutRef = (spec: string): string[] => {
 };
 
 /**
- * Names a `packages` source could be known by. pi's identity differs per source
- * type — npm name, normalised git host+path, resolved local path — but in every
- * form the last path segment is the package name, once the parts pi itself
- * strips are gone. Notably a trailing `.git`, which pi removes in
- * `buildGitSource` and which every GitHub clone URL carries: leaving it on makes
- * /sci report itself as not installed for anyone who installed from a clone URL.
+ * Names a `packages` source could be known by. pi's package identity
+ * (`getPackageIdentity`) differs per source type: npm name, normalised git
+ * host+path, resolved local path. In every form the last path segment is the
+ * package name once the parts pi strips are gone. That includes a trailing
+ * `.git`, which pi removes in `buildGitSource` and which every GitHub clone URL
+ * carries: leaving it on makes /sci report itself as not installed for anyone
+ * who installed from a clone URL.
  *
  * Schemes and `user@host` prefixes need no special handling because splitting on
  * `/` discards them; only a bare `npm:`/`git:` prefix has no separator.
@@ -265,10 +268,10 @@ export const findPackageEntry = (packages: unknown): PackageLocation | undefined
   return undefined;
 };
 
-/** `!exclude`, `+force-include`, `-force-exclude` — pi's override syntaxes. */
+/** pi's override syntaxes: `!exclude`, `+force-include`, `-force-exclude`. */
 export const isOverridePattern = (pattern: string): boolean => /^[!+-]/.test(pattern);
 
-/** Override patterns already in the entry — `pi config` writes exactly these. */
+/** Override patterns already in the entry, where `pi config` keeps per-skill toggles. */
 const keptOverrides = (entry: PackageEntry): string[] =>
   typeof entry !== "string" && Array.isArray(entry.skills)
     ? entry.skills.filter(
@@ -278,19 +281,20 @@ const keptOverrides = (entry: PackageEntry): string[] =>
     : [];
 
 /**
- * Set only `skills`. `extensions` is never written, so /sci can never filter out
- * the extension that provides /sci — the one unrecoverable mistake here.
+ * Sets only `skills`. `extensions` is never written, so /sci can never filter
+ * out the extension that provides /sci, the one unrecoverable mistake here.
  *
  * Per-skill choices made in `pi config` live in this same array as `+`/`-`/`!`
- * patterns, so they are carried across rather than clobbered.
+ * patterns, so they are carried over into the new array (except into an empty
+ * filter; see below).
  */
 const applyPlanToEntry = (entry: PackageEntry, source: string, plan: ApplyPlan): PackageEntry => {
   const base: PackageFilter = typeof entry === "string" ? { source: entry } : entry;
   const kept = keptOverrides(entry);
 
   if (plan.kind === "filter") {
-    // An array holding nothing but overrides means "everything, minus those" to
-    // pi — applyPatterns starts from all paths when there are no plain includes.
+    // To pi, an array holding only overrides means "everything, minus those":
+    // `applyPatterns` starts from all paths when there are no plain includes.
     // Carrying them into an empty filter would invert "disable all" into "enable
     // all", so only a literally empty array can express "none".
     const skills = plan.skills.length === 0 ? [] : [...plan.skills, ...kept];
@@ -300,13 +304,16 @@ const applyPlanToEntry = (entry: PackageEntry, source: string, plan: ApplyPlan):
   const { skills: _dropped, ...rest } = base;
   // "All skills" still means "all except what the user turned off elsewhere".
   if (kept.length > 0) return { ...rest, source, skills: kept };
-  // Collapse back to the string form only when nothing else was configured;
-  // otherwise the user's other filters (prompts, themes) must survive.
+  // Collapse back to the string form only when nothing else is configured, so
+  // the user's other filters (prompts, themes) survive.
   const onlySource = Object.keys(rest).length === 1 && typeof rest.source === "string";
   return onlySource ? source : rest;
 };
 
-/** Rebuilds the document; `packages` keeps its original position on overwrite. */
+/**
+ * Rebuilds the document. Overwriting an existing key keeps its position, so
+ * `packages` stays where it was in the file.
+ */
 const withPlanApplied = (
   document: SettingsDocument,
   location: PackageLocation,
@@ -335,11 +342,12 @@ const refuse = (read: FailedRead): ApplyResult => ({
 });
 
 /**
- * The project settings file, when it lists this package and would win.
+ * The project settings file, when it lists this package and its entry would win.
  *
- * pi dedupes packages by identity and the project entry beats the global one,
- * unless it sets `autoload: false` — which makes it a delta over the global
- * entry, leaving the global entry live and worth editing.
+ * pi dedupes packages by identity (`DefaultPackageManager.dedupePackages`) and
+ * the project entry beats the global one, unless it sets `autoload: false`.
+ * That makes it a delta over the global entry, which stays live and worth
+ * editing.
  */
 export const projectOverride = async (cwd: string): Promise<string | undefined> => {
   const path = projectSettingsPath(cwd);
@@ -361,11 +369,10 @@ export const projectOverrideMessage = (path: string): string =>
   `global entry.`;
 
 /**
- * The override patterns this plan removes. Only an empty `filter` does: an
- * array holding nothing but overrides would invert "none" into "all" (see
+ * The override patterns this plan removes. Only an empty `filter` removes any:
+ * an array holding only overrides would invert "none" into "all" (see
  * `applyPlanToEntry`), so search mode cannot carry them. Every other plan keeps
- * them. Read from the entry before it is replaced, so the list is what was
- * stored, not what the plan would have written.
+ * them. Takes the entry from before the write, so the list is what was stored.
  */
 const droppedOverrides = (entry: PackageEntry, plan: ApplyPlan): string[] =>
   plan.kind === "filter" && plan.skills.length === 0 ? keptOverrides(entry) : [];
@@ -377,8 +384,8 @@ const applyToSettings = async (plan: ApplyPlan, cwd: string): Promise<AppliedRes
   const overriding = await projectOverride(cwd);
   if (overriding) return { ok: false, message: projectOverrideMessage(overriding) };
 
-  // Cheap pre-flight so a missing/unreadable file is diagnosed without creating
-  // a lock directory beside a file that may not even be there.
+  // Cheap pre-flight: diagnose a missing or unreadable file without creating a
+  // lock directory beside a file that may not exist.
   const probe = await readSettings(settingsPath());
   if (probe.kind !== "ok") return refuse(probe);
 
@@ -395,7 +402,7 @@ const applyToSettings = async (plan: ApplyPlan, cwd: string): Promise<AppliedRes
   }
 
   try {
-    // Re-read inside the lock: the pre-flight read raced anything else running.
+    // Re-read inside the lock: the pre-flight read could race another writer.
     const settings = await readSettings(settingsPath());
     if (settings.kind !== "ok") return refuse(settings);
 
@@ -442,13 +449,13 @@ export const writeConfig = async (config: ExtensionConfig): Promise<void> => {
 };
 
 // ---------------------------------------------------------------------------
-// commitPlan — shared by commands.ts and picker.ts; see the file header.
+// commitPlan: shared by commands.ts and picker.ts; see the file header.
 // ---------------------------------------------------------------------------
 
 /**
- * What happens to the saved profile ids. `keep` matters for /sci all: turning
- * everything back on temporarily must not destroy a curated selection, which is
- * the difference between /sci all and /sci reset.
+ * What happens to the saved profile ids. `keep` is what separates /sci all from
+ * /sci reset (`forget`): turning everything back on temporarily must not destroy
+ * a curated selection.
  */
 export type ProfileUpdate =
   | { readonly kind: "keep" }
@@ -464,7 +471,10 @@ const nextProfiles = (
   return config.profiles;
 };
 
-/** Applies a plan, records the selection, then reloads so it takes effect now. */
+/**
+ * Applies a plan, records the selection, then reloads (when settings.json
+ * changed) so it takes effect now.
+ */
 export const commitPlan = async (
   ctx: CommandContext,
   plan: ApplyPlan,

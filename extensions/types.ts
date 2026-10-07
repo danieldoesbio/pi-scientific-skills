@@ -1,16 +1,15 @@
 /**
  * Shared constants and types for the /sci extension.
  *
- * Nothing here has behaviour: every other module in `extensions/` imports from
- * this one, so keeping it dependency-free is what keeps the module graph
- * acyclic. `extensions/index.ts` is the only file that registers anything with
- * pi.
+ * Nothing here has behaviour. Many modules in `extensions/` import from this
+ * one, so it imports nothing, which keeps the module graph acyclic.
+ * `extensions/index.ts` is the only file that registers anything with pi.
  */
 
 const COMMAND_NAME = "sci";
 const CONFIG_VERSION = 1;
 const TOOL_NAME = "sci_find";
-/** pi's own prefix for forcing a skill (agent-session.js:957). */
+/** pi's own prefix for forcing a skill (see pi's `AgentSession._expandSkillCommand`). */
 const SKILL_COMMAND_PREFIX = "/skill:";
 
 const SUBCOMMANDS = ["status", "profiles", "search", "find", "all", "none", "reset"] as const;
@@ -26,11 +25,11 @@ export {
 export type { Subcommand };
 
 /**
- * Shared by `commands.ts` (an unknown subcommand) and `picker.ts` (no
- * interactive UI). Kept here, not in `commands.ts`: `picker.ts`'s `runPicker`
- * needs it too, and `commands.ts` already imports `picker.ts` for `runPicker`
- * — a helper needed by both, defined in either, would make them import each
- * other, which `tsc --strict` rejects as use-before-define across the cycle.
+ * The usage hint, shown by `commands.ts` (in the `/sci status` report and the
+ * unknown-subcommand warning) and by `picker.ts`'s `runPicker` (no interactive
+ * UI). It lives here because `commands.ts` imports `picker.ts` for
+ * `runPicker`; defining it in `commands.ts` would make `picker.ts` import it
+ * back, a cycle.
  */
 export const usage = (): string =>
   `/${COMMAND_NAME} [${SUBCOMMANDS.join(" | ")}] — run bare for the menu.`;
@@ -40,9 +39,9 @@ export const usage = (): string =>
 // ---------------------------------------------------------------------------
 
 /**
- * Structural subsets of ExtensionContext / ExtensionCommandContext covering only
- * the documented members used here. Declared locally so this file depends on
- * behaviour pi documents rather than on type names it may not export.
+ * Structural subsets of pi's ExtensionContext / ExtensionCommandContext with
+ * only the documented members used here. Declared locally so this file relies
+ * on documented behaviour, never on a type name pi might not export.
  */
 /** The slice of pi-tui's KeybindingsManager the picker needs. */
 export interface KeyMatcher {
@@ -51,8 +50,8 @@ export interface KeyMatcher {
 
 /**
  * The slice of pi-tui's `Component` a focused custom view must provide.
- * `invalidate` is required by the real interface even though this component
- * caches nothing, so it is declared here and implemented as a no-op.
+ * The real interface requires `invalidate`, so it is declared here; the
+ * picker caches nothing and implements it as a no-op.
  */
 export interface TuiComponent {
   render(width: number): string[];
@@ -63,9 +62,9 @@ export interface TuiComponent {
 export interface UiContext {
   readonly hasUI: boolean;
   /**
-   * Pi's run mode: "tui" | "rpc" | "json" | "print". Distinct from `hasUI`,
-   * which is true in RPC as well — so anything that blocks on a human must gate
-   * on `mode === "tui"`, or a scripted client gets a dialog it cannot answer.
+   * pi's run mode: "tui" | "rpc" | "json" | "print". `hasUI` is true in RPC
+   * mode as well, so anything that blocks on a human must gate on
+   * `mode === "tui"`, or a scripted client gets a dialog it cannot answer.
    */
   readonly mode?: string;
   readonly cwd: string;
@@ -79,11 +78,11 @@ export interface UiContext {
     confirm(title: string, message: string): Promise<boolean>;
     /**
      * Renders a focused custom component. Interactive mode only: RPC mode's
-     * implementation returns undefined without rendering anything
-     * (`dist/modes/rpc/rpc-mode.js:151`), and older pi builds may not define
-     * the method at all. Callers must treat a missing method *and* an
-     * undefined result as "unsupported" and fall back — which is why the
-     * picker's own result type is always a non-undefined object.
+     * `custom()` (from `createExtensionUIContext` in `runRpcMode`,
+     * `dist/modes/rpc/rpc-mode.js`) returns undefined without rendering, and
+     * older pi builds may not define the method at all. Callers must treat a
+     * missing method and an undefined result as "unsupported" and fall back,
+     * which is why the picker's own result type is always an object.
      */
     custom?<T>(
       factory: (
@@ -124,8 +123,8 @@ export interface ExtensionConfig {
   profiles?: string[];
   /**
    * Last package version whose changes this user was told about. Absent means
-   * either a fresh install or an upgrade from a release predating the notice —
-   * `onboardingSeen` distinguishes the two.
+   * either a fresh install or an upgrade from a release that predates the
+   * notice; `onboardingSeen` tells the two apart.
    */
   lastSeenVersion?: string;
   updatedAt?: string;
@@ -135,8 +134,8 @@ export type SettingsRead =
   | { readonly kind: "ok"; readonly document: SettingsDocument; readonly raw: string }
   | { readonly kind: "missing" }
   // A read that failed for any reason other than "not there": permissions,
-  // EISDIR, ELOOP, I/O. Kept distinct from `malformed` because telling someone
-  // to "fix the JSON" in a file they cannot even open invites them to destroy it.
+  // EISDIR, ELOOP, I/O. Kept apart from `malformed` because telling someone to
+  // "fix the JSON" in a file they cannot open invites them to destroy it.
   | { readonly kind: "unreadable"; readonly detail: string }
   | { readonly kind: "malformed"; readonly detail: string };
 
@@ -156,5 +155,5 @@ export type ApplyResult =
   | { readonly ok: true; readonly changed: boolean }
   | { readonly ok: false; readonly message: string };
 
-/** Inert default export; see the header comment. */
+/** Inert default export; see extensions/index.ts's header comment. */
 export default function noopExtension(): void {}
