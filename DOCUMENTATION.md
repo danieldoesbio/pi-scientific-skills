@@ -209,7 +209,7 @@ extensions/picker.ts    # the /sci profiles checkbox list (focused multiselect +
 extensions/commands.ts  # /sci's subcommands and bare-menu dispatch (status, search, all/none/reset)
 extensions/profiles.ts  # profile taxonomy (PROFILES, UNASSIGNED, TOGGLES, TOTAL_SKILL_COUNT)
 extensions/search.ts    # sci_find's catalogue + ranking, and skills/ root resolution
-extensions/bm25f.ts     # the BM25F ranker, the default (PI_SCI_FIND_RANKER=current for the old one)
+extensions/bm25f.ts     # the BM25F ranker sci_find uses
 extensions/aliases.ts   # curated query→skill aliases, each from an observed miss
 extensions/frontmatter.ts    # the one YAML parser, shared with validate.mjs
 extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guards the drift
@@ -490,43 +490,50 @@ then works as written.
   a query reach a skill through words its description does not use. The
   settings are fixed; they came from cross-validation on 425 recorded first
   `sci_find` queries. A query equal to a skill name lists that skill first.
-  The no-match rule is its own: the best score must reach 2.5, or 35% of the
-  most the query could score. On development data it put the target in the
-  top 8 for 99.8% of recorded queries (current ranker: 97.2%) and 95.0% of
-  plain-language rewrites of the probes (current: 77.0%), and lost none of
+  The no-match rule is its own: the best score must reach 2.5, or 28% of the
+  most the query could score (35% until the v2.72.0 sync; see
+  [`testing/runs/2026-10-05-v2.72.0-sync.md`](testing/runs/2026-10-05-v2.72.0-sync.md)).
+  On development data it put the target in the
+  top 8 for 99.8% of recorded queries (old ranker: 97.2%) and 95.0% of
+  plain-language rewrites of the probes (old: 77.0%), and lost none of
   1,069 development queries to the no-match rule. It also returns hits for
   fewer requests that no skill covers. On agent-written sets (60 off-domain
   and 40 in-domain requests with no matching skill), a hit came back for 16 and
-  11 as queries (current ranker: 26 and 19) and for 34 and 29 with the full
-  request text as the query (current: 37 and 33). Every count is lower than the
-  current ranker's, yet most full-text requests with no skill still get hits, so
+  11 as queries (old ranker: 26 and 19) and for 34 and 29 with the full
+  request text as the query (old: 37 and 33). Every count is lower than the
+  old ranker's, yet most full-text requests with no skill still get hits, so
   the no-match rule is a filter, not a guarantee; the in-domain set has only 40
   items. Its cost: it has no alias boost, so a query made only of common words
-  can miss ("write the methods section of my paper" ranks `scientific-writing`
-  11th; `test-search.mjs` lists it as a known miss). The index is built on the
-  first call (about 120 ms) and later calls take under 3 ms. Before it became
-  the default:
+  can miss. "write the methods section of my paper" ranked `scientific-writing`
+  11th until the v2.72.0 sync's condensed descriptions moved it to 2nd. The
+  index is built on the first call (about 120 ms) and later calls take under
+  3 ms. Before it became the default:
   a choice-turn replay (the model read the target in 158 of 158 turns with
   bm25f lists, against 156 of 158), a panel of two query writers (Claude
   Haiku 4.5 and Bonsai 2 27B; top 8 99.3% against 96.7%), and one run on a
   locked held-out set of 321 requests no setting was chosen on (top 3 96.6%
   against the old ranker's top 8, 88.2%). All in
   [`testing/runs/2026-09-27-find-ranker.md`](testing/runs/2026-09-27-find-ranker.md).
-  With 3 hits, the "methods section" miss above shows no writing skill; a
-  query that names the kind of writing ("scientific manuscript methods")
-  does. `PI_SCI_FIND_RANKER=current` restores the old ranking order for one
-  release. It is the order only: the first search still shows 3 hits, later
-  ones 5, and there is still no `limit` argument.
-- **Never a confident wrong answer.** Below `MIN_SCORE` nothing is returned. A
-  plausible-but-wrong skill handed to someone designing an experiment is worse
-  than no answer. Matching is **word-boundary, not substring** — raw substring
-  matching scored `open-notebook` for "book a flight to paris", which is exactly
-  the failure mode this rule exists to prevent.
+  The old ranker and its `PI_SCI_FIND_RANKER=current` switch shipped through
+  1.8.0 and were then removed; the variable is now ignored. The scripts that
+  compare against the old ranker run from a checkout of that release
+  (`OLD_RANKER_COMMIT` in `scripts/lib/rank-bench.mjs`) and refuse to run
+  without it.
+- **Never a confident wrong answer.** A query that fails the no-match rule gets
+  nothing. A plausible-but-wrong skill handed to someone designing an
+  experiment is worse than no answer. BM25F scores whole tokens and alias
+  triggers match whole words: raw substring matching once scored
+  `open-notebook` for "book a flight to paris", the failure this rule exists
+  to prevent.
 - **`aliases.ts` entries must come from an observed miss**, never from
   imagination. `pysam`'s description says VCF/BCF but never "variant";
   `esm`'s says ESMFold2 but never "protein structure prediction". Speculative
   aliases make results worse, and `validate.mjs` hard-fails on any alias naming
-  a skill that no longer exists.
+  a skill that no longer exists. A rule's `terms` are what reach the ranker.
+  Its `skills` name what it exists to help find and get no boost;
+  `test-search.mjs` checks that each trigger phrase, searched alone, lists one
+  of them in the top 3, and reports the phrases that miss today as known
+  misses.
 - **The catalogue is read lazily from disk** (~18ms for 176 files, head 8KB
   each) and cached for the session. A committed generated catalog was rejected:
   it would duplicate ~65KB of upstream description text into `extensions/`,
@@ -795,7 +802,7 @@ is therefore a hard prerequisite for `npm test`.
 | Script | What it proves |
 |---|---|
 | `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others) are still in the synced skills. |
-| `test-search.mjs` | `sci_find`'s ranking, against the **real** 176 descriptions — including queries that must return *nothing*. Every check runs under both rankers (`bm25f`, the default, and `current`); bm25f's known misses are listed and reported, not checked. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
+| `test-search.mjs` | `sci_find`'s ranking, against the **real** 176 descriptions — including queries that must return *nothing*. Known misses are listed and reported, not checked. Each alias trigger phrase, searched alone, must list one of its rule's `skills` in the top 3. A floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI` with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That **pi itself** honours the filter we write, via a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is **byte-identical** to what pi builds for a loaded one, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
@@ -953,7 +960,8 @@ Options for comparing configurations (added for the 2026-09-25 three-arm run,
 - `--find-ranker <current|bm25f>` sets `PI_SCI_FIND_RANKER` for pi, and is
   recorded on every line. The default is `bm25f`, the package default since
   1.7.0. A package older than 5123f67 has no bm25f and runs `current`: pass
-  `current` for it, so the lines record what ran.
+  `current` for it, so the lines record what ran. A package after 1.8.0 has
+  bm25f only, so `current` needs `--package-dir`.
 - `--models-json <file>` seeds the throwaway agent dir with that models.json
   instead of the real one (a provider on another port, say); the real agent
   dir is not written.
@@ -1075,7 +1083,8 @@ give it. `--variants full,bm25f` replaces `compact` with `bm25f`: each
 `runToolSearch` under `PI_SCI_FIND_RANKER=bm25f`, in the full format, with
 the recorded package's paths. Before that, the same call under the current
 ranker must reproduce the recorded result byte for byte, or the probe is an
-error. `find-live-replay-report.mjs --variant bm25f` reports `bm25f` − `full`.
+error, so the replay runs only from a checkout of 1.8.0 or earlier.
+`find-live-replay-report.mjs --variant bm25f` reports `bm25f` − `full`.
 
 Two summary lines show recovery: the
 response in which the target was reached, and every attempt split by when it
@@ -1137,7 +1146,12 @@ but never runs. Each run names it at the start, and `--only` refuses it.
    already written by `scripts/sync-upstream.sh` in step 1). Never copy
    upstream's number into `version` (see Provenance for why). Update the
    upstream-version mentions in README.
-6. Commit, push, `npm publish`, confirm with `npm view pi-scientific-skills version`,
+6. Add the release to `RELEASES` in `extensions/index.ts`, with a `snapshot`
+   naming the new `upstreamVersion` and what it adds. Both startup notices
+   read that table: the upgrade notice and the one for a filter written by
+   hand. `scripts/test-extension.mjs` fails until the newest snapshot there is
+   `package.json`'s `upstreamVersion`.
+7. Commit, push, `npm publish`, confirm with `npm view pi-scientific-skills version`,
    then tag `v<version>` (ours, e.g. `v1.1.0`) and push the tag. Publish before
    tagging: a failed publish must not leave a tag no registry has.
 
@@ -1215,9 +1229,9 @@ Pi does not require the name to match its parent directory.
 - Reports violations of the table above; exits non-zero when a skill is missing
   its `description` (pi would refuse to load it) or when `extensions/profiles.ts`
   disagrees with `skills/`.
-- Checks `extensions/aliases.ts`: every alias must name a real skill directory,
-  no trigger phrase may be listed twice (a duplicate double-counts its boost and
-  quietly distorts ranking), and no rule may expand to nothing.
+- Checks `extensions/aliases.ts`: every alias `skills` entry must name a real
+  skill directory, no trigger phrase may be listed twice, and every rule must
+  add search terms (only `terms` reach the ranker).
 - Hard-fails when `extensions/package-info.ts` disagrees with `package.json`. A
   stale `PACKAGE_VERSION` silently suppresses the upgrade notice for every user,
   which is the one promise a release makes; it must not be possible to ship that.

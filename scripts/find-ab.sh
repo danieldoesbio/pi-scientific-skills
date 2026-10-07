@@ -6,6 +6,7 @@
 # the prompt, extension loaded):
 #   old   the --old-ref package with PI_SCI_FIND_RANKER=--old-ranker.
 #   new   the --new-ref package with PI_SCI_FIND_RANKER=--new-ranker.
+# A package after 1.8.0 ignores PI_SCI_FIND_RANKER and ranks with bm25f.
 #
 # Frozen sources: at the first start, both refs are `git archive`d into
 # <out>/src/, and every invocation runs from there (the harness and the probes

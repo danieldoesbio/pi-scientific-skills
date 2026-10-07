@@ -2,19 +2,20 @@
 // Offline top-k rates of sci_find's rankers on the fixed query sets
 // (scripts/lib/rank-bench.mjs): the share of queries whose target is in the
 // top 1, 2, 3 and 8 hits, and the share with no hit at all. The rankers run
-// through search(), so each one's no-match rule applies.
+// through search(), so each one's no-match rule applies. This tree has bm25f
+// only; "current" needs a checkout of 1.8.0 or earlier (OLD_RANKER_COMMIT).
 //
 //   node scripts/find-rank-bench.mjs [--ranker current|bm25f] [-o <file>]
 //
 // Table on stdout (or -o). Exit 0, 1 on a runtime error, 2 on bad arguments.
 import { writeFileSync } from "node:fs";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
-import { TOP_K, loadSets, topShare } from "./lib/rank-bench.mjs";
+import { TOP_K, hasOldRanker, loadSets, rankWith, topShare } from "./lib/rank-bench.mjs";
 
 const RANKERS = ["current", "bm25f"];
 
 function parseArgs(argv) {
-  const opts = { rankers: RANKERS, output: null };
+  const opts = { rankers: null, output: null };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--ranker") {
@@ -42,11 +43,14 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const search = await loadExtensionModule("extensions/search.ts");
   const catalog = search.loadCatalog(search.resolveSkillsDir());
+  const rank = rankWith(search);
+  // Every ranker this tree has, unless --ranker picked one.
+  const rankers = opts.rankers ?? (hasOldRanker(search) ? RANKERS : ["bm25f"]);
   const sets = loadSets();
   const lines = [`set          n  ranker   ${TOP_K.map((k) => `top${k}`.padStart(6)).join("")}  nohit`];
   for (const [name, set] of Object.entries(sets)) {
-    for (const ranker of opts.rankers) {
-      const hits = set.map(({ query }) => search.search(catalog, query, Math.max(...TOP_K), ranker).map((hit) => hit.entry.name));
+    for (const ranker of rankers) {
+      const hits = set.map(({ query }) => rank(catalog, query, Math.max(...TOP_K), ranker).map((hit) => hit.entry.name));
       const ranks = set.map((row, i) => hits[i].indexOf(row.target) + 1);
       const noHit = hits.filter((list) => list.length === 0).length / set.length;
       lines.push(`${name.padEnd(9)}${String(set.length).padStart(5)}  ${ranker.padEnd(7)}${TOP_K.map((k) => pct(topShare(ranks, k))).join("")}${pct(noHit)}`);

@@ -2,7 +2,8 @@
  * /sci — curate which of the catalogue's scientific skills pi loads.
  *
  * Every skill's name + description is injected into the system prompt at startup
- * and stays there for the whole session (roughly 23k tokens for the full set).
+ * and stays there for the whole session (`BASELINE_TOKEN_COST`, about 25k
+ * tokens for the full set).
  * Small or local models pay that twice: once in context budget, and again in
  * selection accuracy, because discriminating between many similar
  * descriptions is hard.
@@ -120,42 +121,11 @@ export const compareVersions = (a: string, b: string): number => {
 const downgradeNotice = (from: string): string =>
   `${PACKAGE_NAME}: running ${PACKAGE_VERSION} after ${from}; your selection is unchanged.`;
 
-/** The release that shipped upstream snapshot v2.69.0. */
-const SNAPSHOT_RELEASE = "1.6.0";
-
-/** The release whose search changes `searchNews` describes. */
-const SEARCH_RELEASE = "1.7.0";
-
-/** The release that shipped upstream snapshot v2.72.0. */
-const SYNC_RELEASE = "1.8.0";
-
 /**
- * What 1.8.0 changed. A profile selection is saved in settings.json as the
- * skill names it held when it was applied (`skillsForSelection`), so the new
- * skills reach a profile user only after the picker writes the filter again.
- * Search mode reads skills/ directly and finds them at once.
- */
-const SYNC_NEWS = [
-  `Upstream snapshot v2.72.0 (in ${SYNC_RELEASE}) adds 14 skills to the field profiles, among them`,
-  `primer-design, mageck, flowkit, qiime2-amplicon, cellprofiler, relion and pybamm. A saved`,
-  `profile picks them up when you open "/${COMMAND_NAME} profiles" and press Enter; search mode finds`,
-  `them already. fictiv is not shipped: it can place paid orders that cannot be cancelled.`,
-];
-
-const SNAPSHOT_NEWS = [
-  `Upstream snapshot v2.69.0 (commit 49c6e97, in ${SNAPSHOT_RELEASE}) adds one skill: alphagenome`,
-  `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
-  `non-commercial API key). It also updates two skills: ontology-term-resolution`,
-  `gains Bioregistry, Identifiers.org, ZOOMA and Ontobee companions, and`,
-  `genomic-intelligence documents per-operation sync limits and an unreliable`,
-  `splice-orientation check.`,
-];
-
-/**
- * Two facts both 1.7.0 news notices (`searchNews` and `filteredNotice`) give, in one place so `searchNews` and
- * `filteredNotice` cannot drift apart. The 1.6.0 clause on `/sci none` stays in
- * `searchNews`: someone who hand-filtered before ever running `/sci` never ran
- * `/sci none`.
+ * Two facts both the upgrade notice (`searchNews`) and `filteredNotice` give,
+ * kept here so the two cannot drift apart. The 1.6.0 clause on `/sci none`
+ * stays in `searchNews`: someone who hand-filtered before ever running `/sci`
+ * never ran `/sci none`.
  */
 const DEFAULT_PROMPT_NEWS =
   `In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) ${TOOL_NAME} ` +
@@ -167,26 +137,22 @@ const EMPTY_FILTER_MEANING = `now means search mode, not off; ${TOOL_NAME} stays
  * offer declined, `/sci none`, Core plus a `pi config` override. It says what
  * the commands and an empty filter mean now, never what the reader chose, so
  * each line is true for someone who did nothing. `scripts/test-extension.mjs`
- * checks it against three 1.6.0 states (Core accepted; offer declined, which leaves
- * only the install entry; `/sci none`) and one with a `pi config` override added.
+ * checks it against each of those states.
  *
  * - Search: a new ranker and hit counts for everyone, and no `limit` argument.
- *   `PI_SCI_FIND_RANKER=current` brings back the old order, not the old count.
  * - The listing and guideline are in pi's default system prompt only. pi builds
  *   a custom one (SYSTEM.md, `--system-prompt`) without the tools section or
- *   the guidelines (system-prompt.js, `if (customPrompt)`).
+ *   the guidelines.
  * - An empty `skills` filter is search mode now. 1.6.0's `/sci none` wrote one
  *   to mean off; the tool stays on, and their settings are not touched.
  * - `/sci search` writes an empty filter, where 1.6.0 wrote Core, and names the
  *   `pi config` overrides that drops. The way back to Core is the picker.
  * - `"extensions": []` on the package's object entry stops pi loading the
- *   extension: no tool, no `/sci`. Checked against pi's own resolver in 0.84.3,
- *   0.87.0 and 1.0.0; the `skills` filter then works as the user wrote it.
+ *   extension: no tool, no `/sci`, and the `skills` filter works as written.
  */
 const searchNews = (): string[] => [
   `${TOOL_NAME} ranks with BM25F and shows ${FIRST_SEARCH_LIMIT} hits on a prompt's first search, then`,
-  `${LATER_SEARCH_LIMIT}; its "limit" argument is gone. PI_SCI_FIND_RANKER=current restores the old`,
-  `ranking order only.`,
+  `${LATER_SEARCH_LIMIT}; its "limit" argument is gone.`,
   DEFAULT_PROMPT_NEWS,
   `An empty "skills" filter (1.6.0's "/${COMMAND_NAME} none") ${EMPTY_FILTER_MEANING}`,
   `"/${COMMAND_NAME} search" no longer loads Core and names any pi config`,
@@ -195,13 +161,109 @@ const searchNews = (): string[] => [
   `in settings.json.`,
 ];
 
+/** A new upstream snapshot. Both notices state these facts. */
+interface Snapshot {
+  readonly upstream: string;
+  readonly commit?: string;
+  /** Completes "Upstream snapshot <upstream> (in <release>) adds ...". */
+  readonly adds: string;
+  /** Other changes in the snapshot, as whole sentences. */
+  readonly more: readonly string[];
+}
+
+/**
+ * One release's news. A release that ships a new upstream snapshot sets
+ * `snapshot`, which both notices read. `news`, and a snapshot's `more`, are
+ * for the upgrade notice only.
+ */
+interface ReleaseNews {
+  readonly release: string;
+  readonly snapshot?: Snapshot;
+  readonly news?: () => string[];
+}
+
+/**
+ * Every release with news, newest first. A sync adds an entry here:
+ * `scripts/test-extension.mjs` fails until the newest snapshot is the
+ * `upstreamVersion` in package.json.
+ */
+const RELEASES: readonly ReleaseNews[] = [
+  {
+    release: "1.8.0",
+    snapshot: {
+      upstream: "v2.72.0",
+      adds:
+        "14 skills to the field profiles, among them primer-design, mageck, flowkit, " +
+        "qiime2-amplicon, cellprofiler, relion and pybamm",
+      more: ["fictiv is not shipped: it can place paid orders that cannot be cancelled."],
+    },
+  },
+  { release: "1.7.0", news: searchNews },
+  {
+    release: "1.6.0",
+    snapshot: {
+      upstream: "v2.69.0",
+      commit: "49c6e97",
+      adds:
+        "one skill: alphagenome (AlphaGenome Atlas variant-effect lookup and scoring, " +
+        "DeepMind; free non-commercial API key)",
+      more: [
+        "It also updates two skills: ontology-term-resolution gains Bioregistry, " +
+          "Identifiers.org, ZOOMA and Ontobee companions, and genomic-intelligence " +
+          "documents per-operation sync limits and an unreliable splice-orientation check.",
+      ],
+    },
+  },
+];
+
+/**
+ * How each kind of user picks up a snapshot's new skills. A profile is saved
+ * in settings.json as the skill names it held when applied
+ * (`skillsForSelection`), so new skills reach it only when the picker writes
+ * the filter again. Search mode reads skills/ directly.
+ */
+const PROFILE_ADVICE =
+  `A saved profile picks up new skills when you open "/${COMMAND_NAME} profiles" and ` +
+  `press Enter; search mode finds them already.`;
+const FILTER_ADVICE = `Your filter does not include new skills until you add them.`;
+
+/**
+ * The news owed to someone coming from `from` (undefined: unknown, so all of
+ * it) to `current`, newest release first. `advice` follows the newest
+ * snapshot's first sentence, once. `full: false` gives only what each
+ * snapshot adds.
+ */
+const owedNews = (
+  from: string | undefined,
+  current: string,
+  advice: string,
+  full: boolean,
+): string[] => {
+  let advised = false;
+  return RELEASES.filter(
+    ({ release }) =>
+      compareVersions(current, release) >= 0 && (from === undefined || compareVersions(from, release) < 0),
+  ).flatMap(({ release, snapshot, news }) => {
+    const lines: string[] = [];
+    if (snapshot) {
+      const where = snapshot.commit ? `commit ${snapshot.commit}, in ${release}` : `in ${release}`;
+      lines.push(`Upstream snapshot ${snapshot.upstream} (${where}) adds ${snapshot.adds}.`);
+      if (!advised) lines.push(advice);
+      advised = true;
+      if (full) lines.push(...snapshot.more);
+    }
+    if (full && news) lines.push(...news());
+    return lines;
+  });
+};
+
 /**
  * `current` defaults to `PACKAGE_VERSION` for every real call site; it takes
  * an explicit value only in `scripts/test-extension.mjs`'s pure-function
- * tests, which check the patch and minor notice text against fixed pairs
- * (e.g. "1.5.3"→"1.5.4", "1.6.0"→"1.7.0") independent of whatever version
- * this release actually carries — the case that matters at `x.y.0`, where
- * there is no lower patch in the same minor line to derive through startup.
+ * tests, which check the notice text against fixed version pairs (e.g.
+ * "1.5.3" to "1.5.4", "1.6.0" to "1.7.0") whatever version this release
+ * carries. That matters at `x.y.0`, which has no lower patch in its own minor
+ * line to reach through startup.
  */
 export const upgradeNotice = (from: string | undefined, current: string = PACKAGE_VERSION): string => {
   const head = [
@@ -211,15 +273,10 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
   if (sameMinorLine(from, current)) {
     return [...head, `Patch release: no change to the skills, and your settings are untouched.`].join(" ");
   }
-  // Each release's news is owed to anyone who comes from before it, up to the
-  // release now running: someone skipping releases hears every one they missed.
-  const owed = (release: string): boolean =>
-    compareVersions(current, release) >= 0 && (from === undefined || compareVersions(from, release) < 0);
+  // Someone skipping releases hears every one they missed.
   return [
     ...head,
-    ...(owed(SYNC_RELEASE) ? SYNC_NEWS : []),
-    ...(owed(SEARCH_RELEASE) ? searchNews() : []),
-    ...(owed(SNAPSHOT_RELEASE) ? SNAPSHOT_NEWS : []),
+    ...owedNews(from, current, PROFILE_ADVICE, true),
     `"/${COMMAND_NAME} status" shows where you stand.`,
   ].join(" ");
 };
@@ -227,27 +284,24 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
 /**
  * For someone who hand-filtered the package before ever running `/sci`.
  *
- * They have already answered the question the first-run offer asks, so they are
- * not offered anything. But they are still owed the news, and for them it is
- * more than a feature note: `${TOOL_NAME}` reaches the skills their filter
- * excludes. A filter was never a boundary — the model could always `read` any
- * SKILL.md — but shipping a tool that makes that routine without saying so
- * would be changing what they chose out from under them.
+ * They have already answered the question the first-run offer asks, so they
+ * are not offered anything. They are still owed the news, and one part of it
+ * changes what their filter means in practice: `sci_find` reaches the skills
+ * their filter excludes. A filter was never a boundary (the model could
+ * always `read` any SKILL.md), but shipping a tool that makes that routine
+ * without saying so would change what they chose out from under them.
  *
- * It also gives the two facts both 1.7.0 news notices give, from the constants above:
- * where the listing is (and is not), and what an empty filter means now. A
- * `skills: []` written by hand meant "off" before 1.7.0.
+ * Their last version is unknown, so every snapshot in RELEASES is owed, as
+ * what it adds: new skills are what a filter written by hand leaves out. It
+ * also gives the two facts the upgrade notice gives: where the listing is
+ * (and is not), and what an empty filter means now. A `skills: []` written by
+ * hand meant "off" before 1.7.0.
  */
 const filteredNotice = (): string =>
   [
     `${PACKAGE_NAME} ${PACKAGE_VERSION}: your "skills" filter is unchanged and`,
     `/${COMMAND_NAME} has not touched it.`,
-    `Upstream snapshot v2.69.0 (commit 49c6e97) adds one skill, alphagenome`,
-    `(AlphaGenome Atlas variant-effect lookup and scoring, DeepMind; free`,
-    `non-commercial API key), which your filter does not include until you add`,
-    `it. It also updates ontology-term-resolution (Bioregistry, Identifiers.org,`,
-    `ZOOMA and Ontobee companions) and genomic-intelligence (per-operation sync`,
-    `limits; the splice-orientation check is documented as unreliable).`,
+    ...owedNews(undefined, PACKAGE_VERSION, FILTER_ADVICE, false),
     `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand,`,
     `including any your filter leaves out of the system prompt.`,
     DEFAULT_PROMPT_NEWS,
@@ -376,7 +430,7 @@ export default function (pi: ExtensionAPI): void {
 
   // The model-facing half of progressive disclosure. Registered unconditionally
   // when the catalogue is locatable: a tool definition of about 200 tokens,
-  // plus a one-line snippet and one guideline, against a ~23k index is not a
+  // plus a one-line snippet and one guideline, against a ~25k index is not a
   // trade worth a configuration flag, and a user running the full set still
   // benefits from being able to look a skill up by need rather than by name.
   //

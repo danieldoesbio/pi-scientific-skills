@@ -1,6 +1,6 @@
 /**
- * BM25F ranking for `sci_find`, the default (`PI_SCI_FIND_RANKER=current`
- * selects the older ranker in search.ts).
+ * BM25F ranking for `sci_find`. It replaced an older word-match scorer in
+ * 1.7.0; that scorer was removed after 1.8.0.
  *
  * Three fields per skill: its name, its description and its SKILL.md body.
  * A term's weight falls with the number of skills that use it (IDF), so a

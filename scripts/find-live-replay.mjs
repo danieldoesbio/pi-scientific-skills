@@ -9,7 +9,9 @@
 // (testing/runs/2026-09-27-find-ranker.md), re-runs each sci_find call of the
 // turn through the extension's own runToolSearch with PI_SCI_FIND_RANKER=bm25f,
 // in the full format; the same call under the current ranker must reproduce
-// the recorded result byte for byte first. One request per copy,
+// the recorded result byte for byte first, so this runs only from a tree that
+// still has that ranker: 1.8.0 or earlier (OLD_RANKER_COMMIT in
+// lib/rank-bench.mjs). One request per copy,
 // through pi's own SDK (scripts/lib/replay-worker.mjs), with the arm's frozen
 // package and the recorded working directory. Arm order alternates by probe.
 //
@@ -30,6 +32,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findPiDist, loadExtensionModule } from "./lib/load-extension.mjs";
+import { NO_OLD_RANKER, hasOldRanker } from "./lib/rank-bench.mjs";
 import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, textOf, truncateAndReplace } from "./lib/replay.mjs";
 
 const VARIANTS = ["full", "compact", "bm25f"];
@@ -173,9 +176,12 @@ function runWorker(jobFile, env, cwd, timeoutMs) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const realAgentDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+  const search = await loadExtensionModule("extensions/search.ts");
+  // Every attempt is checked against the ranker it was recorded under.
+  if (!hasOldRanker(search)) throw new Error(NO_OLD_RANKER);
   if (!opts.dryRun) await checkServer(realAgentDir, opts.model);
   const catalog = await loadExtensionModule("extensions/catalog.ts");
-  const { MAX_LIMIT } = await loadExtensionModule("extensions/search.ts");
+  const { MAX_LIMIT } = search;
   const descriptions = catalog.skillIndex();
   const render = (hits, format, limit) => {
     const count = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), MAX_LIMIT) : format === "compact" ? catalog.COMPACT_DEFAULT_LIMIT : hits.length;

@@ -415,7 +415,7 @@ async function validateAliases(onDisk) {
     }
     for (const phrase of alias.match) {
       const key = phrase.toLowerCase();
-      // Duplicate triggers double-count their boost, quietly distorting ranking.
+      // A duplicate trigger is dead weight that hides which rule a query fires.
       if (triggers.has(key)) problems.hard.push(`alias phrase "${phrase}" is listed twice`);
       triggers.add(key);
 
@@ -432,8 +432,9 @@ async function validateAliases(onDisk) {
         shortTriggersUsed.add(compacted);
       }
     }
-    if (!alias.terms?.length && !alias.skills?.length) {
-      problems.hard.push(`alias "${alias.match[0]}" expands to nothing`);
+    // Only `terms` reach the ranker; `skills` are test expectations.
+    if (!alias.terms?.length) {
+      problems.hard.push(`alias "${alias.match[0]}" adds no search terms, so it changes no ranking`);
     }
     for (const skill of alias.skills ?? []) {
       targets++;

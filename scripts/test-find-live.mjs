@@ -70,7 +70,8 @@
 //   --find-ranker <current|bm25f>  PI_SCI_FIND_RANKER for pi. Default bm25f,
 //                      the package default since 1.7.0. A package older than
 //                      5123f67 has no bm25f and runs current: pass current for
-//                      it, so the result lines record what ran.
+//                      it, so the result lines record what ran. A package after
+//                      1.8.0 has bm25f only, so current needs --package-dir.
 //   --models-json <file>  Seed the throwaway agent dir with this models.json
 //                      instead of the real one (e.g. a provider on another
 //                      port). The real agent dir is never written. For a cloud
@@ -230,6 +231,9 @@ function parseArgs(argv) {
     die("--endpoint first-find needs --attempts 1 and the extension (it records the first sci_find query)");
   }
   if (!["current", "bm25f"].includes(opts.findRanker)) die("--find-ranker must be current or bm25f");
+  if (opts.findRanker === "current" && !opts.packageDir) {
+    die("--find-ranker current needs --package-dir: this tree has bm25f only (the current ranker was removed after 1.8.0)");
+  }
   if (opts.modelsJson && !existsSync(opts.modelsJson)) die(`no models.json at ${opts.modelsJson}`);
   if (!Number.isInteger(opts.gateCalls) || opts.gateCalls < 0) die("--gate-calls must be a non-negative integer");
   if (opts.packageDir && !existsSync(join(opts.packageDir, "package.json"))) die(`no package.json in ${opts.packageDir}`);
@@ -783,7 +787,7 @@ async function runSupervised() {
 
 /**
  * One ungraded request before the first probe. It pays the cold prefill of
- * the system prompt (about 23k tokens with every skill listed), which llama.cpp
+ * the system prompt (about 25k tokens with every skill listed), which llama.cpp
  * then keeps in its prefix cache, so that cost does not fall inside the first
  * probe's time budget. Its own cost is a result, recorded apart.
  */

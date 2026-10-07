@@ -17,11 +17,16 @@
 
 /** One alias rule: trigger phrases, plus what they should search for. */
 export interface Alias {
-  /** Phrases that activate this rule, matched against the normalized query. */
+  /** Phrases that activate this rule, matched as whole words against the raw query. */
   readonly match: readonly string[];
   /** Extra search terms injected into the query. Scored like typed terms. */
   readonly terms?: readonly string[];
-  /** Skill directory names to surface directly. Validated to exist on disk. */
+  /**
+   * The skills this rule exists to help find. They get no ranking boost
+   * (BM25F does better without one; testing/runs/2026-09-27-find-ranker.md).
+   * `scripts/validate.mjs` checks each exists, and `scripts/test-search.mjs`
+   * checks each trigger phrase, searched alone, lists one of them in the top 3.
+   */
   readonly skills?: readonly string[];
 }
 

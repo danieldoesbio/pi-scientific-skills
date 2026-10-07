@@ -3,7 +3,7 @@
  *
  * Why this exists: pi keeps every skill's name + description in the system
  * prompt for the whole session and defers only the bodies. Across the
- * catalogue that index is roughly 23k tokens — most of a 32k
+ * catalogue that index is roughly 25k tokens — most of a 32k
  * context. `/sci` lets a *human* narrow it ahead of time; this lets the
  * *model* reach the rest on demand, so narrowing the index no longer means
  * making skills unreachable.
@@ -15,9 +15,10 @@
  *    on a prompt's first search, then 5; `/sci find` lists 8). The calling
  *    model — even a small one — discriminates well among a few labelled
  *    options and badly among the whole catalogue in a system prompt.
- * 2. Never a confident wrong answer. Below `MIN_SCORE` nothing is returned at
- *    all. Handing a plausible-but-wrong skill to someone designing an
- *    experiment is worse than handing them nothing.
+ * 2. Never a confident wrong answer. A query that fails the no-match rule
+ *    (`passesNoMatchRule` in bm25f.ts) gets nothing at all. Handing a
+ *    plausible-but-wrong skill to someone designing an experiment is worse
+ *    than handing them nothing.
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -204,44 +205,22 @@ const surfaceForms = (term: string): string[] => {
 };
 
 /**
- * Whole-word matching, not raw substring.
- *
- * Substring matching silently equates "book" with "notebook" — which is exactly
- * the confident-wrong-answer failure this tool must not have. Word boundaries
- * treat hyphens as separators, so "rna-seq" still matches the "seq" token.
- */
-const matchesWord = (haystack: string, term: string): boolean =>
-  new RegExp(`\\b(?:${surfaceForms(term).map(escapeRegex).join("|")})\\b`).test(haystack);
-
-/**
- * Length floor for punctuation-insensitive matching ("rnaseq" ↔ "rna-seq").
- * Below this, compacted substrings produce far more noise than signal. A bare
- * five-letter word can still substring-match inside a longer word ("taxes"
- * inside "syntaxes"); accepted.
+ * Length floor for punctuation-insensitive trigger matching ("rnaseq" for the
+ * "rna-seq" trigger). Below this, compacted substrings produce far more noise
+ * than signal.
  */
 const MIN_COMPACT_LENGTH = 5;
-
-const matchesCompact = (haystackCompact: string, term: string): boolean => {
-  const termCompact = compact(term);
-  if (termCompact.length < MIN_COMPACT_LENGTH) return false;
-  return haystackCompact.includes(termCompact);
-};
 
 // ---------------------------------------------------------------------------
 // Aliases
 // ---------------------------------------------------------------------------
 
-interface Expansion {
-  readonly terms: string[];
-  readonly boosted: ReadonlySet<string>;
-}
-
 /**
  * Whether a curated alias trigger phrase fires against a raw query.
  *
- * Matches as whole words, not raw substrings — "bam" must not fire on
- * "bamboo". Each word accepts the same naive singular/plural pair as
- * `matchesWord`, so "SNPs", "BAMs" and "plots" still reach the "snp", "bam"
+ * Matches as whole words, not raw substrings: "bam" must not fire on
+ * "bamboo". Each word accepts its naive singular/plural pair
+ * (`surfaceForms`), so "SNPs", "BAMs" and "plots" still reach the "snp", "bam"
  * and "plot" triggers, which have no other route: triggers shorter than
  * `MIN_COMPACT_LENGTH` never get the compacted fallback. Underscores count as
  * separators ("bam_file"), as they do in `normalizeTerms`. Built against the
@@ -266,84 +245,43 @@ const matchesPhrase = (query: string, phrase: string): boolean => {
 };
 
 /**
- * Apply the curated alias rules to a raw query.
+ * The query's terms plus the terms of every alias rule it triggers.
  *
  * Rules trigger on phrases matched against the raw query as whole words, so
  * multi-word triggers ("survival analysis") require the words together, in
- * order, and single words still hit — but "book" can never fire "bam".
+ * order, and single words still hit, but "book" can never fire "bam". A
+ * rule's `skills` play no part here: BM25F gives aliases no skill boost.
  */
-export const expandQuery = (query: string): Expansion => {
-  const typed = normalizeTerms(query);
+export const expandQuery = (query: string): string[] => {
   const extra: string[] = [];
-  const boosted = new Set<string>();
-
   for (const alias of ALIASES) {
-    const hit = alias.match.some((phrase) => matchesPhrase(query, phrase));
-    if (!hit) continue;
+    if (!alias.match.some((phrase) => matchesPhrase(query, phrase))) continue;
     for (const term of alias.terms ?? []) extra.push(...normalizeTerms(term));
-    for (const skill of alias.skills ?? []) boosted.add(skill);
   }
-
-  const terms = [...new Set([...typed, ...extra])];
-  return { terms, boosted };
+  return [...new Set([...normalizeTerms(query), ...extra])];
 };
 
 // ---------------------------------------------------------------------------
 // Ranking
 // ---------------------------------------------------------------------------
 
-const NAME_WEIGHT = 3;
-const DESCRIPTION_WEIGHT = 1;
-/** An alias naming a skill outright is strong evidence, but not proof. */
-const ALIAS_BOOST = 4;
-/** The whole query appearing verbatim in a name is as good as it gets. */
-const EXACT_NAME_BONUS = 10;
-
-/**
- * Anything scoring below the floor is withheld entirely.
- *
- * Normally two points: one weak description hit (score 1) is noise — with a
- * catalogue this size and common words like "data", something always scores
- * 1. Two points means either a name hit or two independent description hits,
- * which is the floor for saying anything at all.
- *
- * Exception: a single un-aliased term ("statistics") can earn at most one
- * description point even on a perfect match, so a floor of two would always
- * return nothing for that exact query shape. The floor drops to one only when
- * there is exactly one typed term and no alias boosted anything — a query
- * with two terms, or one an alias recognizes, still needs two.
- */
-const MIN_SCORE = 2;
-
 /** Hit count when the caller gives none (`/sci find`, the offline tools). */
 export const DEFAULT_LIMIT = 8;
-/** Ceiling for a caller-supplied count — catalog.ts clamps to this. */
+/** Ceiling for a caller-supplied count; catalog.ts clamps to this. */
 export const MAX_LIMIT = 20;
 
 /**
- * Hits `sci_find` shows the model: the first search after the message that opens a
- * prompt or run, then every later one. Chosen from the top-k rates in
- * testing/runs/2026-09-27-find-ranker.md: under bm25f the target is in the
- * top 3 for 98.7% of the first queries Bonsai 2 27B wrote and 96.4% of Haiku
- * 4.5's. The current ranker's top 8 held 97.2% and 96.3%, so the top 3 is 1.5
- * points higher for Bonsai and equal for Haiku.
+ * Hits `sci_find` shows the model: the first search after the message that
+ * opens a prompt or run, then every later one. Chosen from the top-k rates in
+ * testing/runs/2026-09-27-find-ranker.md.
  */
 export const FIRST_SEARCH_LIMIT = 3;
 export const LATER_SEARCH_LIMIT = 5;
 
 /**
- * Which ranker `sci_find` uses. "bm25f" (the default) is `bm25f.ts`;
- * "current" (`PI_SCI_FIND_RANKER=current`, kept for one release) is the
- * scoring below.
- */
-export type Ranker = "current" | "bm25f";
-
-export const findRanker = (): Ranker => (process.env.PI_SCI_FIND_RANKER === "current" ? "current" : "bm25f");
-
-/**
  * One BM25F index per catalogue array. It reads every SKILL.md body (about
- * 2 MB for the whole catalogue), so it is built on the first bm25f search, not
- * at load, and kept: an installed package cannot change while pi runs.
+ * 2 MB for the whole catalogue), so it is built on the first search, not at
+ * load, and kept: an installed package cannot change while pi runs.
  */
 const bm25fIndexes = new WeakMap<readonly SkillEntry[], Bm25fIndex>();
 
@@ -358,73 +296,33 @@ export const bm25fIndexFor = (catalog: readonly SkillEntry[]): Bm25fIndex => {
 
 /** Every skill BM25F scores above 0 for the query, best first (no floor, no limit). */
 export const rankBm25f = (catalog: readonly SkillEntry[], query: string): SearchHit[] =>
-  rankAll(bm25fIndexFor(catalog), expandQuery(query).terms);
+  rankAll(bm25fIndexFor(catalog), expandQuery(query));
 
 /**
- * The bm25f search: a query equal to a skill name lists that skill first;
- * otherwise nothing is returned unless the no-match rule passes.
- */
-const searchBm25f = (catalog: readonly SkillEntry[], query: string, limit: number): SearchHit[] => {
-  const index = bm25fIndexFor(catalog);
-  const { terms } = expandQuery(query);
-  const hits = rankAll(index, terms);
-  const wholeQuery = compact(query.toLowerCase());
-  const exact = wholeQuery.length >= 3 ? catalog.find((entry) => compact(entry.name.toLowerCase()) === wholeQuery) : undefined;
-  if (exact) {
-    const rest = hits.filter((hit) => hit.entry !== exact);
-    return [{ entry: exact, score: hits.find((hit) => hit.entry === exact)?.score ?? 0 }, ...rest].slice(0, Math.max(1, limit));
-  }
-  if (hits.length === 0 || !passesNoMatchRule(index, terms, hits[0].score)) return [];
-  return hits.slice(0, Math.max(1, limit));
-};
-
-/**
- * Rank the catalogue against a query.
+ * Rank the catalogue against a query with BM25F (bm25f.ts).
  *
  * OR-scored, not AND-matched: requiring every term to appear returns nothing
  * for ordinary phrasings ("variant calling" matches no single description).
+ * A query equal to a skill name lists that skill first; otherwise nothing is
+ * returned unless the no-match rule passes.
  */
 export const search = (
   catalog: readonly SkillEntry[],
   query: string,
   limit: number = DEFAULT_LIMIT,
-  ranker: Ranker = findRanker(),
 ): SearchHit[] => {
-  if (ranker === "bm25f") return searchBm25f(catalog, query, limit);
-  const { terms, boosted } = expandQuery(query);
-  if (terms.length === 0 && boosted.size === 0) return [];
-
-  const floor = terms.length === 1 && boosted.size === 0 ? DESCRIPTION_WEIGHT : MIN_SCORE;
+  const index = bm25fIndexFor(catalog);
+  const terms = expandQuery(query);
+  const hits = rankAll(index, terms);
   const wholeQuery = compact(query.toLowerCase());
-  const hits: SearchHit[] = [];
-
-  for (const entry of catalog) {
-    const name = entry.name.toLowerCase();
-    const nameCompact = compact(name);
-    const description = entry.description.toLowerCase();
-    const descriptionCompact = compact(description);
-
-    let score = 0;
-
-    for (const term of terms) {
-      // Name hits are the strongest signal available: a skill directory is
-      // named for exactly what it does, with none of a description's filler.
-      if (matchesWord(name, term) || matchesCompact(nameCompact, term)) {
-        score += NAME_WEIGHT;
-      } else if (matchesWord(description, term) || matchesCompact(descriptionCompact, term)) {
-        score += DESCRIPTION_WEIGHT;
-      }
-    }
-
-    if (boosted.has(entry.name)) score += ALIAS_BOOST;
-    if (wholeQuery.length >= 3 && nameCompact === wholeQuery) score += EXACT_NAME_BONUS;
-
-    if (score >= floor) hits.push({ entry, score });
+  const exact =
+    wholeQuery.length >= 3 ? catalog.find((entry) => compact(entry.name.toLowerCase()) === wholeQuery) : undefined;
+  if (exact) {
+    const rest = hits.filter((hit) => hit.entry !== exact);
+    const score = hits.find((hit) => hit.entry === exact)?.score ?? 0;
+    return [{ entry: exact, score }, ...rest].slice(0, Math.max(1, limit));
   }
-
-  // Ties break by name so results are deterministic across runs — a flapping
-  // order would make the ranking tests meaningless.
-  hits.sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
+  if (hits.length === 0 || !passesNoMatchRule(index, terms, hits[0].score)) return [];
   return hits.slice(0, Math.max(1, limit));
 };
 

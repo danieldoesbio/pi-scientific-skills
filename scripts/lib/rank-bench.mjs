@@ -45,3 +45,28 @@ export const targetRanks = (set, rank) =>
 
 /** Share of ranks in 1..k. */
 export const topShare = (ranks, k) => ranks.filter((r) => r >= 1 && r <= k).length / Math.max(1, ranks.length);
+
+/**
+ * The 1.8.0 release: the last tree with the older "current" ranker and its
+ * PI_SCI_FIND_RANKER switch. The recorded runs that compare against it
+ * reproduce from a checkout of this commit.
+ */
+export const OLD_RANKER_COMMIT = "e190c57";
+export const NO_OLD_RANKER =
+  `the "current" ranker was removed after 1.8.0; run this from a checkout of ${OLD_RANKER_COMMIT} to compare against it`;
+
+/** Whether `search` (extensions/search.ts, as loaded) still has the "current" ranker. */
+export const hasOldRanker = (search) => typeof search.findRanker === "function";
+
+/**
+ * `search.search` as (catalog, query, limit, ranker) => hits. Throws on
+ * "current" when the loaded tree no longer has it, rather than ranking with
+ * bm25f under the old ranker's name.
+ */
+export function rankWith(search) {
+  const old = hasOldRanker(search);
+  return (catalog, query, limit, ranker) => {
+    if (ranker === "current" && !old) throw new Error(NO_OLD_RANKER);
+    return old ? search.search(catalog, query, limit, ranker) : search.search(catalog, query, limit);
+  };
+}

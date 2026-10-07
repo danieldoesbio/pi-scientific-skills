@@ -90,6 +90,12 @@ const DEFAULT_PROMPT_LISTING =
   "In pi's default system prompt (not a custom SYSTEM.md or --system-prompt) sci_find is now listed, " +
   "with a guideline to use it for scientific, research and analysis work.";
 
+// The snapshot this tree ships. A sync changes it, and every notice that names
+// a snapshot must then name this one: the hand-filtered notice once named
+// v2.69.0 for two releases after v2.72.0 had shipped.
+const UPSTREAM_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).upstreamVersion;
+const NEWEST_SNAPSHOT = new RegExp(`Upstream snapshot ${UPSTREAM_VERSION.replaceAll(".", "\\.")} \\(`);
+
 /** Register the extension against doubles and hand back its hooks. */
 const register = (harness) => {
   let commandHandler;
@@ -1446,6 +1452,24 @@ console.log("\n-- upgradeNotice / compareVersions: pure functions, fixed version
     /v2\.72\.0/.test(fromSixNotice) && /BM25F/.test(fromSixNotice) && !/v2\.69\.0/.test(fromSixNotice),
     fromSixNotice,
   );
+  const fromUnknownNotice = upgradeNotice(undefined);
+  check(
+    `unknown prior version: names this tree's snapshot (${UPSTREAM_VERSION}, from package.json)`,
+    NEWEST_SNAPSHOT.test(fromUnknownNotice),
+    fromUnknownNotice,
+  );
+  const twoSnapshots = upgradeNotice("1.5.0", "1.8.0");
+  check(
+    "skipped two snapshots (1.5.0→1.8.0): both, with the profile advice once",
+    /v2\.72\.0/.test(twoSnapshots) &&
+      /v2\.69\.0/.test(twoSnapshots) &&
+      twoSnapshots.split("A saved profile picks up new skills").length === 2,
+    twoSnapshots,
+  );
+  check(
+    "no notice names the removed PI_SCI_FIND_RANKER switch",
+    [fromUnknownNotice, twoSnapshots, minorNotice, syncNotice].every((text) => !/PI_SCI_FIND_RANKER/.test(text)),
+  );
 }
 
 console.log("\n-- upgrade from each real 1.6.0 state --");
@@ -1482,10 +1506,7 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
       new RegExp(`${FIRST_SEARCH_LIMIT} hits.*then ${LATER_SEARCH_LIMIT}\\b`),
     ],
     ['the "limit" argument is gone', /"limit" argument is gone/],
-    [
-      "PI_SCI_FIND_RANKER=current restores the ranking order only",
-      /PI_SCI_FIND_RANKER=current restores the old ranking order only\./,
-    ],
+    ["does not name the removed PI_SCI_FIND_RANKER switch", (text) => !/PI_SCI_FIND_RANKER/.test(text)],
     [
       "listed in pi's default system prompt only",
       /In pi's default system prompt \(not a custom SYSTEM\.md or --system-prompt\)/,
@@ -1738,6 +1759,19 @@ console.log("\n-- first run (already hand-filtered) --");
   check(
     "settings.json is byte-identical",
     readFileSync(paths.settings, "utf8") === settingsBefore,
+  );
+  // Regression: this notice named v2.69.0 in 1.7.0 and 1.8.0, so a filter
+  // written by hand never heard of v2.72.0's 14 skills.
+  check(
+    `names this tree's snapshot (${UPSTREAM_VERSION}, from package.json)`,
+    NEWEST_SNAPSHOT.test(harness.notes[0] ?? ""),
+    harness.notes[0],
+  );
+  check(
+    "says their filter leaves new skills out, and gives no profile advice",
+    /Your filter does not include new skills until you add them\./.test(harness.notes[0] ?? "") &&
+      !/A saved profile/.test(harness.notes[0] ?? ""),
+    harness.notes[0],
   );
 
   const second = makeHarness({ mode: "tui" });
