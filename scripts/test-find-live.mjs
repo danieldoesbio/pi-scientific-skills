@@ -71,7 +71,8 @@
 //                      the package default since 1.7.0. A package older than
 //                      5123f67 has no bm25f and runs current: pass current for
 //                      it, so the result lines record what ran. A package after
-//                      1.8.0 has bm25f only, so current needs --package-dir.
+//                      1.8.0 has bm25f only. The harness refuses a ranker the
+//                      package does not have.
 //   --models-json <file>  Seed the throwaway agent dir with this models.json
 //                      instead of the real one (e.g. a provider on another
 //                      port). The real agent dir is never written. For a cloud
@@ -125,6 +126,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { seedAgentDir } from "./lib/agent-seed.mjs";
+import { rankersInPackage } from "./lib/rank-bench.mjs";
 import { runSupervisedProbe, summarizeSupervised } from "./lib/converse.mjs";
 import { providerKey, proxiedModels, startKeyProxy, upstreamBaseUrl } from "./lib/key-proxy.mjs";
 import { hitNames, readEntries, sessionMeasures } from "./lib/pi-session.mjs";
@@ -231,8 +233,11 @@ function parseArgs(argv) {
     die("--endpoint first-find needs --attempts 1 and the extension (it records the first sci_find query)");
   }
   if (!["current", "bm25f"].includes(opts.findRanker)) die("--find-ranker must be current or bm25f");
-  if (opts.findRanker === "current" && !opts.packageDir) {
-    die("--find-ranker current needs --package-dir: this tree has bm25f only (the current ranker was removed after 1.8.0)");
+  // PI_SCI_FIND_RANKER is only a request: a package that lacks the ranker runs
+  // the one it has, and the result lines would record the wrong one.
+  const rankers = rankersInPackage(opts.packageDir ?? root);
+  if (!rankers.includes(opts.findRanker)) {
+    die(`--find-ranker ${opts.findRanker}: ${opts.packageDir ?? "this tree"} has ${rankers.join(" and ") || "no sci_find ranker"} only`);
   }
   if (opts.modelsJson && !existsSync(opts.modelsJson)) die(`no models.json at ${opts.modelsJson}`);
   if (!Number.isInteger(opts.gateCalls) || opts.gateCalls < 0) die("--gate-calls must be a non-negative integer");

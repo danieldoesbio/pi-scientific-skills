@@ -9,9 +9,9 @@
 // (testing/runs/2026-09-27-find-ranker.md), re-runs each sci_find call of the
 // turn through the extension's own runToolSearch with PI_SCI_FIND_RANKER=bm25f,
 // in the full format; the same call under the current ranker must reproduce
-// the recorded result byte for byte first, so this runs only from a tree that
-// still has that ranker: 1.8.0 or earlier (OLD_RANKER_COMMIT in
-// lib/rank-bench.mjs). One request per copy,
+// the recorded result byte for byte first, so this runs only from the tree
+// the run was recorded on, or one that ranks the same (lib/rank-bench.mjs).
+// One request per copy,
 // through pi's own SDK (scripts/lib/replay-worker.mjs), with the arm's frozen
 // package and the recorded working directory. Arm order alternates by probe.
 //

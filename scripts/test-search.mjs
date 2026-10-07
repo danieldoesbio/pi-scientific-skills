@@ -246,21 +246,16 @@ note("\n-- hyphenated queries --");
 // Each alias rule names the skills it exists to help find. They get no ranking
 // boost, so the rule earns its place only if its terms do the work: each
 // trigger phrase, searched alone, must list one of them in the first search's
-// hits. A phrase listed here misses today; what it lists instead is noted.
-const ALIAS_KNOWN_MISSES = new Map([
-  ["indel", "genomic-coordinates, alphagenome, tiledbvcf"],
-  ["aligned reads", "phylogenetics, scikit-bio, biopython"],
-  ["deg", "genomic-intelligence, genomic-coordinates, astropy"],
-  ["batch correction", "nmrglue, neuropixels-analysis, labarchive-integration"],
-  ["write a paper", "markdown-mermaid-writing, pyzotero, anndata"],
-  ["train a model", "stable-baselines3, pufferlib, pyhealth"],
-]);
+// hits. The phrases listed here miss today (found 2026-10-07). The suite
+// reports what each one lists and does not fail on it.
+const ALIAS_KNOWN_MISSES = new Set(["indel", "aligned reads", "deg", "batch correction", "write a paper", "train a model"]);
 
 note(`\n-- alias targets (each trigger phrase alone, top ${search.FIRST_SEARCH_LIMIT}) --`);
 {
   const aliases = await loadExtensionModule("extensions/aliases.ts");
   const known = new Set(catalog.map((entry) => entry.name));
   let phrases = 0;
+  const missesSeen = new Set();
   for (const alias of aliases.ALIASES) {
     const want = alias.skills ?? [];
     for (const skill of want) {
@@ -272,14 +267,18 @@ note(`\n-- alias targets (each trigger phrase alone, top ${search.FIRST_SEARCH_L
       const names = search.search(catalog, phrase, search.FIRST_SEARCH_LIMIT).map((hit) => hit.entry.name);
       const found = names.some((name) => want.includes(name));
       if (ALIAS_KNOWN_MISSES.has(phrase)) {
-        note(`  known miss  ${phrase} (${found ? "now found: remove it from the list" : `lists ${ALIAS_KNOWN_MISSES.get(phrase)}`})`);
+        missesSeen.add(phrase);
+        note(`  known miss  ${phrase} (${found ? "now found: remove it from the list" : `lists ${names.join(", ") || "nothing"}`})`);
         continue;
       }
       suite.record(found, `alias "${phrase}" lists none of [${want.join(", ")}] in the top ${search.FIRST_SEARCH_LIMIT}, got [${names.join(", ") || "none"}]`);
       if (!found) note(`  FAIL  ${phrase} → [${names.join(", ") || "none"}], want one of [${want.join(", ")}]`);
     }
   }
-  note(`  checked ${phrases - ALIAS_KNOWN_MISSES.size} trigger phrases across ${aliases.ALIASES.length} rules, ${ALIAS_KNOWN_MISSES.size} known misses`);
+  for (const phrase of ALIAS_KNOWN_MISSES) {
+    if (!missesSeen.has(phrase)) failures.push(`ALIAS_KNOWN_MISSES lists "${phrase}", which is no alias trigger phrase`);
+  }
+  note(`  checked ${phrases - missesSeen.size} trigger phrases across ${aliases.ALIASES.length} rules, ${missesSeen.size} known misses`);
 }
 
 finish();

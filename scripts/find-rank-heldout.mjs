@@ -11,7 +11,8 @@
 // Primary: bm25f top 3 against current top 8, paired by cell, per style and
 // pooled (Newcombe method 10, McNemar exact). Secondary: top 1, 2, 3, 5 and 8
 // and the no-hit share for both rankers. The current ranker shipped up to
-// 1.8.0: run this from a checkout of OLD_RANKER_COMMIT (lib/rank-bench.mjs).
+// 1.8.0, so this runs only from a checkout that has it; the recorded result
+// reproduces from the commit its run record names (lib/rank-bench.mjs).
 //
 //   node scripts/find-rank-heldout.mjs <dir> [-o <file>]
 //

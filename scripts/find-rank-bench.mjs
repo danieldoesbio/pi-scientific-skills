@@ -3,7 +3,7 @@
 // (scripts/lib/rank-bench.mjs): the share of queries whose target is in the
 // top 1, 2, 3 and 8 hits, and the share with no hit at all. The rankers run
 // through search(), so each one's no-match rule applies. This tree has bm25f
-// only; "current" needs a checkout of 1.8.0 or earlier (OLD_RANKER_COMMIT).
+// only; "current" needs a checkout of 1.8.0 or earlier (lib/rank-bench.mjs).
 //
 //   node scripts/find-rank-bench.mjs [--ranker current|bm25f] [-o <file>]
 //
