@@ -32,7 +32,7 @@ const CANCEL = "Cancel";
 const toggleRows = (selected: ReadonlySet<string>): string[] =>
   TOGGLES.map((toggle) => {
     const mark = selected.has(toggle.id) ? "x" : " ";
-    return `[${mark}] ${toggle.label} — ${toggle.skills.length} skills`;
+    return `[${mark}] ${toggle.label} (${toggle.skills.length} skills)`;
   });
 
 /**
@@ -114,7 +114,7 @@ const createProfileList = (
 
     render(): string[] {
       const skills = skillsForSelection(selected);
-      const lines = [`Scientific skills — ${describeCost(skills.length)}`, ""];
+      const lines = [`Scientific skills: ${describeCost(skills.length)}`, ""];
 
       // Keep the cursor centred where possible, as pi-tui's SelectList does,
       // so scrolling matches pi's other lists.
@@ -129,7 +129,7 @@ const createProfileList = (
         const toggle = TOGGLES[i];
         const mark = selected.has(toggle.id) ? "x" : " ";
         const prefix = i === cursor ? "→ " : "  ";
-        lines.push(`${prefix}[${mark}] ${toggle.label} — ${toggle.skills.length} skills`);
+        lines.push(`${prefix}[${mark}] ${toggle.label} (${toggle.skills.length} skills)`);
       }
 
       if (start > 0 || end < TOGGLES.length) {
@@ -277,7 +277,7 @@ const chooseViaSelect = async (
 
   for (;;) {
     const skills = skillsForSelection(selected);
-    const prompt = `Scientific skills — ${describeCost(skills.length)}`;
+    const prompt = `Scientific skills: ${describeCost(skills.length)}`;
     const rows = toggleRows(selected);
     const choice = await ctx.ui.select(prompt, pickerRows(rows));
 

@@ -213,7 +213,7 @@ const firstSentence = (text: string): string => {
 /** The "not in any profile: <reason>" heading suffix, or "" for a skill some profile lists. */
 const unassignedCaveat = (name: string): string => {
   const reason = unassignedReasons.get(name);
-  return reason ? ` — not in any profile: ${firstSentence(reason)}` : "";
+  return reason ? ` (not in any profile): ${firstSentence(reason)}` : "";
 };
 
 /**
@@ -288,7 +288,7 @@ const noMatchText = (query: string): string =>
     `No skill matched "${query}".`,
     "",
     `Browse instead by calling ${TOOL_NAME} with a profile name:`,
-    PROFILES.map((profile) => `  ${profile.id} — ${profile.label}`).join("\n"),
+    PROFILES.map((profile) => `  ${profile.id}: ${profile.label}`).join("\n"),
   ].join("\n");
 
 /**
@@ -318,7 +318,7 @@ const formatProfile = (id: string): string | undefined => {
 const formatProfileIndex = (): string =>
   [
     `${TOTAL_SKILL_COUNT} scientific skills are installed. Profiles:`,
-    PROFILES.map((profile) => `  ${profile.id} — ${profile.label} (${profile.skills.length} skills)`).join("\n"),
+    PROFILES.map((profile) => `  ${profile.id}: ${profile.label} (${profile.skills.length} skills)`).join("\n"),
     "",
     `Call ${TOOL_NAME} with a query to search, or with a profile id to list one.`,
   ].join("\n");

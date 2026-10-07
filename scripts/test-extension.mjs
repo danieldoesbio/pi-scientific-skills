@@ -183,7 +183,7 @@ console.log("-- sci_find tool --");
   const heldOut = (await tool.execute("id", { query: "usfiscaldata" })).content[0].text;
   check(
     "a held-out skill's heading discloses it is not in any profile",
-    /^## usfiscaldata — not in any profile: /m.test(heldOut),
+    /^## usfiscaldata \(not in any profile\): /m.test(heldOut),
     heldOut.slice(0, 160),
   );
 
@@ -1625,7 +1625,7 @@ console.log("\n-- upgrade from each real 1.6.0 state --");
       readFileSync(paths.settings, "utf8"),
     );
     const tickCore = (options) => {
-      const row = options.find((option) => /^\[.\] Core — /.test(option));
+      const row = options.find((option) => /^\[.\] Core \(/.test(option));
       return row?.startsWith("[ ]") ? row : "Apply and reload";
     };
     const back = makeHarness({ mode: "tui", selectAnswer: tickCore });

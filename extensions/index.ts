@@ -73,8 +73,8 @@ const OFFER_TIMEOUT_MS = 20_000;
 // prompt does, but a custom one (SYSTEM.md, --system-prompt) drops the tools
 // section. scripts/test-tui-offer.py waits for "search mode:" and expects only
 // the accept row to carry it.
-const OFFER_ACCEPT = `Yes — search mode: ${TOOL_NAME} finds skills as needed (recommended)`;
-const OFFER_DECLINE = `No — keep all ${TOTAL_SKILL_COUNT} loaded (${TOOL_NAME} stays available)`;
+const OFFER_ACCEPT = `Yes, search mode: ${TOOL_NAME} finds skills as needed (recommended)`;
+const OFFER_DECLINE = `No, keep all ${TOTAL_SKILL_COUNT} loaded (${TOOL_NAME} stays available)`;
 
 const offerTitle = (): string =>
   `${PACKAGE_NAME}: all ${TOTAL_SKILL_COUNT} skills are loaded, costing ` +

@@ -145,8 +145,8 @@ const showStatus = async (ctx: UiContext): Promise<void> => {
   // would understate what the model can do.
   lines.push(
     SKILLS_DIR
-      ? `${TOOL_NAME}: active — the model can find and load any of the ${TOTAL_SKILL_COUNT} skills on demand.`
-      : `${TOOL_NAME}: unavailable — could not locate this package's skills/ directory.`,
+      ? `${TOOL_NAME}: active. The model can find and load any of the ${TOTAL_SKILL_COUNT} skills on demand.`
+      : `${TOOL_NAME}: unavailable. This package's skills/ directory could not be located.`,
   );
 
   // The input hook rebuilds /skill:<name> for a filtered-out skill typed at the

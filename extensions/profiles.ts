@@ -57,7 +57,7 @@ export const PROFILES: readonly SkillProfile[] = [
     id: "core",
     label: "Core",
     description:
-      "Stats, EDA, figures, dataframes, literature and writing — the ten skills nearly every scientific user reaches for regardless of field.",
+      "Stats, EDA, figures, dataframes, literature and writing: the ten skills nearly every scientific user reaches for regardless of field.",
     skills: [
       "exploratory-data-analysis",
       "statistical-analysis",
@@ -377,7 +377,7 @@ export const UNASSIGNED: readonly UnassignedSkill[] = [
   {
     skill: "pi-agent",
     reason:
-      "About the pi harness itself (installing pi, providers, authoring skills/extensions/packages), not a scientific skill. Highly relevant to this package's own audience — surface it as a standalone toggle in the picker rather than burying it in a field profile.",
+      "About the pi harness itself (installing pi, providers, authoring skills/extensions/packages), not a scientific skill. Highly relevant to this package's own audience, so it gets a standalone toggle in the picker instead of a place in a field profile.",
   },
   {
     skill: "autoskill",
@@ -422,7 +422,7 @@ export const UNASSIGNED: readonly UnassignedSkill[] = [
   {
     skill: "usfiscaldata",
     reason:
-      "U.S. Treasury Fiscal Data REST API — federal financial data. Not a scientific-research skill; off-topic for every profile.",
+      "U.S. Treasury Fiscal Data REST API, for federal financial data. Not a scientific-research skill; off-topic for every profile.",
   },
   {
     skill: "market-research-reports",

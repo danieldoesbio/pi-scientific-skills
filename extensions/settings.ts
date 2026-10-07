@@ -329,7 +329,7 @@ const withPlanApplied = (
 const NOT_INSTALLED_MESSAGE =
   `"${PACKAGE_NAME}" is not listed under "packages" in ${settingsPath()}, so ` +
   `/sci has nothing to configure. If you are running it with \`pi -e .\` or from a ` +
-  `project-local .pi/settings.json, edit that entry by hand — /sci only manages the ` +
+  `project-local .pi/settings.json, edit that entry by hand: /sci only manages the ` +
   `global install (\`pi install npm:${PACKAGE_NAME}\`).`;
 
 const refuse = (read: FailedRead): ApplyResult => ({
@@ -397,7 +397,7 @@ const applyToSettings = async (plan: ApplyPlan, cwd: string): Promise<AppliedRes
       ok: false,
       message:
         `Could not lock ${settingsPath()} (${describeError(error)}). Another pi ` +
-        `process may be writing settings — try again in a moment.`,
+        `process may be writing settings; try again in a moment.`,
     };
   }
 

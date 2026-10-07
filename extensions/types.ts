@@ -32,7 +32,7 @@ export type { Subcommand };
  * back, a cycle.
  */
 export const usage = (): string =>
-  `/${COMMAND_NAME} [${SUBCOMMANDS.join(" | ")}] — run bare for the menu.`;
+  `/${COMMAND_NAME} [${SUBCOMMANDS.join(" | ")}], or /${COMMAND_NAME} alone for the menu.`;
 
 // ---------------------------------------------------------------------------
 // Types

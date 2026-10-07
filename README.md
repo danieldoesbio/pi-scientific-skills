@@ -102,7 +102,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/176 skills, ~1.7k tokens, saves ~23.5k
+Scientific skills: 12/176 skills, ~1.7k tokens, saves ~23.5k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
