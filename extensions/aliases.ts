@@ -16,7 +16,12 @@
 
 /** One alias rule: trigger phrases, plus what they should search for. */
 export interface Alias {
-  /** Phrases that activate this rule, matched as whole words against the raw query. */
+  /**
+   * Phrases that activate this rule, matched as whole words against the raw
+   * query. A phrase of 5 or more characters (hyphens, underscores and spaces
+   * ignored) also matches inside a longer word; see `MIN_COMPACT_LENGTH` in
+   * search.ts.
+   */
   readonly match: readonly string[];
   /** Extra search terms injected into the query. Scored like typed terms. */
   readonly terms?: readonly string[];

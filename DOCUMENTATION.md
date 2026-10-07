@@ -495,7 +495,8 @@ object entry in `settings.json`. This was checked against pi's own resolver in
   BM25F has its own no-match rule: the best score must reach 2.5, or 28% of
   the most the query could score (35% until the v2.72.0 sync; see
   [`testing/runs/2026-10-05-v2.72.0-sync.md`](testing/runs/2026-10-05-v2.72.0-sync.md)).
-  On development data the rule lost none of 1,069 queries. On small
+  On the development data, before that sync, the rule lost none of 1,069
+  queries. On small
   agent-written sets of requests that no skill covers, BM25F returns hits for
   fewer than the old ranker did, but most of them, given as full text, still
   get hits: the no-match rule reduces such hits without preventing them.
@@ -516,15 +517,20 @@ object entry in `settings.json`. This was checked against pi's own resolver in
 
   The old ranker and its `PI_SCI_FIND_RANKER=current` switch shipped through
   1.8.0 and were then removed; the variable is now ignored. The scripts that
-  compare against the old ranker run from a checkout of that release
-  (`OLD_RANKER_COMMIT` in `scripts/lib/rank-bench.mjs`) and refuse to run
-  without it.
+  compare against the old ranker refuse to run from a tree without it, and
+  `test-find-live.mjs` refuses a `--find-ranker` the package under test does
+  not have. A new comparison can run from a checkout of 1.8.0
+  (`OLD_RANKER_COMMIT` in `scripts/lib/rank-bench.mjs`); a recorded run
+  reproduces only from the commit its run record names, since the v2.72.0
+  sync changed the descriptions both rankers score.
 - **Never a confident wrong answer.** A query that fails the no-match rule gets
   nothing: a plausible but wrong skill handed to someone designing an
-  experiment is worse than no answer. BM25F scores whole tokens and alias
-  triggers match whole words. Raw substring matching once scored
-  `open-notebook` for "book a flight to paris", the failure this rule exists
-  to prevent; `test-search.mjs` keeps that query among those that must return
+  experiment is worse than no answer. BM25F scores whole tokens, and alias
+  triggers match whole words, except that a trigger of 5 or more characters
+  (hyphens, underscores and spaces ignored) also matches inside a longer
+  word: "poster" fires on "posterior" (`MIN_COMPACT_LENGTH` in `search.ts`).
+  Raw substring matching once scored `open-notebook` for "book a flight to
+  paris", the failure this rule exists to prevent; `test-search.mjs` keeps that query among those that must return
   nothing.
 - **`aliases.ts` entries must come from an observed miss**, never from
   imagination. `pysam`'s description says VCF/BCF but never "variant";
@@ -590,6 +596,11 @@ Four details that are easy to get wrong:
   skills their filter excludes, and shipping that without saying so would change
   what they chose behind their back. A filter was never a boundary (the model
   could always `read` any `SKILL.md`), which is why it has to be said out loud.
+  What it says about new skills follows the filter's shape, as pi's
+  `applyPatterns` reads it: plain names list exactly what loads, so new skills
+  need adding; a filter of overrides alone (what `pi config` writes when a
+  skill is unticked) starts from every skill, so new skills load already; an
+  empty filter is search mode.
 
 ### `/skill:<name>` under a filter: the stopgap, and what it does not cover (1.4.0)
 
@@ -1127,8 +1138,9 @@ under `PI_SCI_FIND_RANKER=bm25f`, in the full format, with the recorded
 package's paths. `find-live-replay-report.mjs --variant bm25f` reports
 `bm25f` − `full`. Whatever the variants, each recorded `sci_find` call must
 first reproduce its result byte for byte under the current ranker, or the
-probe is an error, so the replay runs only from a checkout of 1.8.0 or
-earlier, which still has that ranker; elsewhere it refuses to start.
+probe is an error. So the replay runs only from a tree that has that ranker
+(elsewhere it refuses to start), and reproduces a recorded run only from the
+commit that run's record names.
 
 Two lines of the supervised `test-find-live.mjs` summary show recovery: the
 response in which the target was reached, and every attempt split by when it
@@ -1198,7 +1210,10 @@ never runs. Each run names it at the start, and `--only` refuses it.
    naming the new `upstreamVersion` and what it adds. Both startup notices
    read that table: the upgrade notice and the notice for a hand-written
    filter. `scripts/test-extension.mjs` fails until the newest snapshot there
-   is `package.json`'s `upstreamVersion`.
+   is `package.json`'s `upstreamVersion`. Any other change users must hear
+   about gets an entry with `news` too. A patch release shows the one-line
+   patch notice and none of `RELEASES`, so such a change needs a minor
+   release.
 7. Commit, push, `npm publish`, confirm with `npm view pi-scientific-skills version`,
    then tag `v<version>` (our version, e.g. `v1.1.0`) and push the tag.
    Publish before tagging, so a failed publish cannot leave a tag that no

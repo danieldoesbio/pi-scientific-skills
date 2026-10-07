@@ -39,7 +39,7 @@ import { PACKAGE_NAME, PACKAGE_VERSION } from "./package-info";
 import { describeError, report, settingsPath } from "./paths";
 import { BASELINE_TOKEN_COST, TOTAL_SKILL_COUNT } from "./profiles";
 import { FIRST_SEARCH_LIMIT, LATER_SEARCH_LIMIT } from "./search";
-import { findPackageEntry, readConfig, readSettings, writeConfig } from "./settings";
+import { findPackageEntry, isOverridePattern, readConfig, readSettings, writeConfig } from "./settings";
 import {
   COMMAND_NAME,
   SUBCOMMANDS,
@@ -156,11 +156,14 @@ const searchNews = (): string[] => [
   `in settings.json.`,
 ];
 
-/** A new upstream snapshot. Both notices state these facts. */
+/**
+ * A new upstream snapshot. Both notices state `upstream` and `adds`; `more`
+ * is for the upgrade notice only.
+ */
 interface Snapshot {
   readonly upstream: string;
   readonly commit?: string;
-  /** Completes "Upstream snapshot <upstream> (in <release>) adds ...". */
+  /** Completes "Upstream snapshot <upstream> (<commit, >in <release>) adds ...". */
   readonly adds: string;
   /** Other changes in the snapshot, as whole sentences. */
   readonly more: readonly string[];
@@ -212,29 +215,45 @@ const RELEASES: readonly ReleaseNews[] = [
 ];
 
 /**
- * How each kind of user picks up a snapshot's new skills. A profile is saved
- * in settings.json as the skill names it held when applied
- * (`skillsForSelection`), so new skills reach it only when the picker writes
- * the filter again. Search mode reads skills/ directly.
+ * How a profile user picks up a snapshot's new skills. A profile is saved in
+ * settings.json as the skill names it held when applied (`skillsForSelection`),
+ * so new skills reach it only when the picker writes the filter again. Search
+ * mode reads skills/ directly.
  */
 const PROFILE_ADVICE =
   `A saved profile picks up new skills when you open "/${COMMAND_NAME} profiles" and ` +
   `press Enter; search mode finds them already.`;
-const FILTER_ADVICE = `Your filter does not include new skills until you add them.`;
+
+/**
+ * What a filter written by hand does with new skills, by its shape. pi starts
+ * from every skill when a filter has no plain names (`applyPatterns` in its
+ * package manager), so a filter of overrides alone, which is what `pi config`
+ * writes when someone unticks a skill, loads new skills already. Plain names
+ * list exactly what loads. An empty array is search mode.
+ */
+const filterAdvice = (skills: unknown): string => {
+  if (Array.isArray(skills) && skills.length === 0) {
+    return `In search mode ${TOOL_NAME} finds new skills already.`;
+  }
+  if (Array.isArray(skills) && skills.every((pattern) => typeof pattern === "string" && isOverridePattern(pattern))) {
+    return `Your filter only lists exceptions, so new skills load already.`;
+  }
+  return `Your filter does not include new skills until you add them.`;
+};
 
 /**
  * The news owed to someone coming from `from` (undefined: unknown, so all of
- * it) to `current`, newest release first. `advice` follows the newest
- * snapshot's first sentence, once. `full: false` gives only what each
+ * it) to `current`, newest release first. `advice`, when given, follows the
+ * newest snapshot's first sentence, once. `full: false` gives only what each
  * snapshot adds.
  */
 const owedNews = (
   from: string | undefined,
   current: string,
-  advice: string,
+  advice: string | undefined,
   full: boolean,
 ): string[] => {
-  let advised = false;
+  let advised = advice === undefined;
   return RELEASES.filter(
     ({ release }) =>
       compareVersions(current, release) >= 0 && (from === undefined || compareVersions(from, release) < 0),
@@ -243,7 +262,7 @@ const owedNews = (
     if (snapshot) {
       const where = snapshot.commit ? `commit ${snapshot.commit}, in ${release}` : `in ${release}`;
       lines.push(`Upstream snapshot ${snapshot.upstream} (${where}) adds ${snapshot.adds}.`);
-      if (!advised) lines.push(advice);
+      if (!advised && advice !== undefined) lines.push(advice);
       advised = true;
       if (full) lines.push(...snapshot.more);
     }
@@ -292,22 +311,25 @@ export const upgradeNotice = (from: string | undefined, current: string = PACKAG
  * would change what they chose out from under them.
  *
  * Their last version is unknown, so every snapshot in RELEASES is owed, as
- * what it adds: new skills are what a hand-written filter leaves out. It also
- * gives the two facts the upgrade notice gives: where the listing is (and is
- * not), and what an empty filter means now. A hand-written `skills: []` meant
- * "off" before 1.7.0.
+ * what it adds, then once what their filter does with new skills
+ * (`filterAdvice`). It also gives the two facts the upgrade notice gives: where
+ * the listing is (and is not), and what an empty filter means now. A
+ * hand-written `skills: []` meant "off" before 1.7.0.
  */
-const filteredNotice = (): string =>
-  [
+const filteredNotice = (skills: unknown): string => {
+  const snapshots = owedNews(undefined, PACKAGE_VERSION, undefined, false);
+  return [
     `${PACKAGE_NAME} ${PACKAGE_VERSION}: your "skills" filter is unchanged and`,
     `/${COMMAND_NAME} has not touched it.`,
-    ...owedNews(undefined, PACKAGE_VERSION, FILTER_ADVICE, false),
+    ...snapshots,
+    ...(snapshots.length > 0 ? [filterAdvice(skills)] : []),
     `${TOOL_NAME} searches all ${TOTAL_SKILL_COUNT} installed skills on demand,`,
     `including any your filter leaves out of the system prompt.`,
     DEFAULT_PROMPT_NEWS,
     `An empty "skills" filter ${EMPTY_FILTER_MEANING}`,
     `Run "/${COMMAND_NAME} status" to see where you stand.`,
   ].join(" ");
+};
 
 /**
  * Decide what this user is owed at startup, if anything: the first-run offer
@@ -351,7 +373,8 @@ const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> =>
     const alreadyFiltered = hasSkillsFilter(location);
 
     if (alreadyFiltered) {
-      report(ctx, filteredNotice(), "info");
+      const skills = location && typeof location.entry !== "string" ? location.entry.skills : undefined;
+      report(ctx, filteredNotice(skills), "info");
       await writeConfig({ ...config, onboardingSeen: true, lastSeenVersion: PACKAGE_VERSION });
       return;
     }

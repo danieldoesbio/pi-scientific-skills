@@ -91,8 +91,8 @@ const DEFAULT_PROMPT_LISTING =
   "with a guideline to use it for scientific, research and analysis work.";
 
 // The snapshot this tree ships. A sync changes it, and every notice that names
-// a snapshot must then name this one: the hand-filtered notice once named
-// v2.69.0 for two releases after v2.72.0 had shipped.
+// a snapshot must then name this one: in 1.8.0, the release that shipped
+// v2.72.0, the hand-filtered notice still named v2.69.0.
 const UPSTREAM_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).upstreamVersion;
 const NEWEST_SNAPSHOT = new RegExp(`Upstream snapshot ${UPSTREAM_VERSION.replaceAll(".", "\\.")} \\(`);
 
@@ -1724,7 +1724,7 @@ console.log("\n-- downgrade (older release running after a newer one was seen) -
 
 console.log("\n-- first run (already hand-filtered) --");
 {
-  // No extension config, but a `pi config`-written filter already in place.
+  // No extension config, but a filter of plain skill names written by hand.
   // They have answered the offer's question, so they are told, not asked — and
   // what they are told is the part that matters to them specifically: sci_find
   // reaches past the filter they set.
@@ -1760,18 +1760,24 @@ console.log("\n-- first run (already hand-filtered) --");
     "settings.json is byte-identical",
     readFileSync(paths.settings, "utf8") === settingsBefore,
   );
-  // Regression: this notice named v2.69.0 in 1.7.0 and 1.8.0, so a filter
-  // written by hand never heard of v2.72.0's 14 skills.
+  // Regression: in 1.8.0 this notice still named v2.69.0, so a filter written
+  // by hand never heard of v2.72.0's 14 skills.
   check(
     `names this tree's snapshot (${UPSTREAM_VERSION}, from package.json)`,
     NEWEST_SNAPSHOT.test(harness.notes[0] ?? ""),
     harness.notes[0],
   );
+  // Plain names list exactly what loads, so new skills are left out. The
+  // advice covers every snapshot named, so it follows the last one.
+  const advice = "Your filter does not include new skills until you add them.";
+  const notice = harness.notes[0] ?? "";
   check(
-    "says their filter leaves new skills out, and gives no profile advice",
-    /Your filter does not include new skills until you add them\./.test(harness.notes[0] ?? "") &&
-      !/A saved profile/.test(harness.notes[0] ?? ""),
-    harness.notes[0],
+    "says a filter of plain names leaves new skills out, after every snapshot, with no profile advice",
+    notice.includes(advice) &&
+      notice.indexOf(advice) > notice.lastIndexOf("Upstream snapshot") &&
+      notice.split(advice).length === 2 &&
+      !/A saved profile/.test(notice),
+    notice,
   );
 
   const second = makeHarness({ mode: "tui" });
@@ -1805,8 +1811,41 @@ console.log("\n-- first run (hand-filtered with an empty filter) --");
     notice,
   );
   check("leaves their filter unchanged and says so", /your "skills" filter is unchanged/.test(notice), notice);
+  check(
+    "says search mode finds new skills already, not that the filter leaves them out",
+    notice.includes("In search mode sci_find finds new skills already.") && !/does not include new skills/.test(notice),
+    notice,
+  );
   check("settings.json is byte-identical", readFileSync(paths.settings, "utf8") === settingsBefore);
   check("takes no action on their behalf", harness.sendUserMessage.length === 0 && harness.reloadCount() === 0);
+}
+
+console.log("\n-- first run (hand-filtered with exceptions only, as pi config writes) --");
+{
+  // Unticking a skill in `pi config` on an unfiltered package writes a "-path"
+  // override and nothing else. With no plain names, pi starts from every skill,
+  // so this user already loads every new skill and must not be told otherwise.
+  const paths = newAgentDir();
+  const settingsBefore = JSON.stringify(
+    { packages: [{ source: "pi-scientific-skills", skills: ["-skills/scanpy/SKILL.md"] }] },
+    null,
+    2,
+  );
+  writeFileSync(paths.settings, settingsBefore);
+
+  const harness = makeHarness({ mode: "tui", selectAnswer: (options) => options[0] });
+  await startup(register(harness), harness);
+  const notice = harness.notes[0] ?? "";
+
+  check("does not re-ask someone who already chose", harness.selects.length === 0 && harness.notes.length === 1);
+  check("names this tree's snapshot", NEWEST_SNAPSHOT.test(notice), notice);
+  check(
+    "says new skills load already, not that the filter leaves them out",
+    notice.includes("Your filter only lists exceptions, so new skills load already.") &&
+      !/does not include new skills/.test(notice),
+    notice,
+  );
+  check("settings.json is byte-identical", readFileSync(paths.settings, "utf8") === settingsBefore);
 }
 
 console.log("\n-- first run (print mode, no UI bound) --");
