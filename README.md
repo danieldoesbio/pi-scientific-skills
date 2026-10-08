@@ -2,7 +2,7 @@
 
 A pi package bundling **176 scientific and research Agent Skills** for the [pi coding agent](https://pi.dev). Ported from [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) (MIT), which implements the open [Agent Skills](https://agentskills.io/) standard that pi supports natively.
 
-Use pi as an AI scientist: single-cell RNA-seq, drug discovery, protein design, medical imaging, clinical research, ML/AI, statistics, physics, geospatial analysis, scientific writing, grant proposals, and more — with curated, version-pinned documentation and, where useful, helper scripts.
+Use pi as an AI scientist for single-cell RNA-seq, drug discovery, protein design, medical imaging, clinical research, ML/AI, statistics, physics, geospatial analysis, scientific writing, grant proposals and more. The skills come with curated, version-pinned documentation and, where useful, helper scripts.
 
 ## Install
 
@@ -31,23 +31,23 @@ If you later narrow the set with `/sci` or `pi config`, `/skill:<name>` typed at
 the prompt still loads any of the 176, and `sci_find` reaches all of them either
 way.
 
-List installed packages with `pi list`, and enable/disable individual skills with `pi config`.
+List installed packages with `pi list`, and enable or disable individual skills with `pi config`.
 
-## `/sci` — pick what you load
+## `/sci`: pick what you load
 
-All 176 skill descriptions sit in the system prompt at startup: pi's progressive
-disclosure keeps descriptions always in context and loads only the skill *bodies*
-on demand. Measured as pi renders it (name, description, and the absolute
-`SKILL.md` path for each skill), that index costs **roughly 25k tokens**. That's
-most of a 32k context window, and more than a 16k window can hold at all. On a
-small local model it's the difference between usable and unusable.
+Pi's progressive disclosure keeps every skill's description in the system
+prompt from startup and loads a skill's *body* only on demand. Measured as pi
+renders it (name, description and absolute `SKILL.md` path for each skill), the
+index of all 176 costs roughly 25k tokens. That is most of a 32k context window,
+and more than a 16k window can hold. On a small local model it is the difference
+between usable and unusable.
 
-`pi config` can already toggle skills one at a time. `/sci` puts a curated
-profile layer on top so you don't have to do that 176 times:
+`pi config` can already toggle skills one at a time. `/sci` adds curated
+profiles on top, so you don't have to do that 176 times:
 
 ```bash
 /sci            # interactive menu
-/sci search     # recommended — no skills in the prompt, sci_find finds them
+/sci search     # recommended: no skills in the prompt, sci_find finds them
 /sci find <q>   # search all 176 by what you're trying to do
 /sci status     # what's active now, and what it costs
 /sci profiles   # jump straight to the picker
@@ -56,16 +56,16 @@ profile layer on top so you don't have to do that 176 times:
 /sci reset      # forget saved profiles, re-enable everything
 ```
 
-### Search mode — the recommended setup
+### Search mode: the recommended setup
 
 Choosing a profile means betting on what you'll need before the work starts.
-When the bet is wrong, the skill you needed is simply invisible.
+When the bet is wrong, the model cannot see the skill you needed.
 
-`/sci search` removes the bet. It keeps every skill out of the system prompt —
-**~0 tokens instead of ~25k** — and the model reaches all 176 through a
-`sci_find` tool, listed in the system prompt, that searches their names,
+`/sci search` removes the bet. It keeps every skill out of the system prompt
+(~0 tokens instead of ~25k), and the model reaches all 176 through `sci_find`, a
+tool listed in the system prompt. `sci_find` searches the skills' names,
 descriptions and SKILL.md text and returns the 3 best matches with the path to
-load (5 on a follow-up search):
+load (5 on later searches):
 
 ```
 > I have a sorted BAM and need to call variants from it
@@ -75,20 +75,18 @@ load (5 on a follow-up search):
   read .../skills/pysam/SKILL.md
 ```
 
-That's the same two-step pi already uses for skills — descriptions first, body
-on demand — pushed one level further, so narrowing what's always loaded no
-longer means making anything unreachable.
+This is the two-step pi already uses for skills (descriptions first, body on
+demand) pushed one level further, so narrowing what is always loaded no longer
+makes any skill unreachable.
 
 `sci_find` is registered whether or not you run `/sci search`, so it works
 alongside any profile. `/sci find` uses the same ranker for you and lists the
 top 8. Profiles still put a field's skills straight into the prompt when you
-want them there.
-Verified against small models, not just a frontier one — the whole point is the
-low end.
+want them there. Search mode is built for small models and verified on them.
 
 `/skill:<name>` typed at the prompt loads any skill in the package whether or
 not your filter includes it: the extension hands pi the same skill block pi
-builds itself. A filtered-out name has no autocomplete, so take it from
+would build itself. A filtered-out name has no autocomplete, so take it from
 `/sci find`.
 
 Ten profiles: Core, Genomics & Bioinformatics, Scientific ML & Data Science,
@@ -104,7 +102,7 @@ The picker is a checkbox list. Arrows move, **space** toggles, **a** selects all
 you toggle:
 
 ```
-Scientific skills — 12/176 skills, ~1.7k tokens, saves ~23.5k
+Scientific skills: 12/176 skills, ~1.7k tokens, saves ~23.5k
 ```
 
 `/sci` writes a normal per-package filter into your `~/.pi/agent/settings.json`:
@@ -113,26 +111,25 @@ Scientific skills — 12/176 skills, ~1.7k tokens, saves ~23.5k
 { "packages": [ { "source": "pi-scientific-skills", "skills": ["scanpy", "pysam"] } ] }
 ```
 
-So it composes with `pi config` instead of replacing it. Fine-tune there
-afterward and `/sci status` will tell you it did. No `SKILL.md` is ever modified,
-so `npm run sync:upstream` can't clobber your selection, and uninstalling the
-extension leaves your settings working. See
+So it composes with `pi config` instead of replacing it: fine-tune there
+afterwards and `/sci status` reports the result. `/sci` never modifies a
+`SKILL.md`, so `npm run sync:upstream` can't clobber your selection, and
+uninstalling the extension leaves your settings working. See
 [Uninstalling](DOCUMENTATION.md#uninstalling) for the one-time files `/sci`
 leaves behind.
 
 Overrides you wrote by hand (`!pattern`, `+path`, `-path`) survive your profile
 choices. Search mode (`/sci search`, `/sci none`, or applying an empty
-selection) writes an empty list, which can't carry them. It drops them and names
-each one in its message. If your settings are malformed, or a project-local
-`.pi/settings.json` would override the global one, `/sci` names the file and
-refuses to write rather than guess.
+selection) writes an empty list, which can't carry them, so it drops them and
+names each one in its message. If your settings are malformed, or a
+project-local `.pi/settings.json` would override the global one, `/sci` names
+the file and refuses to write instead of guessing.
 
-Your `settings.json` is never written unless you ask for it. `/sci` keeps one
-small state file of its own in `~/.pi/agent/` so it asks its first-run
-question once. On a first run `/sci` *offers* search mode and does nothing if
-you decline, escape, or ignore it. On an upgrade it tells you once what
-changed and leaves your selection exactly as it was — your `settings.json` is
-not touched by an upgrade you didn't ask for.
+`/sci` writes your `settings.json` only when you ask it to. It keeps one small
+state file of its own in `~/.pi/agent/` so it asks its first-run question once.
+On a first run it *offers* search mode, and does nothing if you decline, escape,
+or ignore the offer. On an upgrade it tells you once what changed and leaves
+your selection and your `settings.json` untouched.
 
 ### What 1.8.0 changed
 
@@ -143,16 +140,16 @@ not touched by an upgrade you didn't ask for.
 
 ### What 1.7.0 changed
 
-- Search mode loads no skills (~0 tokens instead of Core's ~1.4k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
+- Search mode loads no skills (~0 tokens instead of Core's ~1.4k), and pi's default system prompt now lists `sci_find` ([details, and a line to add for a custom prompt](DOCUMENTATION.md#search-mode-progressive-disclosure-for-the-model-v110)).
 - A BM25F ranker shows 3 hits on a prompt's first search and 5 on later ones. On 321 held-out requests its top 3 held the target 310 times; the old ranker's top 8, 283 times ([run](testing/runs/2026-09-27-find-ranker.md)).
 - In a live A/B on Gemma 4 26B-A4B, the new search read the right skill +6.0 points more often and used 867.5 fewer prompt tokens at the choice turn (paired median; [run](testing/runs/2026-09-29-openrouter-ab.md)).
 - `/sci none` is now the same as `/sci search`. To load Core again: `/sci profiles`, tick Core, press Enter.
 
 ## What's inside
 
-176 skills across scientific domains — bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
+176 skills across scientific domains: bioinformatics & genomics, cheminformatics & drug discovery, proteomics, clinical research & precision medicine, medical imaging, ML/AI & deep learning, materials science, physics & astronomy, engineering & simulation, data analysis & visualization, geospatial science, laboratory automation, scientific communication (writing, slides, schematics, posters), research methodology (grants, critical thinking, scholar evaluation), and 100+ database lookups (PubMed, ChEMBL, UniProt, COSMIC, ClinicalTrials.gov, and more).
 
-Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where useful, `references/` (on-demand docs), `scripts/` (helper code), and `assets/` (templates). Pi implements the Agent Skills standard, so discovery and on-demand loading work exactly as with Claude Code / Cursor / Codex.
+Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where useful, `references/` (on-demand docs), `scripts/` (helper code), and `assets/` (templates). Pi implements the Agent Skills standard, so discovery and on-demand loading work as they do in Claude Code, Cursor or Codex.
 
 ## Tested in pi
 
@@ -160,54 +157,53 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   description, checked by the validator on every change and by a tarball smoke
   test on every release. Frontmatter passes a validator that reimplements pi's
   rules with 0 warnings and 0 hard issues.
-- **43 skills have been run end to end in pi** mostly under a small model
+- **43 skills have been run end to end in pi**, mostly under a small model
   (`deepseek/deepseek-v4-flash`): loaded, followed, and in most cases producing a
-  real result — a live ARAX knowledge-graph query, a full non-compartmental PK
-  analysis, a BIDS dataset layout, a time-series classifier trained to 100% on
-  GunPoint, a live CELLxGENE Census query. Coverage grows with each skill
-  batch. The per-skill record is `testing/ledger.json`, with the notes in
-  [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 246 behavioural checks
+  real result, such as a live ARAX knowledge-graph query, a full
+  non-compartmental PK analysis, a BIDS dataset layout, a time-series classifier
+  trained to 100% on GunPoint, or a live CELLxGENE Census query. Coverage grows
+  with each skill batch. The per-skill record is `testing/ledger.json`, with the
+  notes in [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
+- **`/sci` and `sci_find`, automated on every change:** 256 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
   `sci_find` renders in the tools section of pi's default system prompt, built by
-  pi's own builder;
-  `/sci all` preserves hand-written `!pattern` overrides; a seeded prior-version config leaves
-  `settings.json` byte-identical; `/skill:<filtered-name>` is rebuilt,
-  `/skill:../../etc/passwd` is not),
+  pi's own builder; `/sci all` preserves hand-written `!pattern` overrides; a
+  seeded prior-version config leaves `settings.json` byte-identical;
+  `/skill:<filtered-name>` is rebuilt, `/skill:../../etc/passwd` is not),
   532 byte-identity checks against pi's own `/skill:` expansion (every skill,
-  three argument forms), 107 ranking checks against the real 176 descriptions,
+  three argument forms), 193 ranking checks against the real 176 descriptions,
   7 checks that **pi itself** honours the filter through a real
   `DefaultPackageManager`, and 189 frontmatter parity checks against pi's own
   parser (every skill plus synthetic edge cases). The first-run offer is
-  driven through **pi's real TUI** over a pty. `npm run try` opens this
-  package in a throwaway pi; your own `~/.pi/agent` is never touched.
+  driven through pi's real TUI over a pty. `npm run try` opens this package in
+  a throwaway pi and never touches your own `~/.pi/agent`.
 - **A 7.2 GB local model finds skills it cannot see.** Ternary Bonsai 2 27B,
-  running on a laptop with **no skill in its system prompt**, was given one
-  probe per skill — 161 requests written as a scientist would ask, none naming
-  its skill. It found the target through `sci_find` on the first attempt for
-  **143 of 157** valid probes, and within three attempts for 156. Its whole
-  starting context was about 1.8k tokens. Measured on 1.6.0, before `sci_find`
+  running on a laptop with no skill in its system prompt, was given one probe
+  per skill: 161 requests written as a scientist would ask, none naming its
+  skill. It found the target through `sci_find` on the first attempt for 143 of
+  157 valid probes, and within three attempts for 156. Its whole starting
+  context was about 1.8k tokens. This was measured on 1.6.0, before `sci_find`
   was listed in the system prompt; the report is
   [`testing/report.md`](testing/report.md).
-- **Search mode against small models, 3 of 3.** Before 1.7.0, with only
-  Core loaded, `deepseek/deepseek-v4-flash` called `sci_find` unprompted for
-  three questions whose skills were not in its prompt, and read the `SKILL.md`
-  each time. Recorded for 1.1.0, 1.2.0, 1.3.0, 1.4.0 and 1.5.0, 3 of 3 each
-  time, under `extensionRuns` in `testing/ledger.json`. For 1.7.0, on pi
-  1.0.0 with no skill in the prompt, Bonsai 2 27B (local), Gemma 4 26B-A4B and
-  DeepSeek V4 Flash each called `sci_find` and found a matching skill for all
-  three.
+- **Search mode against small models, 3 of 3.** For 1.7.0, on pi 1.0.0 with no
+  skill in the prompt, Bonsai 2 27B (local), Gemma 4 26B-A4B and DeepSeek V4
+  Flash each called `sci_find` and found a matching skill for all three test
+  questions. Before 1.7.0, with only Core loaded, `deepseek/deepseek-v4-flash`
+  called `sci_find` unprompted for three questions whose skills were not in its
+  prompt and read the `SKILL.md` each time: 3 of 3 at each minor release from
+  1.1.0 to 1.5.0. Both are recorded under `extensionRuns` in
+  `testing/ledger.json`.
 - **Upstream's own pytest suite passed at the last count** (upstream v2.62.0);
   details in
   [DOCUMENTATION.md](DOCUMENTATION.md#what-pi-does-and-does-not-enforce).
 
 ## Updating
 
-The skills here are a snapshot of upstream at **v2.72.0**. This package's own
-version is separate — it starts at 1.0.0 and tracks changes to *this*
-distribution, since the contents differ from upstream (176 skills, plus `/sci`)
-and upstream ships patch releases that would collide. The upstream tag a given
-release wraps is always recorded in `package.json` as `upstreamVersion`.
+The skills here are a snapshot of upstream at **v2.72.0**. This package has its
+own version number, which started at 1.0.0 and tracks changes to this
+distribution: the contents differ from upstream (176 skills, plus `/sci`), and
+upstream's patch releases would collide with ours. `package.json` records the
+upstream tag each release wraps as `upstreamVersion`.
 
 As a user, get a newer snapshot by reinstalling:
 
@@ -235,11 +231,11 @@ a PR. Two things I'd especially like:
   harness, or its frontmatter and tool expectations could be tuned to fit pi
   better, I want to hear about it.
 - **`/sci` profiles.** The ten field profiles are a first guess at how scientists
-  group their work, put together by one researcher and a language model. If your
-  field is served badly by them — wrong bundle, missing skill, a profile you'd
-  have to enable two of — say so.
+  group their work, put together by one researcher and a language model. If
+  they serve your field badly (wrong bundle, missing skill, a profile you'd
+  have to enable two of), say so.
 
-**Improvements to a skill's actual content should go upstream**, to
+**Improvements to a skill's content should go upstream**, to
 [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills).
 `skills/` here is a byte-identical snapshot, and
 `npm run sync:upstream` replaces it wholesale, so a fix patched in here would
@@ -249,7 +245,7 @@ it here and I'll carry it as a clearly marked local addition.
 
 ### On future additions of my own
 
-I may add skills of my own here over time — things that come out of my research
+I may add skills of my own here over time: things that come out of my research
 and seem worth sharing. If I do:
 
 - They won't go in `skills/`. That directory stays upstream's. Mine will live in
@@ -263,12 +259,12 @@ None exist yet. **All 176 skills shipped today are upstream's.**
 
 ## License & Credits
 
-- The collection is © 2025 **K-Dense Inc.**, MIT — see [LICENSE.md](LICENSE.md) (upstream text verbatim). This package is an independent distribution of [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills); **all credit for the skills goes to the upstream maintainers and their community contributors.** Nothing in `skills/` is this maintainer's work — it is a byte-identical snapshot. If you use this in a project or publication, please cite upstream using the formats in their [Citation section](https://github.com/K-Dense-AI/scientific-agent-skills#-citation) — the collection, plus each individual skill that contributed to your work. Since upstream v2.66.0 most skills end with a section asking the model to add upstream's paper (arXiv:2609.00065) to your references when the skill materially contributed, and to tell you it did so. That is a request from upstream carried here verbatim, not a licence condition; `LICENSE.md` is unchanged.
-- Many skills were contributed to upstream by **third-party authors**, credited in each skill's `metadata.skill-author` frontmatter field (pointing at the field rather than listing names here, so credit cannot drift out of date on a sync). A few declare their own terms for the skill text: `what-if-oracle` is CC BY-NC-SA 4.0 (**non-commercial**, © AHK Strategies), `bids` and `depmap` are CC BY 4.0, and `pacsomatic` ships its own `LICENSE` (MIT, © 2026 Beifang Niu). Check that field before commercial or redistributive use. Note that on skills wrapping a library, the `license:` field records *that library's* license (e.g. `cobrapy: GPL-2.0`), not the license of the skill text. One of those wrapped tools is itself non-commercial: `deepspot-m` documents the DeepSpot-M package (PolyForm Noncommercial 1.0.0) and its gated Hugging Face weights (CC BY-NC-SA 4.0). The weights' access form is narrower than "noncommercial": it admits academic or public nonprofit researchers without concurrent commercial affiliations and excludes commercially funded or collaborative use, a noncommercial intention alone does not establish eligibility, and it is research use only, not clinical or diagnostic. The skill text is MIT like the rest; the tool it drives is not, so check before commercial use.
+- The collection is © 2025 **K-Dense Inc.**, MIT: see [LICENSE.md](LICENSE.md) (upstream text verbatim). This package is an independent distribution of [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills); **all credit for the skills goes to the upstream maintainers and their community contributors.** Nothing in `skills/` is this maintainer's work; it is a byte-identical snapshot. If you use this in a project or publication, please cite upstream using the formats in their [Citation section](https://github.com/K-Dense-AI/scientific-agent-skills#-citation): the collection, plus each individual skill that contributed to your work. Since upstream v2.66.0 most skills end with a section asking the model to add upstream's paper (arXiv:2609.00065) to your references when the skill materially contributed, and to tell you it did so. That is a request from upstream carried here verbatim, not a licence condition; `LICENSE.md` is unchanged.
+- Many skills were contributed to upstream by **third-party authors**, credited in each skill's `metadata.skill-author` frontmatter field (pointing at the field rather than listing names here, so credit cannot drift out of date on a sync). A few declare their own terms for the skill text: `what-if-oracle` is CC BY-NC-SA 4.0 (**non-commercial**, © AHK Strategies), `bids` and `depmap` are CC BY 4.0, and `pacsomatic` ships its own `LICENSE` (MIT, © 2026 Beifang Niu). Check a skill's own terms (its `license:` field, or a `LICENSE` file it ships) before commercial or redistributive use. Note that on skills wrapping a library, the `license:` field records *that library's* license (e.g. `cobrapy: GPL-2.0`), not the license of the skill text. One of those wrapped tools is itself non-commercial: `deepspot-m` documents the DeepSpot-M package (PolyForm Noncommercial 1.0.0) and its gated Hugging Face weights (CC BY-NC-SA 4.0). The weights' access form is narrower than "noncommercial": it admits academic or public nonprofit researchers without concurrent commercial affiliations and excludes commercially funded or collaborative use, a noncommercial intention alone does not establish eligibility, and it is research use only, not clinical or diagnostic. The skill text is MIT like the rest; the tool it drives is not, so check before commercial use.
 - **Third-party terms carried inside skills.** Several skills document terms on the models, data or files they use, and those terms bind you, not the MIT skill text. They ship verbatim from upstream: `timesfm-forecasting` (TimesFM 3.0 weights are non-commercial and non-production; the skill defaults to the Apache-2.0 2.5 checkpoint), `molfeat` (some pretrained featurizers need an upstream noncommercial licence acknowledgement), `alphagenome` (the API is non-commercial), `latex-posters` (keep `baposter.cls`'s GPL notice when you vendor it), `pathogen-variant-surveillance` (open endpoints are not a data-use licence; keep Pathoplexus attribution and terms), `protocolsio-integration` (protocols.io content is CC BY and needs attribution), and `dhdna-profiler` (attribution to AHK Strategies; the MIT licence does not relicense the linked research or product). Read the skill before relying on its outputs commercially.
-- **Noncommercial academic distribution.** This package is maintained by a graduate student as noncommercial academic work. That says how it is made, not what you may do with it: your own use of a non-commercial model, dataset or service above still has to meet that provider's terms.
+- **Noncommercial academic distribution.** This package is maintained by a graduate student as noncommercial academic work. That describes how it is made. It does not say what you may do with it: your own use of a non-commercial model, dataset or service above still has to meet that provider's terms.
 - **Not included:** Anthropic's `docx`, `pdf`, `pptx` and `xlsx` skills, whose licence reserves all rights and forbids redistribution (upstream dropped them itself in v2.72.0; they stay on the exclusion list as a guard), and `fictiv`, which drives a commercial manufacturing site through to uncancellable paid orders. These are the only differences from upstream's `skills/`. (`pptx-posters` is K-Dense's own skill and *is* included.)
-- Pi packaging, the `/sci` extension, and maintenance by **[danieldoesbio](https://github.com/danieldoesbio)** — © 2026, MIT, same terms as above. This covers `extensions/` and `scripts/` only; `LICENSE.md` is reproduced unmodified from upstream and governs the bundled skills.
+- Pi packaging, the `/sci` extension, and maintenance by **[danieldoesbio](https://github.com/danieldoesbio)**: © 2026, MIT, same terms as above. This covers `extensions/` and `scripts/` only; `LICENSE.md` is reproduced unmodified from upstream and governs the bundled skills.
 
 ### How this port was made
 
@@ -300,4 +296,4 @@ Thanks to everyone building in this space.
 
 I've gotten a lot of use out of these K-Dense skills while working on my own research. I personally want to thank them for curating the list and everyone who contributed to it so far!!!
 
-— [danieldoesbio](https://github.com/danieldoesbio)
+[danieldoesbio](https://github.com/danieldoesbio)

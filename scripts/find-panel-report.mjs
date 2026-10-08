@@ -16,13 +16,16 @@
 //
 //   node <out>/src/scripts/find-panel-report.mjs <panel-dir>... [-o <file>]
 //
-// Run the frozen copy: the rankers load from this script's own tree. Reads
+// Run the frozen copy: the rankers load from this script's own tree, which
+// must be 1.8.0 or earlier to have the current ranker (lib/rank-bench.mjs).
+// Reads
 // results-<writer>-<style>.jsonl in each directory. Report on stdout (or -o).
 // Exit 0, 1 on a runtime error, 2 on bad arguments.
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
+import { rankWith } from "./lib/rank-bench.mjs";
 import { clusterBootstrapDiff, mcnemarExact, newcombePaired, pairCounts } from "./lib/arms-report.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -205,7 +208,8 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const search = await loadExtensionModule("extensions/search.ts");
   const catalog = search.loadCatalog(search.resolveSkillsDir());
-  const rank = (query, ranker) => search.search(catalog, query, TOP, ranker).map((hit) => hit.entry.name);
+  const searchWith = rankWith(search);
+  const rank = (query, ranker) => searchWith(catalog, query, TOP, ranker).map((hit) => hit.entry.name);
   const text = `${sourceLines(opts.dirs).join("\n")}\n\n${panelReport(loadAttempts(opts.dirs), rank)}`;
   if (opts.output) writeFileSync(opts.output, text);
   else process.stdout.write(text);

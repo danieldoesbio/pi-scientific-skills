@@ -10,7 +10,9 @@
 //
 // Primary: bm25f top 3 against current top 8, paired by cell, per style and
 // pooled (Newcombe method 10, McNemar exact). Secondary: top 1, 2, 3, 5 and 8
-// and the no-hit share for both rankers.
+// and the no-hit share for both rankers. The current ranker shipped up to
+// 1.8.0, so this runs only from a checkout that has it; the recorded result
+// reproduces from the commit its run record names (lib/rank-bench.mjs).
 //
 //   node scripts/find-rank-heldout.mjs <dir> [-o <file>]
 //
@@ -20,7 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { mcnemarExact, newcombePaired, pairCounts } from "./lib/arms-report.mjs";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
-import { topShare } from "./lib/rank-bench.mjs";
+import { rankWith, topShare } from "./lib/rank-bench.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const STYLES = ["novice", "terse"];
@@ -104,10 +106,11 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const search = await loadExtensionModule("extensions/search.ts");
   const catalog = search.loadCatalog(search.resolveSkillsDir());
+  const searchWith = rankWith(search);
   const lists = new Map();
   const rank = (query, ranker) => {
     const key = `${ranker}\u0000${query}`;
-    if (!lists.has(key)) lists.set(key, search.search(catalog, query, Math.max(...TOP_K), ranker).map((hit) => hit.entry.name));
+    if (!lists.has(key)) lists.set(key, searchWith(catalog, query, Math.max(...TOP_K), ranker).map((hit) => hit.entry.name));
     return lists.get(key);
   };
   const text = heldOutReport(loadHeldOut(opts.dir), rank);

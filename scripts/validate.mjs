@@ -388,10 +388,11 @@ function validateExcludedSkills(onDisk) {
 // ---------------------------------------------------------------------------
 
 /**
- * An alias naming a skill that no longer exists is inert but harmful: the query
- * it was written for silently loses its best match, and nothing surfaces that.
- * sync-upstream.sh replaces skills/ wholesale, so this is exactly the kind of
- * breakage a release introduces without touching extensions/.
+ * An alias rule's `skills` are test expectations (test-search.mjs checks that
+ * its trigger phrases find one of them). A rule naming a skill that no longer
+ * exists expects the impossible, and an upstream rename would go unnoticed:
+ * sync-upstream.sh replaces skills/ wholesale without touching extensions/.
+ * Its `terms` are what reach the ranker, so a rule without them does nothing.
  */
 async function validateAliases(onDisk) {
   let mod;
@@ -415,7 +416,7 @@ async function validateAliases(onDisk) {
     }
     for (const phrase of alias.match) {
       const key = phrase.toLowerCase();
-      // Duplicate triggers double-count their boost, quietly distorting ranking.
+      // A duplicate trigger is dead weight that hides which rule a query fires.
       if (triggers.has(key)) problems.hard.push(`alias phrase "${phrase}" is listed twice`);
       triggers.add(key);
 
@@ -432,8 +433,9 @@ async function validateAliases(onDisk) {
         shortTriggersUsed.add(compacted);
       }
     }
-    if (!alias.terms?.length && !alias.skills?.length) {
-      problems.hard.push(`alias "${alias.match[0]}" expands to nothing`);
+    // Only `terms` reach the ranker; `skills` are test expectations.
+    if (!alias.terms?.length) {
+      problems.hard.push(`alias "${alias.match[0]}" adds no search terms, so it changes no ranking`);
     }
     for (const skill of alias.skills ?? []) {
       targets++;
