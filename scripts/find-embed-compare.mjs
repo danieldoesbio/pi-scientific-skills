@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 // Offline comparison of sci_find's BM25F ranker with an embedding model, and
-// with two hybrids of the two, on the fixed query sets and on queries that must
-// find nothing. It answers whether embeddings would rank this catalogue better,
-// and at what cost, before anything ships.
+// with two hybrids of the two. It answers whether embeddings would rank this
+// catalogue better, and at what cost, before anything ships.
 //
 // The model runs behind a local HTTP endpoint you already have, so nothing is
 // installed here: Ollama (`--api ollama`, POST /api/embed) or any
-// OpenAI-compatible server (`--api openai`, POST /v1/embeddings), such as
-// llama.cpp's `llama-server --embeddings` or LM Studio.
+// OpenAI-compatible server (`--api openai`, POST /v1/embeddings). For
+// llama.cpp, start `llama-server -m <model.gguf> --embeddings -ub 2048 -b 2048`:
+// its default batch of 512 tokens rejects the longer skill texts of --doc body.
 //
 //   ollama pull embeddinggemma
-//   node scripts/find-embed-compare.mjs --model embeddinggemma [-o report.md] [--json results.json]
+//   node scripts/find-embed-compare.mjs [-o report.md] [--json results.json]
+//
+// What it can and cannot tell you. The built-in query sets (the golden queries
+// and the sets in scripts/lib/rank-bench.mjs) are BM25F's own development
+// data: its settings, its no-match rule and the golden "want" lists were all
+// fitted to them, so BM25F's rows there are in-sample and favour it. A fair
+// comparison needs queries BM25F was not tuned on: --heldout (the locked
+// held-out set) or --positives (your own, written blind). Likewise the
+// threshold of each embedding arm is chosen on the 12 built-in negatives, so
+// only --negatives measures how often it wrongly answers.
 //
 // Options:
 //   --endpoint <url>    Default http://localhost:11434 (Ollama's port).
@@ -24,15 +33,26 @@
 //                       server already adds them.
 //   --doc <description|body>  What a skill's vector is built from. Default
 //                       description (name and description). body adds the start
-//                       of SKILL.md's body, up to --body-chars (default 6000).
-//   --negatives <file>  Extra queries that must find nothing, one per line or a
-//                       JSON array of strings, reported as their own set. Write
-//                       them without looking at the skill list: the 12 built-in
-//                       negatives were written with the ranker in view.
+//                       of SKILL.md's body, up to --body-chars (default 6000;
+//                       EmbeddingGemma reads at most 2048 tokens, and Ollama is
+//                       asked to fail rather than truncate).
+//   --heldout <dir>     The locked held-out set (the directory
+//                       find-rank-heldout.mjs reads). Scored as held-out sets,
+//                       by count only; no query text is printed.
+//   --positives <file>  Queries a skill should answer, written without looking
+//                       at the rankers: JSON lines {"query": ..., "want": [...]}
+//                       or tab-separated "query<TAB>skill[,skill...]".
+//   --negatives <file>  Queries no skill should answer, one per line or a JSON
+//                       array of strings, written without looking at the skill
+//                       list. Reported at the chosen thresholds as held out.
 //   --batch <n>         Texts per request when embedding skills. Default 16.
-//   --cache <dir>       Vectors are cached here by model and text, so a rerun
-//                       only times new texts. Default: a directory under the OS
-//                       temp dir. --no-cache turns it off.
+//   --timeout <s>       Seconds to wait for one request. Default 120.
+//   --cache <dir>       Vectors are cached by model and text, so a rerun only
+//                       sends new texts. Default: a directory under the OS
+//                       temp dir. A probe text is embedded on every run and the
+//                       cache is dropped when its vector changes, so a model
+//                       swapped behind the same name is not mixed in.
+//                       --no-cache turns the cache off.
 //   --fake              A deterministic hashed bag of words instead of a model,
 //                       to check the plumbing with no server. Its numbers mean
 //                       nothing.
@@ -45,19 +65,22 @@
 //   embed@t      Skills by cosine similarity, listed only when the best cosine
 //                is at least t. Embeddings always have a nearest neighbour, so t
 //                is the only way this arm can say "nothing fits".
-//   fallback@t   bm25f's hits; when bm25f returns nothing, embed@t's.
+//   fallback@t   bm25f's hits; when bm25f returns nothing, embed@t's. It can
+//                differ from bm25f only on queries bm25f leaves empty.
 //   rrf@t        Reciprocal rank fusion (k = 60) of BM25F's full ranking and the
 //                cosine ranking. Nothing is listed when bm25f's no-match rule
 //                fails and the best cosine is below t.
-// Each @t arm is reported over a sweep of t, so the trade between finding the
-// target and staying silent on negatives is visible, not chosen in advance.
+// Each arm's t is the lowest that keeps the built-in negatives at least as
+// silent as bm25f keeps them. The report also sweeps t, for embed@t the trade
+// between finding targets and staying silent.
 //
-// Exit 0, 1 on a runtime error, 2 on bad arguments.
+// Exit 0, 1 on a runtime error, 2 on bad arguments or input files.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { loadHeldOut } from "./find-rank-heldout.mjs";
 import { NEGATIVES, QUERIES } from "./lib/golden-queries.mjs";
 import { loadExtensionModule } from "./lib/load-extension.mjs";
 import { loadSets } from "./lib/rank-bench.mjs";
@@ -65,17 +88,52 @@ import { loadSets } from "./lib/rank-bench.mjs";
 const LIST = 8;
 const TOP_K = [1, 3, 5, 8];
 const RRF_K = 60;
-const THRESHOLDS = Array.from({ length: 19 }, (_, i) => Number((0.05 * (i + 1)).toFixed(2)));
+/** Thresholds the choice is made on, and the coarser ones the sweep table shows. */
+const FINE = Array.from({ length: 99 }, (_, i) => (i + 1) / 100);
+const SHOWN = new Set(Array.from({ length: 19 }, (_, i) => (5 * (i + 1)) / 100));
+const PROBE_TEXT = "probe: is this the same model as last time";
 
 function usage(code, error) {
   if (error) console.error(`error: ${error}`);
   console.error(
     "usage: node scripts/find-embed-compare.mjs [--endpoint <url>] [--api ollama|openai] [--model <name>]\n" +
-      "  [--prompts embeddinggemma|none] [--doc description|body] [--body-chars <n>] [--negatives <file>]\n" +
-      "  [--batch <n>] [--cache <dir> | --no-cache] [--fake] [-o <file>] [--json <file>]",
+      "  [--prompts embeddinggemma|none] [--doc description|body] [--body-chars <n>] [--heldout <dir>]\n" +
+      "  [--positives <file>] [--negatives <file>] [--batch <n>] [--timeout <s>] [--cache <dir> | --no-cache]\n" +
+      "  [--fake] [-o <file>] [--json <file>]",
   );
   process.exit(code);
 }
+
+/** Queries no skill should answer: one per line, or a JSON array of strings. */
+export const parseNegatives = (text) => {
+  const trimmed = text.trim();
+  const list = trimmed.startsWith("[") ? JSON.parse(trimmed) : trimmed.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (!Array.isArray(list) || list.length === 0 || !list.every((q) => typeof q === "string" && q.trim())) {
+    throw new Error("expected one query per line or a JSON array of strings");
+  }
+  return list.map((query) => ({ query }));
+};
+
+/** Queries a skill should answer: JSON lines {query, want} or "query<TAB>skill[,skill]". */
+export const parsePositives = (text) => {
+  const rows = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, i) => {
+      if (line.startsWith("{")) {
+        const row = JSON.parse(line);
+        const want = typeof row.want === "string" ? [row.want] : row.want;
+        if (typeof row.query !== "string" || !Array.isArray(want) || want.length === 0) throw new Error(`line ${i + 1}: needs "query" and "want"`);
+        return { query: row.query, want };
+      }
+      const [query, skills] = line.split("\t");
+      if (!query || !skills) throw new Error(`line ${i + 1}: expected "query<TAB>skill[,skill]"`);
+      return { query, want: skills.split(",").map((s) => s.trim()).filter(Boolean) };
+    });
+  if (rows.length === 0) throw new Error("no queries");
+  return rows;
+};
 
 export function parseArgs(argv) {
   const opts = {
@@ -85,8 +143,11 @@ export function parseArgs(argv) {
     prompts: undefined,
     doc: "description",
     bodyChars: 6000,
+    heldout: null,
+    positives: null,
     negatives: null,
     batch: 16,
+    timeout: 120,
     cache: join(tmpdir(), "sci-find-embed-cache"),
     fake: false,
     output: null,
@@ -101,8 +162,11 @@ export function parseArgs(argv) {
     else if (arg === "--prompts") opts.prompts = next();
     else if (arg === "--doc") opts.doc = next();
     else if (arg === "--body-chars") opts.bodyChars = Number(next());
+    else if (arg === "--heldout") opts.heldout = next();
+    else if (arg === "--positives") opts.positives = next();
     else if (arg === "--negatives") opts.negatives = next();
     else if (arg === "--batch") opts.batch = Number(next());
+    else if (arg === "--timeout") opts.timeout = Number(next());
     else if (arg === "--cache") opts.cache = next();
     else if (arg === "--no-cache") opts.cache = null;
     else if (arg === "--fake") opts.fake = true;
@@ -115,10 +179,19 @@ export function parseArgs(argv) {
   if (!["ollama", "openai"].includes(opts.api)) usage(2, "--api must be ollama or openai");
   if (!["embeddinggemma", "none"].includes(opts.prompts)) usage(2, "--prompts must be embeddinggemma or none");
   if (!["description", "body"].includes(opts.doc)) usage(2, "--doc must be description or body");
-  for (const key of ["bodyChars", "batch"]) {
-    if (!Number.isInteger(opts[key]) || opts[key] < 1) usage(2, `--${key === "bodyChars" ? "body-chars" : key} must be a positive integer`);
+  for (const [key, flag] of [["bodyChars", "--body-chars"], ["batch", "--batch"], ["timeout", "--timeout"]]) {
+    if (!Number.isInteger(opts[key]) || opts[key] < 1) usage(2, `${flag} must be a positive integer`);
   }
-  if (opts.negatives && !existsSync(opts.negatives)) usage(2, `no file at ${opts.negatives}`);
+  if (opts.heldout && !existsSync(join(opts.heldout, "leaks.json"))) usage(2, `${opts.heldout} is not a held-out directory (no leaks.json)`);
+  for (const [key, parse] of [["positives", parsePositives], ["negatives", parseNegatives]]) {
+    if (!opts[key]) continue;
+    if (!existsSync(opts[key])) usage(2, `no file at ${opts[key]}`);
+    try {
+      opts[`${key}Rows`] = parse(readFileSync(opts[key], "utf8"));
+    } catch (error) {
+      usage(2, `${opts[key]}: ${error.message}`);
+    }
+  }
   return opts;
 }
 
@@ -136,8 +209,21 @@ export const docText = (entry, body, prompts) => {
 // --- vectors ------------------------------------------------------------------
 
 const normalize = (vector) => {
-  const norm = Math.sqrt(vector.reduce((sum, x) => sum + x * x, 0)) || 1;
+  const norm = Math.sqrt(vector.reduce((sum, x) => sum + x * x, 0));
   return vector.map((x) => x / norm);
+};
+
+/**
+ * Why a vector cannot be used (llama-server writes NaN and Inf as null), or ""
+ * when it can: a non-empty array of finite numbers, of the expected dimension
+ * when one is given, and not all zeros.
+ */
+export const vectorProblem = (vector, dimension) => {
+  if (!Array.isArray(vector) || vector.length === 0) return "is not a non-empty array";
+  if (!vector.every((x) => typeof x === "number" && Number.isFinite(x))) return "holds a value that is not a finite number";
+  if (dimension !== undefined && vector.length !== dimension) return `has ${vector.length} dimensions, not ${dimension}`;
+  if (!vector.some((x) => x !== 0)) return "is all zeros";
+  return "";
 };
 
 /** Dot product of two unit vectors: their cosine. */
@@ -154,6 +240,7 @@ export const fakeEmbed = (text) => {
     const hash = createHash("sha1").update(word).digest();
     vector[hash.readUInt16BE(0) % 512] += 1;
   }
+  vector[511] += 1e-6; // never all zeros
   return normalize(vector);
 };
 
@@ -161,42 +248,81 @@ export const fakeEmbed = (text) => {
 export async function requestEmbeddings(opts, texts) {
   if (opts.fake) return texts.map(fakeEmbed);
   const url = opts.api === "ollama" ? `${opts.endpoint}/api/embed` : `${opts.endpoint}/v1/embeddings`;
+  // Ollama truncates an overlong input by default. Failing is better than
+  // scoring a skill on a text the report misdescribes.
+  const body = opts.api === "ollama" ? { model: opts.model, input: texts, truncate: false } : { model: opts.model, input: texts };
+  const seconds = opts.timeout ?? 120;
   let response;
   try {
     response = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: opts.model, input: texts }),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(1000 * seconds),
     });
   } catch (error) {
+    if (error.name === "TimeoutError") throw new Error(`${url} did not answer within ${seconds} s (--timeout)`);
     throw new Error(`no embedding server at ${url} (${error.cause?.code ?? error.message}); start it, or pass --fake to check the plumbing`);
   }
-  if (!response.ok) throw new Error(`${url} answered ${response.status}: ${(await response.text()).slice(0, 300)}`);
-  const body = await response.json();
+  if (!response.ok) {
+    const text = (await response.text()).slice(0, 300);
+    const hint = /physical batch|too large|n_ubatch/i.test(text) ? " (llama-server: restart it with -ub 2048 -b 2048)" : "";
+    throw new Error(`${url} answered ${response.status}: ${text}${hint}`);
+  }
+  const json = await response.json();
   const vectors =
     opts.api === "ollama"
-      ? body.embeddings
-      : [...(body.data ?? [])].sort((a, b) => a.index - b.index).map((item) => item.embedding);
+      ? json.embeddings
+      : [...(json.data ?? [])].sort((a, b) => a.index - b.index).map((item) => item.embedding);
   if (!Array.isArray(vectors) || vectors.length !== texts.length) {
     throw new Error(`${url} returned ${Array.isArray(vectors) ? vectors.length : "no"} vectors for ${texts.length} texts`);
   }
+  vectors.forEach((vector, i) => {
+    const problem = vectorProblem(vector, vectors[0]?.length);
+    if (problem) throw new Error(`${url}: the vector for input ${i} ${problem}`);
+  });
   return vectors.map(normalize);
 }
 
 /**
  * Embeds texts through the cache. Texts already cached cost nothing and are
- * left out of the timings, so `timings` holds only real requests.
+ * left out of the timings, so `timings` holds only real requests. The probe
+ * is sent on every run: its time is the run's first request, and a change in
+ * its vector means a different model, which drops the cache.
  */
 function createEmbedder(opts) {
-  const cacheFile = opts.cache && !opts.fake
-    ? join(opts.cache, `${createHash("sha256").update(`${opts.api}\u0000${opts.endpoint}\u0000${opts.model}`).digest("hex").slice(0, 16)}.json`)
-    : null;
-  const cache = cacheFile && existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
+  const cacheFile =
+    opts.cache && !opts.fake
+      ? join(opts.cache, `${createHash("sha256").update(`${opts.api}\u0000${opts.endpoint}\u0000${opts.model}`).digest("hex").slice(0, 16)}.json`)
+      : null;
+  let cache = cacheFile && existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
   const key = (text) => createHash("sha256").update(text).digest("hex");
-  const timings = { documents: [], queries: [] };
+  const timings = { probe: null, documents: [], queries: [] };
+  let dimension;
   let dirty = false;
+  let cacheDropped = false;
   return {
     timings,
+    get cacheDropped() {
+      return cacheDropped;
+    },
+    get cacheFile() {
+      return cacheFile;
+    },
+    async probe() {
+      const started = performance.now();
+      const [vector] = await requestEmbeddings(opts, [PROBE_TEXT]);
+      timings.probe = performance.now() - started;
+      dimension = vector.length;
+      const cached = cache[key(PROBE_TEXT)];
+      if (cached && (cached.length !== vector.length || cosine(cached, vector) < 0.9999)) {
+        cache = {};
+        cacheDropped = true;
+        if (cacheFile) rmSync(cacheFile, { force: true });
+      }
+      cache[key(PROBE_TEXT)] = vector;
+      dirty = true;
+    },
     async embed(texts, kind, batch) {
       const missing = [...new Set(texts.filter((text) => !cache[key(text)]))];
       for (let i = 0; i < missing.length; i += batch) {
@@ -207,12 +333,18 @@ function createEmbedder(opts) {
         chunk.forEach((text, j) => (cache[key(text)] = vectors[j]));
         dirty = true;
       }
-      return texts.map((text) => cache[key(text)]);
+      return texts.map((text) => {
+        const vector = cache[key(text)];
+        const problem = vectorProblem(vector, dimension);
+        if (problem) throw new Error(`a cached vector ${problem}; rerun with --no-cache or delete ${cacheFile}`);
+        return vector;
+      });
     },
     save() {
       if (!cacheFile || !dirty) return;
       mkdirSync(opts.cache, { recursive: true });
       writeFileSync(cacheFile, JSON.stringify(cache));
+      dirty = false;
     },
   };
 }
@@ -268,6 +400,13 @@ export const scoreNegatives = (rows, listOf) => ({
   silent: rows.filter((row) => listOf(row).length === 0).length / Math.max(1, rows.length),
 });
 
+/**
+ * The lowest threshold at which `silentAt(t)` reaches `baseline`, or null.
+ * Silence only rises with t and finding targets only falls, so the lowest
+ * such t is the one that costs the fewest targets.
+ */
+export const chooseThreshold = (thresholds, silentAt, baseline) => thresholds.find((t) => silentAt(t) >= baseline) ?? null;
+
 const percentile = (values, p) => {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -277,187 +416,210 @@ const percentile = (values, p) => {
 // --- report ---------------------------------------------------------------------
 
 const pct = (x) => (x === null || x === undefined ? "  n/a" : (100 * x).toFixed(1).padStart(5));
-const ms = (x) => (x === null ? "n/a" : x < 10 ? x.toFixed(2) : x.toFixed(0));
+const ms = (x) => (x === null || x === undefined ? "n/a" : x < 10 ? x.toFixed(2) : x.toFixed(0));
 
 function report(results) {
-  const { config, positives, negatives, sweep, timing } = results;
+  const { config, positives, negatives, sweep, timing, deciding, bm25fSilentOnDev } = results;
   const lines = [];
-  lines.push(`# sci_find: BM25F against ${config.fake ? "a FAKE embedder (plumbing check only)" : `${config.model} (${config.api} at ${config.endpoint})`}`);
-  lines.push("");
-  lines.push(`Skills: ${config.skills}. Skill text: ${config.doc}${config.doc === "body" ? ` (first ${config.bodyChars} chars of the body)` : ""}. Prompts: ${config.prompts}. Lists: up to ${LIST} hits.`);
-  lines.push("");
-  lines.push("## Positive sets at each arm's best balanced threshold");
-  lines.push("");
-  const silence = Object.entries(results.bm25fSilence).map(([name, silent]) => `${name} ${pct(silent).trim()}%`).join(", ");
-  lines.push(`Threshold per arm: the one with the highest mean top-3 over the positive sets among those that keep every negative set at least as silent as bm25f does (${silence}). "none" means no threshold managed that.`);
-  lines.push("");
-  lines.push(`| set | n | arm | t | ${TOP_K.map((k) => `top${k}`).join(" | ")} | nohit |`);
-  lines.push(`|---|---|---|---|${TOP_K.map(() => "---").join("|")}|---|`);
-  for (const [set, byArm] of Object.entries(positives)) {
-    for (const [arm, row] of Object.entries(byArm)) {
-      lines.push(`| ${set} | ${row.n} | ${arm} | ${row.t ?? "-"} | ${TOP_K.map((k) => pct(row[`top${k}`])).join(" | ")} | ${pct(row.nohit)} |`);
+  const out = (line = "") => lines.push(line);
+  out(`# sci_find: BM25F against ${config.fake ? "a FAKE embedder (plumbing check only)" : `${config.model} (${config.api} at ${config.endpoint})`}`);
+  out();
+  out(`Skills: ${config.skills}. Skill text: ${config.doc}${config.doc === "body" ? ` (first ${config.bodyChars} characters of the body)` : ""}. Prompts: ${config.prompts}. Lists: up to ${LIST} hits.`);
+  out();
+  out("**Read with care.** Sets marked *dev* are BM25F's development data: its settings, its no-match rule and the golden want lists were fitted to them, so BM25F's rows there are in-sample and favour it. Sets marked *held out* were not used to tune anything here. The thresholds below were chosen on the built-in negatives, so only held-out negatives measure wrong answers.");
+  out();
+  out(`On the dev positive sets bm25f returns nothing for ${bm25fSilentOnDev} quer${bm25fSilentOnDev === 1 ? "y" : "ies"}, and fallback can differ from bm25f only there.`);
+  out();
+  out("## Thresholds");
+  out();
+  for (const [arm, t] of Object.entries(results.chosenThresholds)) {
+    out(`- ${arm}: ${t === null ? "none keeps the built-in negatives as silent as bm25f" : `t = ${t}`}`);
+  }
+  if (deciding) {
+    out(`- embed's t is set by the built-in negative with the highest top cosine: "${deciding.query}" (top skill ${deciding.skill}, cosine ${deciding.cosine.toFixed(3)}). One query decides it, so compare with a file of your own negatives.`);
+  }
+  out();
+  out("## Positive sets");
+  out();
+  out(`| set | kind | n | arm | t | ${TOP_K.map((k) => `top${k}`).join(" | ")} | nohit |`);
+  out(`|---|---|---|---|---|${TOP_K.map(() => "---").join("|")}|---|`);
+  for (const [set, { kind, arms }] of Object.entries(positives)) {
+    for (const [arm, row] of Object.entries(arms)) {
+      out(`| ${set} | ${kind} | ${row.n} | ${arm} | ${row.t ?? "-"} | ${TOP_K.map((k) => pct(row[`top${k}`])).join(" | ")} | ${pct(row.nohit)} |`);
     }
   }
-  lines.push("");
-  lines.push("## Negatives: share that correctly find nothing");
-  lines.push("");
-  lines.push(`| set | n | ${Object.keys(Object.values(negatives)[0] ?? {}).join(" | ")} |`);
-  lines.push(`|---|---|${Object.keys(Object.values(negatives)[0] ?? {}).map(() => "---").join("|")}|`);
-  for (const [set, byArm] of Object.entries(negatives)) {
-    const arms = Object.values(byArm);
-    lines.push(`| ${set} | ${arms[0]?.n ?? 0} | ${arms.map((row) => `${pct(row.silent)}${row.t !== undefined ? ` (t ${row.t ?? "none"})` : ""}`).join(" | ")} |`);
+  out();
+  out("## Negatives: share that correctly find nothing");
+  out();
+  const arms = ["bm25f", ...Object.keys(results.chosenThresholds)];
+  out(`| set | kind | n | ${arms.join(" | ")} |`);
+  out(`|---|---|---|${arms.map(() => "---").join("|")}|`);
+  for (const [set, { kind, arms: byArm }] of Object.entries(negatives)) {
+    out(`| ${set} | ${kind} | ${byArm.bm25f.n} | ${arms.map((arm) => pct(byArm[arm].silent)).join(" | ")} |`);
   }
-  lines.push("");
-  lines.push("## Threshold sweep");
-  lines.push("");
-  lines.push("Mean top-3 over the positive sets, and the silent share on each negative set, for each threshold t.");
-  lines.push("");
+  out();
+  out("## Threshold sweep for embed");
+  out();
+  out("Mean top-3 over the positive sets of each kind, and the silent share on each negative set, as t rises. fallback and rrf are not swept: fallback's positives equal bm25f's wherever bm25f lists something, and rrf's positives do not depend on t.");
+  out();
   const negativeSets = Object.keys(negatives);
-  lines.push(`| arm | t | mean top3 | ${negativeSets.map((s) => `silent: ${s}`).join(" | ")} |`);
-  lines.push(`|---|---|---|${negativeSets.map(() => "---").join("|")}|`);
+  const kinds = [...new Set(Object.values(positives).map((p) => p.kind))];
+  out(`| t | ${kinds.map((k) => `mean top3, ${k}`).join(" | ")} | ${negativeSets.map((s) => `silent: ${s}`).join(" | ")} |`);
+  out(`|---|${kinds.map(() => "---").join("|")}|${negativeSets.map(() => "---").join("|")}|`);
   for (const row of sweep) {
-    lines.push(`| ${row.arm} | ${row.t} | ${pct(row.meanTop3)} | ${negativeSets.map((s) => pct(row.silent[s])).join(" | ")} |`);
+    out(`| ${row.t} | ${kinds.map((k) => pct(row.meanTop3[k])).join(" | ")} | ${negativeSets.map((s) => pct(row.silent[s])).join(" | ")} |`);
   }
-  lines.push("");
-  lines.push("## Cost");
-  lines.push("");
-  lines.push(`- BM25F: index ${ms(timing.bm25fIndexMs)} ms once; per query p50 ${ms(timing.bm25fQuery.p50)} ms, p95 ${ms(timing.bm25fQuery.p95)} ms.`);
-  if (timing.queryCount === 0 && timing.documentRequests === 0) {
-    lines.push("- Embeddings: every vector came from the cache, so nothing was timed. Rerun with --no-cache for timings.");
+  out();
+  out("## Cost");
+  out();
+  out(`- BM25F: index ${ms(timing.bm25fIndexMs)} ms once; per query p50 ${ms(timing.bm25fQuery.p50)} ms, p95 ${ms(timing.bm25fQuery.p95)} ms.`);
+  out(`- The run's first request, one short text: ${ms(timing.probeMs)} ms. If the server had the model unloaded, this includes loading it. Ollama unloads a model after about 5 minutes idle by default, so a session that searches rarely pays this again.`);
+  if (timing.documentRequests > 0) {
+    out(`- Embedding the skills: ${timing.documentRequests} requests, ${ms(timing.documentMs)} ms in all, for ${timing.documentTexts} texts not already cached.`);
+  }
+  if (timing.queryCount > 0) {
+    out(`- Embedding a query, one request each: p50 ${ms(timing.query.p50)} ms, p95 ${ms(timing.query.p95)} ms, over ${timing.queryCount} queries not already cached.`);
   } else {
-    lines.push(`- Embedding the skills: ${timing.documentRequests} requests, ${ms(timing.documentMs)} ms in all (${timing.documentTexts} texts; cached texts are not counted).`);
-    lines.push(`- Embedding a query: p50 ${ms(timing.query.p50)} ms, p95 ${ms(timing.query.p95)} ms, over ${timing.queryCount} uncached queries.`);
-    lines.push(`- The run's first request: ${ms(timing.firstRequestMs)} ms. If the server had unloaded the model, this includes loading it, which a session would pay once.`);
+    out("- Every query vector came from the cache, so query time was not measured. Rerun with --no-cache to time it.");
   }
+  if (results.cacheDropped) out("- The probe's vector changed since the cache was written, so the cache was dropped: the model behind this name is not the one cached.");
   if (config.fake) {
-    lines.push("");
-    lines.push("**This run used --fake. The numbers check the plumbing and say nothing about embeddings.**");
+    out();
+    out("**This run used --fake. The numbers check the plumbing and say nothing about embeddings.**");
   }
   return `${lines.join("\n")}\n`;
 }
 
 // --- main -----------------------------------------------------------------------
 
-const readNegativesFile = (path) => {
-  const text = readFileSync(path, "utf8").trim();
-  const list = text.startsWith("[") ? JSON.parse(text) : text.split("\n").map((line) => line.trim()).filter(Boolean);
-  if (!list.every((q) => typeof q === "string")) throw new Error(`${path}: expected one query per line or a JSON array of strings`);
-  return list;
-};
-
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const search = await loadExtensionModule("extensions/search.ts");
   const bm25f = await loadExtensionModule("extensions/bm25f.ts");
   const catalog = search.loadCatalog(search.resolveSkillsDir());
+  const known = new Set(catalog.map((entry) => entry.name));
 
   // BM25F first: its index build is one of the costs being compared.
   let started = performance.now();
   search.bm25fIndexFor(catalog);
   const bm25fIndexMs = performance.now() - started;
 
-  // Positive sets: the golden queries (any of several skills counts) and the
-  // fixed sets in scripts/lib/rank-bench.mjs (one target each).
   const positiveSets = {
-    golden: QUERIES.map(([query, want]) => ({ query, want })),
-    ...Object.fromEntries(Object.entries(loadSets()).map(([name, rows]) => [name, rows.map((row) => ({ query: row.query, want: [row.target] }))])),
+    golden: { kind: "dev", rows: QUERIES.map(([query, want]) => ({ query, want })) },
+    ...Object.fromEntries(
+      Object.entries(loadSets()).map(([name, rows]) => [name, { kind: "dev", rows: rows.map((row) => ({ query: row.query, want: [row.target] })) }]),
+    ),
   };
-  const negativeSets = { builtin: NEGATIVES.map((query) => ({ query })) };
-  if (opts.negatives) negativeSets.yours = readNegativesFile(opts.negatives).map((query) => ({ query }));
+  if (opts.heldout) {
+    const cells = loadHeldOut(opts.heldout);
+    for (const style of [...new Set(cells.map((cell) => cell.style))]) {
+      positiveSets[`heldout-${style}`] = {
+        kind: "held out",
+        rows: cells.filter((cell) => cell.style === style).map((cell) => ({ query: cell.query, want: [cell.target] })),
+      };
+    }
+  }
+  if (opts.positivesRows) {
+    const unknown = [...new Set(opts.positivesRows.flatMap((row) => row.want).filter((name) => !known.has(name)))];
+    if (unknown.length) throw new Error(`${opts.positives} names skills that are not in skills/: ${unknown.join(", ")}`);
+    positiveSets.yours = { kind: "held out", rows: opts.positivesRows };
+  }
+  const negativeSets = { builtin: { kind: "dev", rows: NEGATIVES.map((query) => ({ query })) } };
+  if (opts.negativesRows) negativeSets.yours = { kind: "held out", rows: opts.negativesRows };
 
   const embedder = createEmbedder(opts);
-  const skillTexts = catalog.map((entry) =>
-    docText(entry, opts.doc === "body" ? bm25f.readBody(entry).trim().slice(0, opts.bodyChars) : "", opts.prompts),
-  );
-  console.error(`embedding ${catalog.length} skills…`);
-  const skillVectors = await embedder.embed(skillTexts, "documents", opts.batch);
-  const skills = catalog.map((entry, i) => ({ name: entry.name, vector: skillVectors[i] }));
-
-  const allRows = [...Object.values(positiveSets), ...Object.values(negativeSets)].flat();
+  const allRows = [...Object.values(positiveSets), ...Object.values(negativeSets)].flatMap((set) => set.rows);
   const queries = [...new Set(allRows.map((row) => row.query))];
-  console.error(`embedding ${queries.length} queries one at a time…`);
   const queryVectors = new Map();
-  for (const query of queries) {
-    const [vector] = await embedder.embed([queryText(query, opts.prompts)], "queries", 1);
-    queryVectors.set(query, vector);
+  let skillVectors;
+  try {
+    await embedder.probe();
+    const skillTexts = catalog.map((entry) =>
+      docText(entry, opts.doc === "body" ? bm25f.readBody(entry).trim().slice(0, opts.bodyChars) : "", opts.prompts),
+    );
+    console.error(`embedding ${catalog.length} skills…`);
+    skillVectors = await embedder.embed(skillTexts, "documents", opts.batch);
+    embedder.save();
+    console.error(`embedding ${queries.length} queries one at a time…`);
+    for (const [i, query] of queries.entries()) {
+      const [vector] = await embedder.embed([queryText(query, opts.prompts)], "queries", 1);
+      queryVectors.set(query, vector);
+      if (i % 100 === 99) embedder.save();
+    }
+  } finally {
+    // Keep what was embedded, so a run that fails midway resumes from there.
+    embedder.save();
   }
-  embedder.save();
+  const skills = catalog.map((entry, i) => ({ name: entry.name, vector: skillVectors[i] }));
 
   const bm25fTimes = [];
   const listsByQuery = new Map();
+  const embeddings = new Map();
   for (const query of queries) {
     started = performance.now();
     const hits = search.search(catalog, query, LIST).map((hit) => hit.entry.name);
     bm25fTimes.push(performance.now() - started);
     const ranking = search.rankBm25f(catalog, query).map((hit) => hit.entry.name);
-    listsByQuery.set(query, armLists({ bm25fHits: hits, bm25fRanking: ranking, embedding: cosineRanking(queryVectors.get(query), skills) }));
+    const embedding = cosineRanking(queryVectors.get(query), skills);
+    embeddings.set(query, embedding);
+    listsByQuery.set(query, armLists({ bm25fHits: hits, bm25fRanking: ranking, embedding }));
   }
   const listOf = (arm, t) => (row) => listsByQuery.get(row.query)[arm](t);
 
-  // The sweep: every thresholded arm at every t.
+  // Thresholds are chosen on the built-in negatives only, so a file of your
+  // own negatives stays a test of them.
+  const builtin = negativeSets.builtin.rows;
+  const baseline = scoreNegatives(builtin, listOf("bm25f")).silent;
   const thresholded = ["embed", "fallback", "rrf"];
-  const sweep = [];
-  for (const arm of thresholded) {
-    for (const t of THRESHOLDS) {
-      const top3s = Object.values(positiveSets).map((rows) => scorePositives(rows, listOf(arm, t)).top3);
-      sweep.push({
-        arm,
-        t,
-        meanTop3: top3s.reduce((a, b) => a + b, 0) / top3s.length,
-        silent: Object.fromEntries(Object.entries(negativeSets).map(([name, rows]) => [name, scoreNegatives(rows, listOf(arm, t)).silent])),
-      });
-    }
-  }
-
-  // Each thresholded arm's best threshold among those that keep every negative
-  // set at least as silent as bm25f keeps it. With only the 12 built-in
-  // negatives this is a coarse guard; a file of your own is the real test.
-  const bm25fSilence = Object.fromEntries(
-    Object.entries(negativeSets).map(([name, rows]) => [name, scoreNegatives(rows, listOf("bm25f")).silent]),
-  );
   const chosen = Object.fromEntries(
-    thresholded.map((arm) => {
-      const eligible = sweep.filter(
-        (row) => row.arm === arm && Object.entries(bm25fSilence).every(([name, silent]) => row.silent[name] >= silent),
-      );
-      const best = eligible.sort((a, b) => b.meanTop3 - a.meanTop3 || a.t - b.t)[0];
-      return [arm, best?.t ?? null];
-    }),
+    thresholded.map((arm) => [arm, chooseThreshold(FINE, (t) => scoreNegatives(builtin, listOf(arm, t)).silent, baseline)]),
   );
+  const loudest = builtin.map((row) => ({ query: row.query, ...embeddings.get(row.query) })).sort((a, b) => b.top - a.top)[0];
+  const deciding = loudest ? { query: loudest.query, skill: loudest.names[0], cosine: loudest.top } : null;
 
-  const positives = {};
-  for (const [set, rows] of Object.entries(positiveSets)) {
-    positives[set] = { bm25f: scorePositives(rows, listOf("bm25f")) };
+  const devRows = Object.values(positiveSets).filter((set) => set.kind === "dev").flatMap((set) => set.rows);
+  const bm25fSilentOnDev = new Set(devRows.filter((row) => listOf("bm25f")(row).length === 0).map((row) => row.query)).size;
+
+  const kinds = [...new Set(Object.values(positiveSets).map((set) => set.kind))];
+  const sweep = FINE.filter((t) => SHOWN.has(t)).map((t) => {
+    const meanTop3 = {};
+    for (const kind of kinds) {
+      const top3s = Object.values(positiveSets).filter((set) => set.kind === kind).map((set) => scorePositives(set.rows, listOf("embed", t)).top3);
+      meanTop3[kind] = top3s.reduce((a, b) => a + b, 0) / top3s.length;
+    }
+    const silent = Object.fromEntries(Object.entries(negativeSets).map(([name, set]) => [name, scoreNegatives(set.rows, listOf("embed", t)).silent]));
+    return { t, meanTop3, silent };
+  });
+
+  const scoreArms = (set, score) => {
+    const arms = { bm25f: score(set.rows, listOf("bm25f")) };
     for (const arm of thresholded) {
       const t = chosen[arm];
-      positives[set][arm] = t === null ? { n: rows.length, t: "none" } : { ...scorePositives(rows, listOf(arm, t)), t };
+      arms[arm] = t === null ? { n: set.rows.length, t: "none" } : { ...score(set.rows, listOf(arm, t)), t };
     }
-  }
-  const negatives = {};
-  for (const [set, rows] of Object.entries(negativeSets)) {
-    negatives[set] = { bm25f: scoreNegatives(rows, listOf("bm25f")) };
-    for (const arm of thresholded) {
-      const t = chosen[arm];
-      negatives[set][arm] = t === null ? { n: rows.length, silent: null, t: null } : { ...scoreNegatives(rows, listOf(arm, t)), t };
-    }
-  }
+    return { kind: set.kind, arms };
+  };
+  const positives = Object.fromEntries(Object.entries(positiveSets).map(([name, set]) => [name, scoreArms(set, scorePositives)]));
+  const negatives = Object.fromEntries(Object.entries(negativeSets).map(([name, set]) => [name, scoreArms(set, scoreNegatives)]));
 
   const queryTimes = embedder.timings.queries.map((entry) => entry.ms);
   const results = {
-    config: { ...opts, skills: catalog.length },
-    bm25fSilence,
+    config: { ...opts, positivesRows: undefined, negativesRows: undefined, skills: catalog.length },
     chosenThresholds: chosen,
+    deciding,
+    bm25fSilentOnDev,
     positives,
     negatives,
     sweep,
+    cacheDropped: embedder.cacheDropped,
     timing: {
       bm25fIndexMs,
       bm25fQuery: { p50: percentile(bm25fTimes, 50), p95: percentile(bm25fTimes, 95) },
+      probeMs: embedder.timings.probe,
       documentRequests: embedder.timings.documents.length,
       documentTexts: embedder.timings.documents.reduce((sum, entry) => sum + entry.texts, 0),
       documentMs: embedder.timings.documents.reduce((sum, entry) => sum + entry.ms, 0),
       queryCount: queryTimes.length,
-      firstRequestMs: (embedder.timings.documents[0] ?? embedder.timings.queries[0])?.ms ?? null,
       query: { p50: percentile(queryTimes, 50), p95: percentile(queryTimes, 95) },
     },
   };

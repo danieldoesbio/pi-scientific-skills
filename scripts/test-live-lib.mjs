@@ -25,7 +25,7 @@ import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, repla
 import { pooledReport } from "./find-live-replay-pooled.mjs";
 import { category, paired, panelReport } from "./find-panel-report.mjs";
 import { firstFindFacts, firstPromptOf } from "./find-ab-report.mjs";
-import { armLists, cosineRanking, docText, fakeEmbed, parseArgs as parseEmbedArgs, queryText, requestEmbeddings, rrf, scoreNegatives, scorePositives } from "./find-embed-compare.mjs";
+import { armLists, chooseThreshold, cosineRanking, docText, fakeEmbed, parseArgs as parseEmbedArgs, parseNegatives, parsePositives, queryText, requestEmbeddings, rrf, scoreNegatives, scorePositives, vectorProblem } from "./find-embed-compare.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -597,7 +597,32 @@ console.log("\n-- find-embed-compare: arms, metrics and the two embedding APIs -
   ];
   const ranking = cosineRanking([1, 0], skills);
   check("cosineRanking: best first, with the top cosine", ranking.names.join() === "a,c,b" && near(ranking.top, 1), JSON.stringify(ranking));
-  check("rrf: a skill high in both lists wins; ties break by name", rrf([["x", "y", "z"], ["y", "x", "z"]]).join() === "x,y,z" && rrf([["p", "q"], ["q", "p"]]).join() === "p,q");
+  check(
+    "rrf: every list counts (b, first in two of three lists, beats a, first in one); ties break by name",
+    rrf([["a", "b"], ["b", "a"], ["b", "a"]]).join() === "b,a" && rrf([["p", "q"], ["q", "p"]]).join() === "p,q",
+  );
+  check(
+    "chooseThreshold: the lowest t reaching the baseline, or null",
+    chooseThreshold([0.1, 0.2, 0.3], (t) => (t >= 0.2 ? 1 : 0.5), 1) === 0.2 && chooseThreshold([0.1, 0.2], () => 0.5, 1) === null,
+  );
+  check(
+    "vectorProblem: rejects nulls (llama-server's NaN), a wrong dimension and all zeros",
+    vectorProblem([0.1, null], 2) !== "" && vectorProblem([0.1, 0.2, 0.3], 2) !== "" && vectorProblem([0, 0], 2) !== "" && vectorProblem([0.1, 0.2], 2) === "",
+  );
+  check(
+    "parseNegatives and parsePositives: lines, JSON, tab-separated; an empty or malformed file throws",
+    parseNegatives("a\n\n b \n").map((r) => r.query).join() === "a,b" &&
+      parseNegatives('["x","y"]').length === 2 &&
+      parsePositives('{"query":"q1","want":"s1"}\nq2\ts2, s3').map((r) => `${r.query}:${r.want.join("+")}`).join() === "q1:s1,q2:s2+s3" &&
+      [() => parseNegatives(""), () => parsePositives("no tab here")].every((f) => {
+        try {
+          f();
+          return false;
+        } catch {
+          return true;
+        }
+      }),
+  );
   const lists = armLists({ bm25fHits: [], bm25fRanking: ["b"], embedding: { names: ["a", "c", "b"], top: 0.5 } });
   check(
     "armLists: embed and fallback list only at or above t; rrf stays silent only when both rules fail",
@@ -628,9 +653,12 @@ console.log("\n-- find-embed-compare: arms, metrics and the two embedding APIs -
     req.on("end", () => {
       const request = JSON.parse(body);
       seen.push({ url: req.url, request });
-      const vectors = request.input.map((_, i) => [3 * (i + 1), 4 * (i + 1)]);
+      // Each input gets its own direction, so a reordering shows after normalising.
+      const vectors = request.input.map((_, i) => [3 * (i + 1), 4]);
       if (request.model === "broken") return res.writeHead(500).end("model not found");
       if (request.model === "short") return res.end(JSON.stringify({ embeddings: [] }));
+      if (request.model === "nan") return res.end(JSON.stringify({ embeddings: [[0.1, null]] }));
+      if (request.model === "slow") return; // never answers
       res.setHeader("content-type", "application/json");
       if (req.url === "/api/embed") return res.end(JSON.stringify({ embeddings: vectors }));
       res.end(JSON.stringify({ data: vectors.map((embedding, index) => ({ embedding, index })).reverse() }));
@@ -641,26 +669,36 @@ console.log("\n-- find-embed-compare: arms, metrics and the two embedding APIs -
   const ollama = await requestEmbeddings({ api: "ollama", endpoint, model: "embeddinggemma" }, ["one", "two"]);
   const openai = await requestEmbeddings({ api: "openai", endpoint, model: "embeddinggemma" }, ["one", "two"]);
   check(
-    "requestEmbeddings: Ollama /api/embed and OpenAI /v1/embeddings, each sent { model, input }",
-    seen[0].url === "/api/embed" && seen[1].url === "/v1/embeddings" && seen.every((s) => s.request.model === "embeddinggemma" && s.request.input.join() === "one,two"),
+    "requestEmbeddings: Ollama /api/embed with truncate false, OpenAI /v1/embeddings without it, each sent { model, input }",
+    seen[0].url === "/api/embed" && seen[0].request.truncate === false &&
+      seen[1].url === "/v1/embeddings" && !("truncate" in seen[1].request) &&
+      seen.every((s) => s.request.model === "embeddinggemma" && s.request.input.join() === "one,two"),
     JSON.stringify(seen),
   );
+  // [3, 4] and [6, 4] normalise to different directions: 0.6 and about 0.83.
   check(
     "requestEmbeddings: unit vectors in input order (OpenAI's data sorted by index)",
-    near(ollama[0][0], 0.6) && near(ollama[1][1], 0.8) && near(openai[0][0], 0.6) && near(openai[1][0], 0.6) && openai.length === 2,
+    near(ollama[0][0], 0.6) && near(ollama[1][0], 6 / Math.sqrt(52)) && near(openai[0][0], 0.6) && near(openai[1][0], 6 / Math.sqrt(52)),
     JSON.stringify({ ollama, openai }),
   );
   const failure = async (opts) => requestEmbeddings(opts, ["one"]).then(() => "", (error) => error.message);
-  const [status, count] = await Promise.all([
+  const [status, count, nan, slow] = await Promise.all([
     failure({ api: "ollama", endpoint, model: "broken" }),
     failure({ api: "ollama", endpoint, model: "short" }),
+    failure({ api: "ollama", endpoint, model: "nan" }),
+    failure({ api: "ollama", endpoint, model: "slow", timeout: 1 }),
   ]);
+  server.closeAllConnections?.();
   server.close();
   const refused = await failure({ api: "ollama", endpoint, model: "embeddinggemma" });
   check(
-    "requestEmbeddings: a server error, a wrong vector count and no server each fail with a message",
-    /answered 500: model not found/.test(status) && /returned 0 vectors for 1 texts/.test(count) && /no embedding server at .*pass --fake/.test(refused),
-    JSON.stringify({ status, count, refused }),
+    "requestEmbeddings: a server error, a wrong vector count, a null value, a hung server and no server each fail with a message",
+    /answered 500: model not found/.test(status) &&
+      /returned 0 vectors for 1 texts/.test(count) &&
+      /vector for input 0 holds a value that is not a finite number/.test(nan) &&
+      /did not answer within 1 s/.test(slow) &&
+      /no embedding server at .*pass --fake/.test(refused),
+    JSON.stringify({ status, count, nan, slow, refused }),
   );
 }
 

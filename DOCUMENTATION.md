@@ -1147,31 +1147,49 @@ commit that run's record names.
 the catalogue better than BM25F, before anything ships. The model runs behind
 a local server you already have, so nothing is installed: Ollama by default
 (`ollama pull embeddinggemma`, then `node scripts/find-embed-compare.mjs`), or
-any OpenAI-compatible endpoint with `--api openai --endpoint <url>`
-(llama.cpp's `llama-server --embeddings`, LM Studio). It scores four arms on
-the golden queries, the fixed query sets in `scripts/lib/rank-bench.mjs` and
-the negatives:
+any OpenAI-compatible endpoint with `--api openai --endpoint <url>`. Start
+llama.cpp as `llama-server -m <model.gguf> --embeddings -ub 2048 -b 2048`:
+its default batch of 512 tokens rejects the longer skill texts of `--doc body`.
+It scores four arms:
 
 - `bm25f`: `search()` as shipped.
 - `embed@t`: skills by cosine similarity, listed only when the best cosine is
   at least t. Embeddings always have a nearest neighbour, so t is the only way
   this arm returns nothing.
-- `fallback@t`: BM25F's hits, or `embed@t`'s when BM25F returns none.
+- `fallback@t`: BM25F's hits, or `embed@t`'s when BM25F returns none. It can
+  differ from BM25F only on queries BM25F leaves empty.
 - `rrf@t`: reciprocal rank fusion of the two rankings, silent only when
   BM25F's no-match rule fails and the best cosine is below t.
 
-Each thresholded arm is reported over a sweep of t, and at the best t that
-keeps every negative set at least as silent as BM25F keeps it. The built-in
-negatives are `test-search.mjs`'s 12, written with the ranker in view; pass
-`--negatives <file>` (one query per line) with no-match queries written
-without looking at the skill list for the test that counts. EmbeddingGemma's
-task prompts are applied by default for that model (`--prompts none` turns
-them off); `--doc body` adds the start of each SKILL.md body to the skill's
-text. The report also times BM25F's index and queries against the embedding
-requests. Vectors are cached by model and text, so a rerun only times new
-texts (`--no-cache` to time everything). `--fake` swaps the model for a hashed
-bag of words, to check the plumbing with no server; its numbers mean nothing.
-The query lists live in `scripts/lib/golden-queries.mjs`, shared with
+Read its numbers knowing where the queries come from. The built-in positive
+sets (the golden queries and the sets in `scripts/lib/rank-bench.mjs`) are
+BM25F's development data: its settings, its no-match rule and the golden
+want lists were fitted to them, so BM25F's rows there are in-sample, and
+BM25F returns something for every one of them, so `fallback` equals `bm25f`
+there. The report marks them *dev*. For a fair comparison add queries BM25F
+was not tuned on: `--heldout <dir>` scores the locked held-out set (by count
+only; no query text is printed) and `--positives <file>` takes your own
+(JSON lines `{"query", "want"}` or `query<TAB>skill[,skill]`), written blind.
+Each thresholded arm's t is the lowest that keeps `test-search.mjs`'s 12
+negatives at least as silent as BM25F keeps them, and the report names the
+negative that sets it; those 12 were written with the ranker in view, so
+`--negatives <file>` (one query per line, written without looking at the
+skill list) is reported as held out at that t and is the measure of wrong
+answers. The report also sweeps t for `embed@t`, and times BM25F against the
+embedding requests: the run's first request alone (it includes loading the
+model if the server had unloaded it), then the skills, then each query.
+
+EmbeddingGemma's task prompts are applied by default for that model
+(`--prompts none` turns them off); `--doc body` adds the start of each
+SKILL.md body (Ollama is asked to fail rather than truncate an overlong
+text). Vectors are cached by model and text, so a rerun only sends new texts;
+a probe text is embedded on every run, and a change in its vector (a
+different model behind the same name) drops the cache. Every vector is
+checked (finite numbers, one dimension, not all zeros), each request times
+out after `--timeout` seconds (default 120), and the cache is saved as it
+fills, so a failed run resumes. `--fake` swaps the model for a hashed bag of
+words, to check the plumbing with no server; its numbers mean nothing. The
+query lists live in `scripts/lib/golden-queries.mjs`, shared with
 `test-search.mjs`.
 
 Two lines of the supervised `test-find-live.mjs` summary show recovery: the
