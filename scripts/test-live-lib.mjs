@@ -25,6 +25,7 @@ import { choiceTurn, classifyChoice, listedNames, parseHits, promptTokens, repla
 import { pooledReport } from "./find-live-replay-pooled.mjs";
 import { category, paired, panelReport } from "./find-panel-report.mjs";
 import { firstFindFacts, firstPromptOf } from "./find-ab-report.mjs";
+import { armLists, cosineRanking, docText, fakeEmbed, parseArgs as parseEmbedArgs, queryText, requestEmbeddings, rrf, scoreNegatives, scorePositives } from "./find-embed-compare.mjs";
 
 let problems = 0;
 const check = (name, ok, detail = "") => {
@@ -572,6 +573,95 @@ console.log("-- provider keys stay out of the model's reach (key-proxy, agent-se
   }
   await proxy.close();
   rmSync(dir, { recursive: true, force: true });
+}
+
+console.log("\n-- find-embed-compare: arms, metrics and the two embedding APIs --");
+{
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  check("fakeEmbed: deterministic unit vectors", near(fakeEmbed("cell clustering").reduce((s, x) => s + x * x, 0), 1) && fakeEmbed("a b c dna").join() === fakeEmbed("a b c dna").join());
+  check(
+    "EmbeddingGemma prompts: query and document forms; none leaves the text plain",
+    queryText("call variants", "embeddinggemma") === "task: search result | query: call variants" &&
+      docText({ name: "pysam", description: "BAM files." }, "", "embeddinggemma") === "title: pysam | text: BAM files." &&
+      docText({ name: "pysam", description: "BAM files." }, "Body.", "none") === "pysam: BAM files.\n\nBody." &&
+      queryText("x", "none") === "x",
+  );
+  check(
+    "parseArgs: prompts default to embeddinggemma only for an embeddinggemma model",
+    parseEmbedArgs([]).prompts === "embeddinggemma" && parseEmbedArgs(["--model", "nomic-embed-text"]).prompts === "none",
+  );
+  const skills = [
+    { name: "a", vector: [1, 0] },
+    { name: "b", vector: [0, 1] },
+    { name: "c", vector: [Math.SQRT1_2, Math.SQRT1_2] },
+  ];
+  const ranking = cosineRanking([1, 0], skills);
+  check("cosineRanking: best first, with the top cosine", ranking.names.join() === "a,c,b" && near(ranking.top, 1), JSON.stringify(ranking));
+  check("rrf: a skill high in both lists wins; ties break by name", rrf([["x", "y", "z"], ["y", "x", "z"]]).join() === "x,y,z" && rrf([["p", "q"], ["q", "p"]]).join() === "p,q");
+  const lists = armLists({ bm25fHits: [], bm25fRanking: ["b"], embedding: { names: ["a", "c", "b"], top: 0.5 } });
+  check(
+    "armLists: embed and fallback list only at or above t; rrf stays silent only when both rules fail",
+    lists.bm25f().length === 0 &&
+      lists.embed(0.5).join() === "a,c,b" && lists.embed(0.6).length === 0 &&
+      lists.fallback(0.5).join() === "a,c,b" && lists.fallback(0.6).length === 0 &&
+      lists.rrf(0.6).length === 0 && lists.rrf(0.5)[0] === "b",
+  );
+  const kept = armLists({ bm25fHits: ["b"], bm25fRanking: ["b"], embedding: { names: ["a"], top: 0 } });
+  check("armLists: fallback keeps bm25f's hits when it has any", kept.fallback(0.9).join() === "b");
+  const positives = scorePositives(
+    [{ query: "q1", want: ["a"] }, { query: "q2", want: ["z", "b"] }, { query: "q3", want: ["a"] }],
+    (row) => ({ q1: ["a", "b"], q2: ["a", "c", "d", "b"], q3: [] })[row.query],
+  );
+  check(
+    "scorePositives: rank of the first wanted skill; an empty list is a miss and a no-hit",
+    near(positives.top1, 1 / 3) && near(positives.top3, 1 / 3) && near(positives.top5, 2 / 3) && near(positives.nohit, 1 / 3),
+    JSON.stringify(positives),
+  );
+  check("scoreNegatives: the share that list nothing", near(scoreNegatives([{ query: "x" }, { query: "y" }], (row) => (row.query === "x" ? [] : ["a"])).silent, 0.5));
+
+  // Both wire formats, against a local stand-in server. Vectors come back
+  // unnormalised and, for OpenAI, out of order.
+  const seen = [];
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      const request = JSON.parse(body);
+      seen.push({ url: req.url, request });
+      const vectors = request.input.map((_, i) => [3 * (i + 1), 4 * (i + 1)]);
+      if (request.model === "broken") return res.writeHead(500).end("model not found");
+      if (request.model === "short") return res.end(JSON.stringify({ embeddings: [] }));
+      res.setHeader("content-type", "application/json");
+      if (req.url === "/api/embed") return res.end(JSON.stringify({ embeddings: vectors }));
+      res.end(JSON.stringify({ data: vectors.map((embedding, index) => ({ embedding, index })).reverse() }));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const endpoint = `http://127.0.0.1:${server.address().port}`;
+  const ollama = await requestEmbeddings({ api: "ollama", endpoint, model: "embeddinggemma" }, ["one", "two"]);
+  const openai = await requestEmbeddings({ api: "openai", endpoint, model: "embeddinggemma" }, ["one", "two"]);
+  check(
+    "requestEmbeddings: Ollama /api/embed and OpenAI /v1/embeddings, each sent { model, input }",
+    seen[0].url === "/api/embed" && seen[1].url === "/v1/embeddings" && seen.every((s) => s.request.model === "embeddinggemma" && s.request.input.join() === "one,two"),
+    JSON.stringify(seen),
+  );
+  check(
+    "requestEmbeddings: unit vectors in input order (OpenAI's data sorted by index)",
+    near(ollama[0][0], 0.6) && near(ollama[1][1], 0.8) && near(openai[0][0], 0.6) && near(openai[1][0], 0.6) && openai.length === 2,
+    JSON.stringify({ ollama, openai }),
+  );
+  const failure = async (opts) => requestEmbeddings(opts, ["one"]).then(() => "", (error) => error.message);
+  const [status, count] = await Promise.all([
+    failure({ api: "ollama", endpoint, model: "broken" }),
+    failure({ api: "ollama", endpoint, model: "short" }),
+  ]);
+  server.close();
+  const refused = await failure({ api: "ollama", endpoint, model: "embeddinggemma" });
+  check(
+    "requestEmbeddings: a server error, a wrong vector count and no server each fail with a message",
+    /answered 500: model not found/.test(status) && /returned 0 vectors for 1 texts/.test(count) && /no embedding server at .*pass --fake/.test(refused),
+    JSON.stringify({ status, count, refused }),
+  );
 }
 
 console.log(`\n${problems === 0 ? "PASS" : "FAIL"} — ${problems} problem(s)`);

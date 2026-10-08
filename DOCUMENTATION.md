@@ -232,6 +232,7 @@ scripts/find-live-replay-report.mjs # the pre-registered outcomes of a replay
 scripts/find-live-replay-pooled.mjs # two replay samples pooled (Newcombe + cluster bootstrap)
 scripts/find-rank-bench.mjs  # offline top-k rates of the sci_find rankers on the fixed query sets
 scripts/find-rank-heldout.mjs # the locked held-out set, scored once (counts only, never the texts)
+scripts/find-embed-compare.mjs # BM25F against an embedding model on a local server, and two hybrids
 scripts/find-probes-styled.mjs # a probe file whose tasks are one paraphrase style
 scripts/find-panel.sh        # first sci_find queries of one query writer, per style, frozen sources
 scripts/find-panel-report.mjs # the writer panel's search rate and top-8 rates, current vs bm25f
@@ -827,7 +828,7 @@ pi is therefore a hard prerequisite for `npm test`.
 | `test-filter.mjs` | That pi itself honours the filter we write, through a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is byte-identical to the one pi builds for a loaded skill, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 176 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers, on synthetic pi sessions: the read endpoint, the skill-seeking test, the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`). Also the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers and the replay's analysis set and validity rules (`find-live-replay.mjs`); the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`); the first-search facts of `find-ab-report.mjs`; and the category and panel-report helpers of `find-panel-report.mjs`. A wrong endpoint, gate, join, interval or analysis set still produces numbers in a live run, so they are checked here. Last, that no provider key reaches the model's side of the sandbox (`scripts/lib/key-proxy.mjs`, `scripts/lib/agent-seed.mjs`). |
+| `test-live-lib.mjs` | The live harness's grading helpers, on synthetic pi sessions: the read endpoint, the skill-seeking test, the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`). Also the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers and the replay's analysis set and validity rules (`find-live-replay.mjs`); the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`); the first-search facts of `find-ab-report.mjs`; the category and panel-report helpers of `find-panel-report.mjs`; and `find-embed-compare.mjs`'s arms, metrics and both embedding wire formats, against a local stand-in server. A wrong endpoint, gate, join, interval or analysis set still produces numbers in a live run, so they are checked here. Last, that no provider key reaches the model's side of the sandbox (`scripts/lib/key-proxy.mjs`, `scripts/lib/agent-seed.mjs`). |
 | `test-tui-offer.py` | The first-run offer in pi's real TUI, driven through a pty: accepting writes the empty search-mode filter; declining and timing out write nothing. The only check that runs the unstubbed accept path, so the only one that proves pi dispatches the accepted offer as a command and the filter is written (`test-extension.mjs` checks only that `expandPromptTemplates: true` reaches its stub). Spends no tokens, but needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite: the five suites built on `scripts/lib/harness.mjs` call it last, so the README's check count for each of them cannot silently go stale. |
 | `try-it.sh` | Not a test: a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. It never touches `~/.pi/agent`, deletes the credential copy on any exit, and reports afterwards whether `settings.json` changed. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -1141,6 +1142,37 @@ first reproduce its result byte for byte under the current ranker, or the
 probe is an error. So the replay runs only from a tree that has that ranker
 (elsewhere it refuses to start), and reproduces a recorded run only from the
 commit that run's record names.
+
+`scripts/find-embed-compare.mjs` asks whether an embedding model would rank
+the catalogue better than BM25F, before anything ships. The model runs behind
+a local server you already have, so nothing is installed: Ollama by default
+(`ollama pull embeddinggemma`, then `node scripts/find-embed-compare.mjs`), or
+any OpenAI-compatible endpoint with `--api openai --endpoint <url>`
+(llama.cpp's `llama-server --embeddings`, LM Studio). It scores four arms on
+the golden queries, the fixed query sets in `scripts/lib/rank-bench.mjs` and
+the negatives:
+
+- `bm25f`: `search()` as shipped.
+- `embed@t`: skills by cosine similarity, listed only when the best cosine is
+  at least t. Embeddings always have a nearest neighbour, so t is the only way
+  this arm returns nothing.
+- `fallback@t`: BM25F's hits, or `embed@t`'s when BM25F returns none.
+- `rrf@t`: reciprocal rank fusion of the two rankings, silent only when
+  BM25F's no-match rule fails and the best cosine is below t.
+
+Each thresholded arm is reported over a sweep of t, and at the best t that
+keeps every negative set at least as silent as BM25F keeps it. The built-in
+negatives are `test-search.mjs`'s 12, written with the ranker in view; pass
+`--negatives <file>` (one query per line) with no-match queries written
+without looking at the skill list for the test that counts. EmbeddingGemma's
+task prompts are applied by default for that model (`--prompts none` turns
+them off); `--doc body` adds the start of each SKILL.md body to the skill's
+text. The report also times BM25F's index and queries against the embedding
+requests. Vectors are cached by model and text, so a rerun only times new
+texts (`--no-cache` to time everything). `--fake` swaps the model for a hashed
+bag of words, to check the plumbing with no server; its numbers mean nothing.
+The query lists live in `scripts/lib/golden-queries.mjs`, shared with
+`test-search.mjs`.
 
 Two lines of the supervised `test-find-live.mjs` summary show recovery: the
 response in which the target was reached, and every attempt split by when it
