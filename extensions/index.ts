@@ -32,9 +32,10 @@ import { Type } from "typebox";
 import {
   createSearchStage,
   expandFilteredSkill,
+  FIND_KINDS,
   formatTokens,
   parseSkillCommand,
-  runToolSearch,
+  runFind,
   SKILLS_DIR,
   type ToolParams,
 } from "./catalog";
@@ -355,6 +356,51 @@ const handleStartup = async (pi: ExtensionAPI, ctx: UiContext): Promise<void> =>
 // Registration
 // ---------------------------------------------------------------------------
 
+/**
+ * `sci_find`'s result as data: `FindStructured` in catalog.ts, as JSON Schema.
+ * pi 1.0 hands `structuredContent` to codemode scripts in place of the text,
+ * and lists the top-level fields in the tool's codemode note. It is never sent
+ * to a provider (pi-ai serialises name, description and parameters only), so a
+ * session without codemode pays nothing for it.
+ */
+const nullableString = Type.Union([Type.String(), Type.Null()]);
+const FIND_OUTPUT_SCHEMA = Type.Object({
+  kind: Type.Union(FIND_KINDS.map((kind) => Type.Literal(kind))),
+  query: nullableString,
+  profile: nullableString,
+  skills: Type.Array(
+    Type.Object({
+      name: Type.String(),
+      description: Type.String(),
+      path: Type.String({ description: "SKILL.md to read" }),
+      dir: Type.String({ description: "Folder that paths inside SKILL.md are relative to" }),
+      notInAnyProfile: nullableString,
+    }),
+  ),
+  profiles: Type.Array(Type.Object({ id: Type.String(), label: Type.String(), skillCount: Type.Number() })),
+});
+
+/**
+ * Tool fields pi added in 0.99 (`docs/extensions.md`, "Tools" and "Tool
+ * exposure"). Spread in rather than written inline: pi 0.87's ToolDefinition
+ * has none of them, and an inline literal would fail its type check. At run
+ * time 0.87 ignores them, because `wrapToolDefinition` copies only the fields
+ * it knows (core/tools/tool-definition-wrapper.js).
+ *
+ * `annotations` carry MCP's meaning. sci_find reads this package's own
+ * skills/ and changes nothing, so a permission extension that confirms calls
+ * by these hints (the example in pi's docs) lets it through unasked.
+ */
+const PI_1_TOOL_FIELDS = {
+  outputSchema: FIND_OUTPUT_SCHEMA,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+};
+
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand(COMMAND_NAME, {
     description: "Manage which scientific skills are active (trims system-prompt context)",
@@ -397,6 +443,7 @@ export default function (pi: ExtensionAPI): void {
     pi.on("message_start", async (event) => searchStage.messageStart(event.message?.role));
     pi.on("turn_start", async () => searchStage.turnStart());
     pi.registerTool({
+      ...PI_1_TOOL_FIELDS,
       name: TOOL_NAME,
       label: "Find scientific skill",
       promptSnippet:
@@ -432,12 +479,19 @@ export default function (pi: ExtensionAPI): void {
         // No `limit` argument: in the 2026-09-27 panel the models set one in
         // 578 of 1,341 calls, mostly 10 to 20, which undoes a short list. A
         // stray `limit` from a model is ignored.
-        const text = runToolSearch({
+        const found = runFind({
           query: params.query,
           profile: params.profile,
           limit: searchStage.limitFor(params),
         });
-        return { content: [{ type: "text" as const, text }], details: {} };
+        // `structuredContent` and `isError` are pi 0.99+ result fields. 0.87
+        // builds the tool result message from content, details and usage only
+        // (pi-agent-core's createToolResultMessage), so there both are dropped
+        // and the model reads the same text as before. On 1.0 `isError` shows
+        // an unknown profile as a failed call, and the text still lists the
+        // real ones.
+        const piOneResult = { structuredContent: found.structured, isError: found.isError };
+        return { content: [{ type: "text" as const, text: found.text }], details: {}, ...piOneResult };
       },
     });
   }

@@ -6,7 +6,7 @@
 // Server-side speed and warm-up come from scripts/find-live-timing.mjs; pass
 // its --jsonl output as --timing to add the server-exact and queue-net times.
 //
-//   node scripts/find-live-arms-report.mjs <run-dir> [--timing <jsonl>] [-o <file>]
+//   node scripts/find-live-arms-report.mjs <run-dir> [--design night-arms|codemode] [--timing <jsonl>] [-o <file>]
 //
 // Report on stdout (or -o). Exit 0, 1 on a runtime error, 2 on bad arguments.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -14,24 +14,47 @@ import { join, resolve } from "node:path";
 import { analysisSet, mcnemarExact, newcombePaired, pairCounts } from "./lib/arms-report.mjs";
 import { median } from "./lib/server-log.mjs";
 
-const ARMS = ["v16", "v17", "full"];
-/** Fixed before the run: primary 1 is non-inferiority at −5 points, primary 2 has no margin. */
-const COMPARISONS = [
-  { name: "Primary 1", first: "v17", second: "v16", margin: -0.05 },
-  { name: "Primary 2", first: "v17", second: "full", margin: null },
-];
+/**
+ * Each design's arms and comparisons, fixed before its run. `night-arms`
+ * (testing/runs/2026-09-25-night-arms.md): primary 1 is non-inferiority at −5
+ * points, primary 2 has no margin. `codemode`
+ * (testing/runs/2026-10-06-codemode-bonsai.md): both are non-inferiority at
+ * −5 points against the direct arm. The first arm of each design is the one
+ * Core membership is read from.
+ */
+const DESIGNS = {
+  "night-arms": {
+    arms: ["v16", "v17", "full"],
+    comparisons: [
+      { name: "Primary 1", first: "v17", second: "v16", margin: -0.05 },
+      { name: "Primary 2", first: "v17", second: "full", margin: null },
+    ],
+  },
+  codemode: {
+    arms: ["direct", "cm-on", "cm-only"],
+    comparisons: [
+      { name: "Primary 1", first: "cm-on", second: "direct", margin: -0.05 },
+      { name: "Primary 2", first: "cm-only", second: "direct", margin: -0.05 },
+    ],
+  },
+};
+let ARMS = DESIGNS["night-arms"].arms;
+let COMPARISONS = DESIGNS["night-arms"].comparisons;
 
 function parseArgs(argv) {
-  const opts = { runDir: null, timing: null, output: null };
+  const opts = { runDir: null, timing: null, output: null, design: "night-arms" };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--timing") opts.timing = argv[++i];
     else if (arg === "--output" || arg === "-o") opts.output = argv[++i];
+    else if (arg === "--design") opts.design = argv[++i];
     else if (arg === "--help" || arg === "-h") usage(0);
     else if (!arg.startsWith("-") && opts.runDir === null) opts.runDir = resolve(arg);
     else usage(2, `unknown argument: ${arg}`);
   }
   if (opts.runDir === null) usage(2, "a run directory is required");
+  if (!DESIGNS[opts.design]) usage(2, `--design must be one of ${Object.keys(DESIGNS).join(", ")}`);
+  ({ arms: ARMS, comparisons: COMPARISONS } = DESIGNS[opts.design]);
   if (opts.timing === undefined) usage(2, "--timing needs a file");
   if (opts.output === undefined) usage(2, "--output needs a file");
   for (const name of ["order.tsv", ...ARMS.map((arm) => `results-${arm}.jsonl`)]) {
@@ -43,7 +66,7 @@ function parseArgs(argv) {
 
 function usage(code, error) {
   if (error) console.error(`error: ${error}`);
-  console.error("usage: node scripts/find-live-arms-report.mjs <run-dir> [--timing <jsonl>] [-o <file>]");
+  console.error("usage: node scripts/find-live-arms-report.mjs <run-dir> [--design night-arms|codemode] [--timing <jsonl>] [-o <file>]");
   process.exit(code);
 }
 
@@ -82,6 +105,11 @@ function armLines(arm, rows, set) {
     `  medians: first prompt ${median(attempts.map((a) => a.firstPromptTokens))} | peak context ${median(attempts.map((a) => a.peakContext))} (max ${Math.max(...attempts.map((a) => a.peakContext ?? 0))}) | tool calls ${median(attempts.map((a) => a.toolCalls))} | output tokens ${median(attempts.map((a) => a.outputTokens))}`,
     `  compactions ${sum(attempts.map((a) => a.compactions?.length))} | overflow errors ${sum(attempts.map((a) => a.overflows))} | listed without a read ${count(attempts, (a) => a.listed != null && a.endedBy !== "reached")} | attempt time ${Math.round(sum(attempts.map((a) => a.elapsedSeconds)) / 60)} min`,
     `  probe-invalid: ${set.ids.filter((id) => rows.get(id).probeCheck?.invalid).join(", ") || "none"}`,
+    ...(attempts.some((a) => a.codemodeCalls > 0)
+      ? [
+          `  codemode: attempts with a script ${count(attempts, (a) => a.codemodeCalls > 0)} | scripts ${sum(attempts.map((a) => a.codemodeCalls))} | calls from scripts ${sum(attempts.map((a) => a.nestedCalls))} | read through a script ${count(attempts, (a) => a.endedBy === "reached" && a.target?.via)} | scripts' bash naming the target SKILL.md ${count(attempts, (a) => a.nestedBashTarget > 0)}`,
+        ]
+      : []),
   ];
 }
 
@@ -115,7 +143,7 @@ function report(opts) {
   );
   const view = (arm) => ({ arm, read: (id) => rows[arm].get(id).attempts[0].endedBy === "reached" });
   const invalid = new Set(set.ids.filter((id) => ARMS.some((arm) => rows[arm].get(id).probeCheck?.invalid)));
-  const core = set.ids.filter((id) => rows.v17.get(id).core);
+  const core = set.ids.filter((id) => rows[ARMS[0]].get(id).core);
 
   const lines = [
     `Analysis set: chunks ${set.complete.join(" ") || "none"} complete in all arms; ${set.ids.length} probes (Core ${core.length}, non-Core ${set.ids.length - core.length}).`,

@@ -74,7 +74,10 @@ def _drive(mode: str, scratch: Path, agent: Path) -> list[str]:
     pid, fd = pty.fork()
     if pid == 0:
         os.chdir(scratch)
-        os.execvpe("pi", ["pi", "--no-session"], env)
+        # pi 1.0 made fullscreen the default TUI mode. The driver reads pi's
+        # output as a stream, so pin the scrollback mode it was written
+        # against; 0.87 already accepts the flag and defaults to it.
+        os.execvpe("pi", ["pi", "--no-session", "--tui-mode", "regular"], env)
 
     out = bytearray()
     sent = False
