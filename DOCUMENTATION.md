@@ -1536,18 +1536,21 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   (ranking re-checked on the rewritten descriptions,
   `testing/runs/2026-10-05-v2.72.0-sync.md`) and `npm run typecheck`. The
   count of skills run stays at 43.
-- **1.8.1 (0):** no skill batch and no live `sci_find` run. Released with
-  1.8.0's content (1.8.0 was never published) plus two extension and docs
-  changes: `sci_find`'s pi 1.0 tool fields (see "pi 1.0 tool fields" under
-  Search mode), checked in a real pi session by `test-pi-runtime.mjs`, and the
-  docs cleanup that taught `validate.mjs` to check the skill counts in
+- **1.8.1 (0):** no skill batch, and no live `sci_find` run at release.
+  Released with 1.8.0's content (1.8.0 was never published) plus two extension
+  and docs changes: `sci_find`'s pi 1.0 tool fields (see "pi 1.0 tool fields"
+  under Search mode), checked in a real pi session by `test-pi-runtime.mjs`,
+  and the docs cleanup that taught `validate.mjs` to check the skill counts in
   DOCUMENTATION.md and the `package.json` description. On the direct path the
   model reads the same `sci_find` text as in 1.8.0, so no small-model run was
   repeated. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and
-  `npm run typecheck`. A codemode run on Bonsai 2 27B is
-  pre-registered in `testing/runs/2026-10-06-codemode-bonsai.md` (`sci_find`
-  direct, beside codemode, and through codemode only); update this entry if
-  it runs before the release.
+  `npm run typecheck`. After the release, a codemode run on Bonsai 2 27B ran on
+  pi 1.0.0 (2026-10-08 and 2026-10-09, `b4af20f`, 161 probes, three arms; plan
+  and results in `testing/runs/2026-10-06-codemode-bonsai.md`). Read rate:
+  `direct` 156, `cm-on` 153, `cm-only` 142. `cm-on` is not shown non-inferior
+  to `direct` on the pre-registered set (-1.9 points, CI -5.9 to 1.7, margin -5)
+  and no attempt called codemode; `cm-only` is worse (-8.7 points, CI -14.2 to
+  -4.2). It adds no skill to the count of skills run.
 - The other 133 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce

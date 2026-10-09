@@ -1,8 +1,8 @@
 # Run notebook: sci_find called directly against through pi's codemode (Bonsai 2 27B)
 
-**Status: pre-registered.** Everything above "Results" was written before the
-first graded probe of the run. The smoke check runs before the run and is not
-part of it.
+**Status: run (2026-10-08 to 2026-10-09).** Everything above "Results" was
+written before the first graded probe of the run. The smoke check ran before
+the run and is not part of it.
 
 ## Questions
 
@@ -118,4 +118,98 @@ scripts/find-live-arms.sh --out testing/transcripts/find-live/2026-10-06-codemod
 
 ## Results
 
-Not run yet.
+Run on 2026-10-08 and 2026-10-09 on the maintainer's laptop: pi 1.0.0,
+package 1.8.1 at `b4af20f` (frozen in `sources.txt`), 17 chunks, all three arms
+complete in every chunk, 161 probes (Core 10, non-Core 151), no harness errors,
+no compactions or overflows, no restarts. The three-probe smoke check
+(polars, scanpy, dask) ran first: all three arms read the target on attempt 1,
+and `cm-only` read through scripts. The raw transcripts and `report.md` are in
+`testing/transcripts/find-live/2026-10-06-codemode/` (gitignored, local only);
+the numbers below are copied from `report.md`
+(`scripts/find-live-arms-report.mjs <out> --design codemode`).
+
+### Primary outcomes
+
+Attempt-1 read rate, paired by probe, Newcombe method 10, non-inferiority
+margin -5 points.
+
+| Comparison | Set | n | Read | Difference | 95% CI | Discordant | McNemar p | Non-inferior? |
+|---|---|---|---|---|---|---|---|---|
+| `cm-on` − `direct` | all | 161 | 153 vs 156 | -1.9 | -5.9 to 1.7 | 2:5 | 0.45 | **no** (CI just misses -5) |
+| | Core | 10 | 9 vs 9 | 0.0 | -22.2 to 22.2 | 0:0 | 1.0 | |
+| | non-Core | 151 | 144 vs 147 | -2.0 | -6.3 to 1.8 | 2:5 | 0.45 | |
+| | without probe-invalid | 155 | 152 vs 153 | -0.6 | -4.0 to 2.4 | 1:2 | 1.0 | yes |
+| `cm-only` − `direct` | all | 161 | 142 vs 156 | -8.7 | -14.2 to -4.2 | 1:15 | 0.0005 | **no** (a loss) |
+| | Core | 10 | 8 vs 9 | -10.0 | -36.2 to 13.4 | 0:1 | 1.0 | |
+| | non-Core | 151 | 134 vs 147 | -8.6 | -14.3 to -3.9 | 1:14 | 0.001 | |
+| | without probe-invalid | 155 | 141 vs 153 | -7.7 | -13.0 to -3.9 | 0:12 | 0.0005 | no |
+
+The pre-registered primary analysis is the "all" row. On it:
+
+- **`cm-on` is not shown non-inferior.** The point estimate is -1.9 points but
+  the CI's lower end, -5.9, is past the -5 margin. The seven discordant probes
+  (2 for `cm-on`, 5 for `direct`) are mostly attempts that ended on a persona
+  end with no skill-seeking call at all, in either direction, so this reads as
+  noise at n = 161, but the data do not rule out a loss of 5 or 6 points. The
+  "without probe-invalid" row passes (-0.6, CI -4.0 to 2.4); it is secondary,
+  and it uses a different set for each arm's invalid probes.
+- **`cm-only` is worse than `direct`**, by 8.7 points, and the whole CI is
+  below zero. 15 probes were read only in `direct`; 1 only in `cm-only`.
+
+### Secondary, per arm
+
+| | `direct` | `cm-on` | `cm-only` |
+|---|---|---|---|
+| Read | 156/161 | 153/161 | 142/161 |
+| Ended | reached 156, persona-end 3, timeout 2 | reached 153, gated 3, persona-end 3, timeout 2 | reached 142, gated 11, timeout 4, persona-end 4 |
+| First prompt, median (tokens) | 1980 | 2457 | 2374 |
+| Peak context, median / max | 3038 / 33813 | 3517 / 38092 | 3770 / 37267 |
+| Tool calls, median | 2 | 2 | 5 |
+| Output tokens, median | 311 | 351 | 499 |
+| Attempt time, total | 188 min | 242 min | 346 min |
+| Compactions, overflow errors | 0, 0 | 0, 0 | 0, 0 |
+| Probe-invalid | pi-agent, get-available-resources, markdown-mermaid-writing | consciousness-council, scholar-evaluation | consciousness-council, what-if-oracle, scholar-evaluation |
+
+Time to read, on probes read in both arms (`endpointSeconds`): `cm-on` median
+45 s against 43 s for `direct` (paired difference 2 s, n = 149); `cm-only`
+median 54 s against 42.5 s (paired difference 10.5 s, n = 140; `cm-only` was
+faster on 30).
+
+Codemode use: in `cm-on`, **no attempt called codemode**; every read there was
+a declared `read`. In `cm-only`, 160 of 161 attempts ran a script (483 scripts
+in all, 595 calls from scripts), and all 142 reads came through a script. One
+attempt ran a script whose bash named the target's SKILL.md.
+
+### Predictions against outcomes
+
+- **First prompt: `cm-on` larger than `direct` by the codemode tool
+  definition; `cm-only` smaller than `direct`.** Half right. `cm-on` was larger
+  (2457 against 1980). `cm-only` was **larger** too (2374), not smaller. The
+  prediction was wrong. The likely reason is that the codemode tool's
+  definition is bigger than the declared tools it replaces; this was not
+  checked.
+- **`cm-on`: within noise of `direct`; most attempts never call codemode.**
+  Right on both, with the CI caveat above. Not one attempt called codemode.
+- **`cm-only`: no prediction.** It lost 8.7 points, mostly attempts gated at 10
+  calls with no skill-seeking call (11 gated against 0 in `direct`), and cost
+  more calls, tokens and time. Of the 16 probes where one arm read and the
+  other did not, 15 favour `direct`.
+
+### Limits that applied
+
+The limits listed before the run held. The nested-call bias against the
+codemode arms was small here: a script's bash named the target's SKILL.md in
+one attempt out of 161, so it cannot account for `cm-only`'s 14-probe gap. The
+`listed` measure was not available through scripts, as stated. One attempt per
+probe per arm at temperature 1.0: a different draw could move a rate by a few
+points, which is why a CI that just misses the margin is reported as not shown
+rather than as a loss. `cm-on`'s per-arm rates are 95% to 97%, so the paired
+CI is mostly set by the discordant probes (7 of 161). Everything is one
+model, one server, one laptop; times compare within this run only.
+
+### What this does not say
+
+It does not show that codemode hurts a larger model, or that `cm-on` is worse
+than `direct`; it shows that a 27B ternary model on this prompt did not use
+the opt-in tool at all, and that taking away the declared tools cost it 15
+reads. It does not test `cm-only` with a prompt written for scripts.
