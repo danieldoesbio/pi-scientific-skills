@@ -11,6 +11,12 @@ import { join } from "node:path";
  * []`, pi's "none of this type"), so sci_find, /sci and the input hook are
  * absent — a plain skills install.
  *
+ * `codemode` is null (pi's default: no codemode tool), "on" or "only"
+ * (pi 0.99+): `defaultTools: ["+codemode"]` adds the tool next to pi's
+ * defaults, and `codemode.mode` says how it presents the others. With "only",
+ * requests declare codemode alone and the model reaches read, bash and
+ * sci_find through scripts (pi's docs/settings.md, "Tools").
+ *
  * `models` is written as models.json: it declares custom providers (a local
  * Ollama or MLX server, or the key proxy for a cloud one), and without it the
  * model is not found at all. `catalogue`, if given, is copied in as
@@ -24,14 +30,18 @@ import { join } from "node:path";
  * there — pi's own state, or a model editing settings.json — reaches the next
  * one. The seed itself is outside every sandbox.
  */
-export function seedAgentDir(agentDir, { packageDir, promptSkills, extension, models, catalogue }) {
+export function seedAgentDir(agentDir, { packageDir, promptSkills, extension, models, catalogue, codemode = null }) {
   mkdirSync(agentDir, { recursive: true });
   const entry = {
     source: packageDir,
     ...(promptSkills !== null && { skills: promptSkills }),
     ...(!extension && { extensions: [] }),
   };
-  writeFileSync(join(agentDir, "settings.json"), `${JSON.stringify({ packages: [entry] }, null, 2)}\n`);
+  const settings = {
+    packages: [entry],
+    ...(codemode && { defaultTools: ["+codemode"], codemode: { mode: codemode } }),
+  };
+  writeFileSync(join(agentDir, "settings.json"), `${JSON.stringify(settings, null, 2)}\n`);
   if (models) writeFileSync(join(agentDir, "models.json"), `${JSON.stringify(models, null, 2)}\n`, { mode: 0o600 });
   if (catalogue && existsSync(catalogue)) {
     copyFileSync(catalogue, join(agentDir, "models-store.json"));

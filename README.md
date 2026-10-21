@@ -134,6 +134,11 @@ you decline, escape, or ignore it. On an upgrade it tells you once what
 changed and leaves your selection exactly as it was — your `settings.json` is
 not touched by an upgrade you didn't ask for.
 
+### What 1.8.1 changed
+
+- On pi 1.0, `sci_find` declares itself read-only, so a permission extension that checks tool hints lets it run without asking. A codemode script gets its result as data (skill names, descriptions and SKILL.md paths), and an unknown profile is reported as a failed call. The model reads the same text as before, and on pi 0.87 nothing changes ([details](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
+- The validator now checks the skill counts quoted in DOCUMENTATION.md and the npm description, not only README, and stale notes from before the v2.72.0 sync are corrected.
+
 ### What 1.8.0 changed
 
 - Skills synced to upstream v2.72.0: 14 new skills (among them `primer-design`, `mageck`, `flowkit`, `qiime2-amplicon`, `cellprofiler`, `relion` and `pybamm`), all in the field profiles, and upstream's re-pinned dependencies and rewritten descriptions across the rest.
@@ -167,7 +172,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   GunPoint, a live CELLxGENE Census query. Coverage grows with each skill
   batch. The per-skill record is `testing/ledger.json`, with the notes in
   [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 246 behavioural checks
+- **`/sci` and `sci_find`, automated on every change:** 255 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
   `sci_find` renders in the tools section of pi's default system prompt, built by
   pi's own builder;
@@ -177,8 +182,11 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   532 byte-identity checks against pi's own `/skill:` expansion (every skill,
   three argument forms), 107 ranking checks against the real 176 descriptions,
   7 checks that **pi itself** honours the filter through a real
-  `DefaultPackageManager`, and 189 frontmatter parity checks against pi's own
-  parser (every skill plus synthetic edge cases). The first-run offer is
+  `DefaultPackageManager`, 189 frontmatter parity checks against pi's own
+  parser (every skill plus synthetic edge cases), and
+  7 real-session checks of sci_find's pi 1.0 tool fields (a real pi session
+  driven by a scripted model: read-only hints, codemode scripts get data,
+  inert on pi 0.87). The first-run offer is
   driven through **pi's real TUI** over a pty. `npm run try` opens this
   package in a throwaway pi; your own `~/.pi/agent` is never touched.
 - **A 7.2 GB local model finds skills it cannot see.** Ternary Bonsai 2 27B,

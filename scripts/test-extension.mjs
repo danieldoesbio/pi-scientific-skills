@@ -201,6 +201,105 @@ console.log("-- sci_find tool --");
   );
 }
 
+// --- sci_find's pi 1.0 result fields ------------------------------------------
+//
+// pi 1.0 hands `structuredContent` to codemode scripts instead of the text, so
+// it has to say what the text says: the same skills, in the same order, with
+// the same paths. scripts/test-pi-runtime.mjs checks what pi does with the
+// fields; this checks what the extension puts in them, the same on any pi.
+
+console.log("\n-- sci_find structured result --");
+{
+  newAgentDir();
+  const harness = makeHarness();
+  const { tool } = register(harness);
+  const call = (params) => tool.execute("id", params);
+  const headingNames = (text) =>
+    text
+      .split("\n")
+      .filter((line) => line.startsWith("## "))
+      .map((line) => line.slice(3).split(" — ")[0]);
+  const loadPaths = (text) => [...text.matchAll(/^Load with: read (\S+)$/gm)].map((match) => match[1]);
+
+  const hit = await call({ query: "variant calling from a bam file" });
+  const found = hit.structuredContent;
+  check(
+    "a search's structured skills are the text's hits, in order, with its load paths",
+    found?.kind === "search" &&
+      JSON.stringify(found.skills.map((skill) => skill.name)) === JSON.stringify(headingNames(hit.content[0].text)) &&
+      JSON.stringify(found.skills.map((skill) => skill.path)) === JSON.stringify(loadPaths(hit.content[0].text)),
+    JSON.stringify(found).slice(0, 300),
+  );
+  check(
+    "every field is present, null when not given, and a search is not an error",
+    found?.query === "variant calling from a bam file" &&
+      found.profile === null &&
+      found.profiles.length === 0 &&
+      found.skills.every((skill) => skill.notInAnyProfile === null && skill.dir.length > 0) &&
+      hit.isError === false,
+    JSON.stringify(found).slice(0, 300),
+  );
+
+  const heldOut = (await call({ query: "usfiscaldata" })).structuredContent;
+  const fiscal = heldOut?.skills.find((skill) => skill.name === "usfiscaldata");
+  check(
+    "a held-out skill carries the same reason its heading gives",
+    typeof fiscal?.notInAnyProfile === "string" && fiscal.notInAnyProfile.startsWith("U.S. Treasury"),
+    JSON.stringify(fiscal),
+  );
+
+  const listed = await call({ profile: "drug-discovery" });
+  check(
+    "a profile listing is kind profile, with the profile's skills",
+    listed.structuredContent?.kind === "profile" &&
+      listed.structuredContent.profile === "drug-discovery" &&
+      JSON.stringify(listed.structuredContent.skills.map((skill) => skill.name)) ===
+        JSON.stringify(headingNames(listed.content[0].text)),
+    JSON.stringify(listed.structuredContent).slice(0, 200),
+  );
+  const asQuery = (await call({ query: "Drug-Discovery" })).structuredContent;
+  check(
+    "a profile id passed as the query is a profile listing, under the profile's own id",
+    asQuery?.kind === "profile" && asQuery.profile === "drug-discovery" && asQuery.query === "Drug-Discovery",
+    JSON.stringify(asQuery).slice(0, 200),
+  );
+
+  const index = await call({});
+  const miss = await call({ query: "book a flight to paris" });
+  const unknown = await call({ profile: "no-such-profile" });
+  check(
+    "the index, a miss and an unknown profile all carry the profile list",
+    [index, miss, unknown].every(
+      (result) => result.structuredContent.profiles.some((profile) => profile.id === "genomics-bioinformatics" && profile.skillCount > 0),
+    ) &&
+      index.structuredContent.kind === "profile-index" &&
+      miss.structuredContent.kind === "no-match" &&
+      unknown.structuredContent.kind === "unknown-profile",
+    JSON.stringify([index, miss, unknown].map((result) => result.structuredContent.kind)),
+  );
+  check(
+    "only the unknown profile is an error; a miss is an honest empty result",
+    unknown.isError === true && miss.isError === false && index.isError === false && listed.isError === false,
+    JSON.stringify([unknown.isError, miss.isError, index.isError, listed.isError]),
+  );
+
+  // pi 1.0 fields on the definition: inert on 0.87 (see test-pi-runtime.mjs).
+  check(
+    "sci_find declares itself read-only, idempotent, non-destructive and closed-world",
+    JSON.stringify(tool.annotations) ===
+      JSON.stringify({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }),
+    JSON.stringify(tool.annotations),
+  );
+  const schemaFields = Object.keys(tool.outputSchema?.properties ?? {});
+  check(
+    "the output schema lists exactly the structured result's fields",
+    JSON.stringify(schemaFields) === JSON.stringify(Object.keys(found ?? {})) &&
+      JSON.stringify(Object.keys(tool.outputSchema.properties.skills.items.properties)) ===
+        JSON.stringify(Object.keys(found.skills[0])),
+    `${schemaFields} vs ${Object.keys(found ?? {})}`,
+  );
+}
+
 // --- pi's event order, for the sci_find stage tests --------------------------
 //
 // Core events go through pi's OWN AgentSession._emitExtensionEvent, so the

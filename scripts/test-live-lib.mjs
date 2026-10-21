@@ -68,6 +68,48 @@ const turnsOf = (entries) =>
     entries.filter((entry) => entry.type === "message").map((entry) => ({ ...entry.message, entryTime: Date.parse(entry.timestamp) })),
   );
 
+console.log("-- codemode: calls a script makes --");
+{
+  // The shape pi 1.0.0 writes, copied from a real session file: a codemode
+  // result carries the script's tools.* calls as nestedCalls, without results.
+  const script = assistant([["codemode", { code: "await tools.read(...)" }]]);
+  const result = (nestedCalls) => ({
+    type: "message",
+    timestamp: stamp(),
+    message: {
+      role: "toolResult",
+      toolCallId: script.message.content[0].id,
+      toolName: "codemode",
+      content: [{ type: "text", text: "Script completed" }],
+      isError: false,
+      nestedCalls,
+    },
+  });
+  const nested = (name, args, status = "ok") => ({ id: `n${++ids}`, name, status, arguments: args, durationMs: 5 });
+  const read = [
+    user("task"),
+    script,
+    result({
+      calls: [nested("sci_find", { query: "bam files" }), nested("read", { path: `${SKILLS}/pysam/SKILL.md` })],
+      complete: true,
+    }),
+  ];
+  const turns = turnsOf(read);
+  const hits = skillReads(turns, ["pysam"]);
+  check(
+    "a script's read of the SKILL.md reaches the read endpoint, marked as coming from codemode",
+    hits.length === 1 && hits[0].by === "read" && hits[0].via === "codemode",
+    JSON.stringify(hits),
+  );
+  check(
+    "a script's sci_find counts as seeking, and both calls are marked as coming from codemode",
+    turns[0].calls.filter((call) => call.via === "codemode").length === 2 && turns[0].calls.some((call) => call.via && isSeek(call)),
+    JSON.stringify(turns[0].calls),
+  );
+  const failed = [user("task"), script, result({ calls: [nested("read", { path: `${SKILLS}/pysam/SKILL.md` }, "error")], complete: true })];
+  check("a script's failed read does not count", skillReads(turnsOf(failed), ["pysam"]).length === 0);
+}
+
 console.log("-- read endpoint --");
 {
   const entries = [
@@ -478,6 +520,21 @@ console.log("-- provider keys stay out of the model's reach (key-proxy, agent-se
   check("proxiedModels: custom headers are refused", /headers is not supported/.test(refusal(() => proxiedModels({ providers: { openrouter: { headers: { x: "y" } } } }, "openrouter", "http://127.0.0.1:9"))));
 
   const seed = seedAgentDir(join(dir, "seed"), { packageDir: "/pkg", promptSkills: [], extension: true, models: proxied, catalogue: store });
+  const plain = JSON.parse(readFileSync(join(seed, "settings.json"), "utf8"));
+  const coded = JSON.parse(
+    readFileSync(
+      join(seedAgentDir(join(dir, "seed-cm"), { packageDir: "/pkg", promptSkills: [], extension: true, codemode: "only" }), "settings.json"),
+      "utf8",
+    ),
+  );
+  check(
+    "seedAgentDir: codemode adds +codemode and its mode; without it, no tool settings",
+    plain.defaultTools === undefined &&
+      plain.codemode === undefined &&
+      JSON.stringify(coded.defaultTools) === JSON.stringify(["+codemode"]) &&
+      coded.codemode?.mode === "only",
+    JSON.stringify(coded),
+  );
   const seeded = readdirSync(seed).sort();
   check(
     "seedAgentDir: no auth.json, and no seeded file holds the key",
