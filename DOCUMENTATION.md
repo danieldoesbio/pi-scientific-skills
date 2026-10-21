@@ -822,7 +822,7 @@ path (finds pi on `PATH`, rebuilds the alias map, imports `jiti/lib/jiti-static.
 directly), so the suites exercise the same module graph pi does. An installed pi
 is therefore a hard prerequisite for `npm test`.
 
-`npm test` runs seven things, none of which spend model tokens:
+`npm test` runs eight things, none of which spend model tokens:
 
 | Script | What it proves |
 |---|---|
@@ -1537,16 +1537,16 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   `testing/runs/2026-10-05-v2.72.0-sync.md`) and `npm run typecheck`. The
   count of skills run stays at 43.
 - **1.8.1 (0):** no skill batch, and no live `sci_find` run at release.
-  Released with 1.8.0's content (1.8.0 was never published) plus two extension
-  and docs changes: `sci_find`'s pi 1.0 tool fields (see "pi 1.0 tool fields"
+  Ships on top of the published 1.8.0 (npm and tag `v1.8.0`, 2026-10-14),
+  with two extension and docs changes: `sci_find`'s pi 1.0 tool fields (see "pi 1.0 tool fields"
   under Search mode), checked in a real pi session by `test-pi-runtime.mjs`,
   and the docs cleanup that taught `validate.mjs` to check the skill counts in
   DOCUMENTATION.md and the `package.json` description. On the direct path the
   model reads the same `sci_find` text as in 1.8.0, so no small-model run was
   repeated. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and
-  `npm run typecheck`. After the release, a codemode run on Bonsai 2 27B ran on
-  pi 1.0.0 (2026-10-08 and 2026-10-09, `b4af20f`, 161 probes, three arms; plan
-  and results in `testing/runs/2026-10-06-codemode-bonsai.md`). Read rate:
+  `npm run typecheck`. Before this release, a codemode run on Bonsai 2 27B ran
+  on pi 1.0.0 (2026-10-08 and 2026-10-09, `b4af20f`, 161 probes, three arms;
+  plan and results in `testing/runs/2026-10-06-codemode-bonsai.md`). Read rate:
   `direct` 156, `cm-on` 153, `cm-only` 142. `cm-on` is not shown non-inferior
   to `direct` on the pre-registered set (-1.9 points, CI -5.9 to 1.7, margin -5)
   and no attempt called codemode; `cm-only` is worse (-8.7 points, CI -14.2 to
@@ -1596,8 +1596,8 @@ claims about adoption and coverage have something behind them.
 
 ## Publishing checklist
 
-- [ ] `npm test` clean — validation plus the six offline suites (search,
-      extension, filter, skill-expand, frontmatter and live-lib; requires an
+- [ ] `npm test` clean — validation plus the seven offline suites (search,
+      extension, filter, skill-expand, frontmatter, live-lib and pi-runtime; requires an
       installed pi; they load the extension through pi's own jiti)
 - [ ] Read `sync-upstream.sh`'s main-ahead warning. When upstream `main` has
       moved past the tag, sync a SHA on `main` instead of the stale tag
