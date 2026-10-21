@@ -9,6 +9,13 @@
 #         1.7.0 default.
 #   full  the --ref package with its extension not loaded, every skill in the
 #         prompt, no sci_find: a plain skills install.
+#   direct   the same flags as v17, under a name that does not date it: the
+#            control of a codemode run (--arms direct,cm-on,cm-only).
+#   cm-on    v17 with pi's codemode tool on (`defaultTools: ["+codemode"]`):
+#            sci_find, read and bash are still declared, and scripts can call
+#            them too. Needs pi 0.99 or later on PATH.
+#   cm-only  v17 with `codemode.mode: "only"`: codemode is the only declared
+#            tool, so the model reaches sci_find and read through scripts.
 #
 # Frozen sources: at the first start, both refs are `git archive`d into
 # <out>/src/, and every invocation runs from there. An edit to the working tree
@@ -210,6 +217,9 @@ arm_args() {
     v16) ARM_ARGS=(--package-dir "$SRC/v16" --package-label "$V16_LABEL" --prompt-skills core) ;;
     v17) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills none) ;;
     full) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills all --no-extension) ;;
+    direct) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills none) ;;
+    cm-on) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills none --codemode on) ;;
+    cm-only) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills none --codemode only) ;;
     *) usage "unknown arm $1" ;;
   esac
 }

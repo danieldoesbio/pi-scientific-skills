@@ -197,6 +197,14 @@ async function runAttempt(probe, run, ctx) {
           }
         : null,
       readSkills: readSkills(turns),
+      // Codemode (pi 0.99+): scripts the model ran, the calls they made, and
+      // their bash calls naming the target's SKILL.md, which cannot reach the
+      // read endpoint because pi keeps no nested result.
+      codemodeCalls: calls.filter((call) => call.tool === "codemode").length,
+      nestedCalls: calls.filter((call) => call.via).length,
+      nestedBashTarget: calls.filter(
+        (call) => call.via && call.tool === "bash" && String(call.args.command ?? "").includes(`${probe.target}/SKILL.md`),
+      ).length,
       tools: [...new Set(turns.flatMap((turn) => turn.calls.map((call) => call.tool)))],
       persona,
     };

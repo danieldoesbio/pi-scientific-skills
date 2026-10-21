@@ -76,6 +76,12 @@
 //                      port). The real agent dir is never written. For a cloud
 //                      model, only its provider's entry is kept, pointed at
 //                      the key proxy.
+//   --codemode <off|on|only>  pi's codemode tool (pi 0.99+). off (default): not
+//                      enabled. on: `defaultTools: ["+codemode"]`, the other
+//                      tools still declared. only: also `codemode.mode: "only"`,
+//                      so the model reaches read, bash and sci_find only through
+//                      scripts. Calls a script makes are graded like direct ones
+//                      (pi-session.mjs, `nestedCalls`). Recorded on every line.
 //   --gate-calls <n>   End an attempt as `gated` (a miss) once its first n tool
 //                      calls hold no skill-seeking call (scripts/lib/pi-session.mjs
 //                      `gateTripped`). Default 0: off.
@@ -180,6 +186,7 @@ function parseArgs(argv) {
     responses: 5,
     promptSkills: "none",
     extension: true,
+    codemode: "off",
     packageDir: null,
     packageLabel: null,
     endpoint: "listed",
@@ -210,6 +217,7 @@ function parseArgs(argv) {
     else if (arg === "--judge-model") opts.judgeModel = next();
     else if (arg === "--prompt-skills") opts.promptSkills = next();
     else if (arg === "--no-extension") opts.extension = false;
+    else if (arg === "--codemode") opts.codemode = next();
     else if (arg === "--package-dir") opts.packageDir = resolve(next());
     else if (arg === "--package-label") opts.packageLabel = next();
     else if (arg === "--endpoint") opts.endpoint = next();
@@ -225,6 +233,7 @@ function parseArgs(argv) {
     if (!Number.isInteger(opts[key]) || opts[key] < 1) die(`--${key} must be a positive integer`);
   }
   if (!["core", "none", "all"].includes(opts.promptSkills)) die("--prompt-skills must be none, core or all");
+  if (!["off", "on", "only"].includes(opts.codemode)) die("--codemode must be off, on or only");
   if (!["listed", "read", "first-find"].includes(opts.endpoint)) die("--endpoint must be listed, read or first-find");
   if (opts.endpoint === "first-find" && (opts.attempts !== 1 || !opts.extension)) {
     die("--endpoint first-find needs --attempts 1 and the extension (it records the first sci_find query)");
@@ -417,6 +426,20 @@ if (opts.offline) {
   process.exit(0);
 }
 
+// Codemode shipped in pi 0.99.0. An older pi ignores the settings and would
+// quietly run the direct arm under a codemode label.
+const piVersion = (() => {
+  try {
+    return execFileSync("pi", ["--version"], { encoding: "utf8" }).trim().split(/\s+/).at(-1);
+  } catch {
+    return null;
+  }
+})();
+if (opts.codemode !== "off") {
+  const [major, minor] = (piVersion ?? "0.0").split(".").map(Number);
+  if (!(major >= 1 || minor >= 99)) die(`--codemode needs pi 0.99 or later; pi on PATH is ${piVersion ?? "missing"}`);
+}
+
 const skip = opts.resume ? doneIds(opts.results, taskOf) : new Set();
 const pending = probes.filter((probe) => !skip.has(probe.id));
 if (skip.size > 0) console.log(`resume: ${probes.length - pending.length} probe(s) already in ${opts.results}, ${pending.length} to run`);
@@ -466,6 +489,7 @@ const seedDir = seedAgentDir(join(scratch, "agent-seed"), {
   extension: opts.extension,
   models: seedModels,
   catalogue: upstreamHost ? storeFile : null,
+  codemode: opts.codemode === "off" ? null : opts.codemode,
 });
 const listing =
   promptSkills === null
@@ -475,7 +499,7 @@ const listing =
       : "no skills in the prompt";
 console.log(
   `package: ${opts.packageLabel ?? "this tree"} | endpoint: ${opts.endpoint} | gate: ${opts.gateCalls || "off"} | ranker: ${opts.findRanker}\n` +
-    `agent dir seed: ${seedDir} (${listing}; ${opts.extension ? "extension loaded, sci_find available" : "extension NOT loaded, no sci_find"})\n`,
+    `agent dir seed: ${seedDir} (${listing}; ${opts.extension ? "extension loaded, sci_find available" : "extension NOT loaded, no sci_find"}; codemode ${opts.codemode})\n`,
 );
 const skillsDir = join(packageDir, "skills");
 const catalogue = new Set(readdirSync(skillsDir).filter((name) => existsSync(join(skillsDir, name, "SKILL.md"))));
@@ -661,6 +685,8 @@ const baseRecord = (probe) => ({
   thinking: opts.thinking ?? "default",
   promptSkills: opts.promptSkills,
   extension: opts.extension,
+  codemode: opts.codemode,
+  piVersion,
   package: opts.packageLabel,
   endpoint: opts.endpoint,
   gateCalls: opts.gateCalls,
@@ -773,6 +799,7 @@ async function runSupervised() {
             line.supervisor &&
             (line.promptSkills ?? "core") === opts.promptSkills &&
             (line.extension ?? true) === opts.extension &&
+            (line.codemode ?? "off") === opts.codemode &&
             (line.endpoint ?? "listed") === opts.endpoint &&
             (line.findRanker ?? "current") === opts.findRanker &&
             ranCurrentTask(line, taskOf),
@@ -803,6 +830,7 @@ async function warmup(respond) {
     package: opts.packageLabel,
     promptSkills: opts.promptSkills,
     extension: opts.extension,
+    codemode: opts.codemode,
     answered: turn.answered,
     timedOut: turn.timedOut,
     elapsedSeconds: Math.round((Date.now() - started) / 1000),
