@@ -91,8 +91,9 @@ licence labelling alone does not confer the right to redistribute.
 
 ### The citation block is carried, not stripped (arrived with v2.66.0)
 
-Since v2.66.0, upstream appends a `## Citing Scientific Agent Skills` section to
-most of its skills. It asks the model to add upstream's paper
+Upstream v2.66.0 appended a `## Citing Scientific Agent Skills` section to 135
+of the 163 it shipped then, and later releases keep it in most skills. It asks
+the model to add upstream's paper
 (Kassis et al. 2026, arXiv:2609.00065) to the references or software section
 of any manuscript, report, presentation or code release the skill materially
 contributed to, and to tell the user it did so. It arrives with each sync, in
@@ -213,17 +214,23 @@ extensions/package-info.ts   # PACKAGE_NAME / PACKAGE_VERSION; validate.mjs guar
 scripts/lib/load-extension.mjs  # loads extensions/ the way pi does (jiti + host aliases)
 scripts/doc-count.mjs   # lets each suite check the check count README claims for it
 scripts/sync-upstream.sh  # re-sync skills/ from upstream
+scripts/excluded-skills.txt  # skills the sync strips (Anthropic-licensed, fictiv); see Provenance
 scripts/validate.mjs    # pi-rule validation across all skills, plus extensions/ drift checks
 scripts/test-search.mjs # sci_find ranking against the real 176 descriptions
 scripts/test-extension.mjs   # command and startup behaviour against a stubbed ExtensionAPI
-scripts/test-pi-runtime.mjs # sci_find's pi 1.0 tool fields, checked in a real pi session with a scripted model
 scripts/test-filter.mjs # checks that pi itself honours the filter we write
 scripts/test-skill-expand.mjs  # checks our /skill: block is byte-identical to pi's (pi's own method is the oracle)
+scripts/test-frontmatter.mjs # extensions/frontmatter.ts parses every SKILL.md the way pi's parser does
+scripts/typecheck.mjs   # real tsc over extensions/ against pi's shipped .d.ts (not in npm test)
+scripts/lib/harness.mjs # the pass/fail counter the offline suites share
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
 scripts/try-it.sh       # launch this branch in a throwaway pi, to try it by hand
 scripts/test-find-live.mjs   # release gate: does a small model reach for sci_find? (spends tokens)
-scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full), frozen sources
+scripts/find-live-arms.sh    # unattended multi-arm live run (v16 / v17 / full, or direct / cm-on / cm-only), frozen sources
+scripts/test-pi-runtime.mjs  # sci_find's pi 1.0 tool fields, checked in a real pi session with a scripted model
 scripts/test-live-lib.mjs    # the live harness's endpoint, gate and measures, on synthetic sessions
+scripts/lib/            # the live harness (sandbox, key proxy, persona, probe check, session reader, replay, reports) and the rank benches' shared helpers
+scripts/check-probes.mjs     # re-run the probe check on a finished live run from its kept transcripts
 scripts/find-live-timing.mjs # server-side prefill, generation and queue wait per attempt of a find-live-arms run
 scripts/find-live-arms-report.mjs # the pre-registered outcomes of a find-live-arms run
 scripts/find-ab.sh           # two package commits through a cloud model, both arms at once, frozen sources
@@ -240,6 +247,10 @@ scripts/find-panel-report.mjs # the writer panel's search rate and top-8 rates, 
 scripts/test-batch.mjs  # run 4-8 skills for real in pi, capture transcripts for grading
 scripts/track-downloads.mjs  # append npm daily counts to metrics/downloads.json
 testing/ledger.json     # which skills have been run for real, with verdicts (+ extensionRuns)
+testing/find-probes.json  # one first-person probe per skill for the live search test (162, from 1.6.0)
+testing/report.md, analysis.md  # the 2026-09-23 live search test and what it means for sci_find
+testing/runs/           # one notebook per live or offline run, the lab record
+testing/README.md       # which skills the live test cannot cover, and why
 testing/find-rank/      # ranker query sets: recorded first sci_find queries, blind probe paraphrases
 testing/transcripts/    # raw pi output per graded run, kept as evidence
 metrics/downloads.json  # gitignored: npm daily series + publish dates, with revisions
@@ -346,8 +357,9 @@ search rate (11/12 in both arms).
 A three-arm run over 161 probes then measured the default change itself
 (`testing/runs/2026-09-25-night-arms.md`): the model read the target skill on
 157 with the 1.7.0 design as first built, on 116 with 1.6.0 search mode (+25.5
-points, 95% CI 18.4 to 32.9) and on 158 with every skill listed (162 at the time). It read all
-ten Core targets in every arm. That 1.7.0 arm is the build at commit `08aff2e`,
+points, 95% CI 18.4 to 32.9) and on 158 with every skill listed (162 at the
+time). It read all ten Core targets in every arm. That 1.7.0 arm is the build
+at commit `08aff2e`,
 which still had the old ranker, 8 hits and a `limit` argument the model could
 set; the BM25F ranker and the 3-then-5 list came later (`713d6e8`). The gain
 belongs to that design as a whole, which also added the `sci_find` snippet and
@@ -400,6 +412,37 @@ when an MCP server with the default `codemode` exposure connects;
 `"autoEnableCodemode": false` beside `mcpServers` in `mcp.json` stops that
 (pi's `docs/mcp.md`). Codemode adds its own tool and a line to each tool
 description, so with a small local model keep it off unless you use it.
+
+**pi 1.0 tool fields (since 0.99; inert on 0.87).** `sci_find` declares three
+fields pi added in 0.99 (pi's `docs/extensions.md`, "Tools" and "Tool
+exposure"), and the model on the direct path reads the same text as before:
+
+- `annotations`: `readOnlyHint: true`, `destructiveHint: false`,
+  `idempotentHint: true`, `openWorldHint: false`. pi does not act on them
+  itself; a permission extension that confirms calls by these hints (the
+  example in pi's docs, modelled on Codex's approvals) lets `sci_find` through
+  without asking.
+- `outputSchema` and `structuredContent`: a codemode script's
+  `tools.sci_find(...)` resolves to an object instead of the text:
+  `{ kind, query, profile, skills, profiles }`, where `kind` is `search`,
+  `no-match`, `profile`, `profile-index`, `unknown-profile` or `unavailable`,
+  each skill is `{ name, description, path, dir, notInAnyProfile }`, and every
+  field is present (`null` when not given). Same ranker, same hit count (3,
+  then 5) and same order as the text; descriptions are always full, whatever
+  `PI_SCI_FIND_FORMAT` says. The schema is never sent to a provider (pi-ai
+  serialises name, description and parameters only), so it costs nothing
+  without codemode; with codemode on, pi appends one line naming the five
+  fields to the tool's description.
+- `isError` on the result: an unknown profile id, or a package whose `skills/`
+  cannot be located, is a failed call on 1.0. The text is unchanged and still
+  lists the real profiles. A query that matches nothing is not an error.
+
+All three ride on the tool definition and the result object, with no version
+check. pi 0.87 ignores them: `wrapToolDefinition` copies only the fields it
+knows, and pi-agent-core's `createToolResultMessage` builds the message from
+`content`, `details` and `usage`. `index.ts` spreads them in from one object so
+the definition still type-checks against 0.87's declarations.
+`scripts/test-pi-runtime.mjs` checks both halves in a real pi session.
 
 **`/sci none`, `/sci search` and the way back to Core (1.7.0).** An empty
 `skills` filter means search mode; it does not turn `sci_find` off. 1.6.0's
@@ -495,7 +538,8 @@ object entry in `settings.json`. This was checked against pi's own resolver in
   settings are fixed; they came from cross-validation on 425 recorded first
   `sci_find` queries. A query equal to a skill name lists that skill first.
   BM25F has its own no-match rule: the best score must reach 2.5, or 28% of
-  the most the query could score (35% until the v2.72.0 sync; see
+  the most the query could score (`NO_MATCH` in `bm25f.ts`; 35% until the
+  v2.72.0 sync, whose shorter descriptions pushed real queries below it; see
   [`testing/runs/2026-10-05-v2.72.0-sync.md`](testing/runs/2026-10-05-v2.72.0-sync.md)).
   On the development data, before that sync, the rule lost none of 1,069
   queries. On small
@@ -556,37 +600,6 @@ own call). So `join(dirname(fileURLToPath(import.meta.url)), "..", "skills")` is
 correct. The result must pass a `SKILL.md` check: if the directory does not
 hold skills, the tool is not registered, so the model is never handed paths
 that do not exist.
-
-**pi 1.0 tool fields (since 0.99; inert on 0.87).** `sci_find` declares three
-fields pi added in 0.99 (pi's `docs/extensions.md`, "Tools" and "Tool
-exposure"), and the model on the direct path reads the same text as before:
-
-- `annotations`: `readOnlyHint: true`, `destructiveHint: false`,
-  `idempotentHint: true`, `openWorldHint: false`. pi does not act on them
-  itself; a permission extension that confirms calls by these hints (the
-  example in pi's docs, modelled on Codex's approvals) lets `sci_find` through
-  without asking.
-- `outputSchema` and `structuredContent`: a codemode script's
-  `tools.sci_find(...)` resolves to an object, not the text:
-  `{ kind, query, profile, skills, profiles }`, where `kind` is `search`,
-  `no-match`, `profile`, `profile-index`, `unknown-profile` or `unavailable`,
-  each skill is `{ name, description, path, dir, notInAnyProfile }`, and every
-  field is present (`null` when not given). Same ranker, same hit count (3,
-  then 5) and same order as the text; descriptions are always full, whatever
-  `PI_SCI_FIND_FORMAT` says. The schema is never sent to a provider (pi-ai
-  serialises name, description and parameters only), so it costs nothing
-  without codemode; with codemode on, pi appends one line naming the five
-  fields to the tool's description.
-- `isError` on the result: an unknown profile id, or a package whose `skills/`
-  cannot be located, is a failed call on 1.0. The text is unchanged and still
-  lists the real profiles. A query that matches nothing is not an error.
-
-All three ride on the tool definition and the result object, with no version
-check. pi 0.87 ignores them: `wrapToolDefinition` copies only the fields it
-knows, and pi-agent-core's `createToolResultMessage` builds the message from
-`content`, `details` and `usage`. `index.ts` spreads them in from one object so
-the definition still type-checks against 0.87's declarations.
-`scripts/test-pi-runtime.mjs` checks both halves in a real pi session.
 
 ### Startup messaging: the obligation, and where it is enforced
 
@@ -854,16 +867,16 @@ pi is therefore a hard prerequisite for `npm test`.
 
 | Script | What it proves |
 |---|---|
-| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the synced skills still carry the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others). |
+| `validate.mjs` | All 176 frontmatters parse and have descriptions; `profiles.ts`, `aliases.ts` and `package-info.ts` agree with `skills/` and `package.json`; the synced skills still carry the third-party terms README's License & Credits section names (deepspot-m eligibility, TimesFM 3.0, molfeat, latex-posters GPL, Pathoplexus and others); the skill counts quoted in README, DOCUMENTATION.md and the `package.json` description match `skills/` and the ledger. |
 | `test-search.mjs` | `sci_find`'s ranking against the real 176 descriptions, including queries that must return nothing. Known misses are listed and reported without failing. Each alias trigger phrase, searched alone, must list one of its rule's `skills` in the top 3. Floor: bm25f puts the target in the top 3 for at least 98% of the recorded first queries in `testing/find-rank/`. |
 | `test-extension.mjs` | Command and startup behaviour against a stubbed `ExtensionAPI`, with `PI_CODING_AGENT_DIR` at a throwaway dir. |
 | `test-filter.mjs` | That pi itself honours the filter we write, through a real `DefaultPackageManager`. |
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is byte-identical to the one pi builds for a loaded skill, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 176 SKILL.md files and 13 edge cases the way pi's own parser does. |
-| `test-live-lib.mjs` | The live harness's grading helpers, on synthetic pi sessions: the read endpoint, the skill-seeking test, the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`). Also the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers and the replay's analysis set and validity rules (`find-live-replay.mjs`); the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`); the first-search facts of `find-ab-report.mjs`; the category and panel-report helpers of `find-panel-report.mjs`; and `find-embed-compare.mjs`'s arms, metrics and both embedding wire formats, against a local stand-in server. A wrong endpoint, gate, join, interval or analysis set still produces numbers in a live run, so they are checked here. Last, that no provider key reaches the model's side of the sandbox (`scripts/lib/key-proxy.mjs`, `scripts/lib/agent-seed.mjs`). |
-| `test-pi-runtime.mjs` | That pi **itself** honours `sci_find`'s pi 1.0 tool fields (`annotations`, `outputSchema`, `structuredContent`, `isError`) in a real `AgentSession` from the installed pi's SDK, with pi-ai's scripted faux provider as the model: no network, no key. On 0.99+ the fields arrive; on 0.87 they are ignored and the text is unchanged. |
+| `test-live-lib.mjs` | The live harness's grading helpers, on synthetic pi sessions: the read endpoint, the skill-seeking test (with the calls a codemode script makes), the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`). Also the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and analysis set (`find-live-arms-report.mjs`); the codemode settings the agent seed writes; the choice-turn replay helpers and the replay's analysis set and validity rules (`find-live-replay.mjs`); the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`); the first-search facts of `find-ab-report.mjs`; the category and panel-report helpers of `find-panel-report.mjs`; and `find-embed-compare.mjs`'s arms, metrics and both embedding wire formats, against a local stand-in server. A wrong endpoint, gate, join, interval or analysis set still produces numbers in a live run, so they are checked here. Last, that no provider key reaches the model's side of the sandbox (`scripts/lib/key-proxy.mjs`, `scripts/lib/agent-seed.mjs`). |
+| `test-pi-runtime.mjs` | That pi **itself** honours `sci_find`'s pi 1.0 tool fields (`annotations`, `outputSchema`, `structuredContent`, `isError`) in a real `AgentSession` from the installed pi's SDK, with pi-ai's scripted faux provider as the model: no network, no key. On 0.99+, pi reports the read-only hints, an unknown profile is a failed call, and a codemode script receives the result as an object with 3 hits on a first search. On 0.87 the same calls run and the fields are inert. Every check runs on both versions with that version's expectation, so the count is the same on both CI rows. |
 | `test-tui-offer.py` | The first-run offer in pi's real TUI, driven through a pty: accepting writes the empty search-mode filter; declining and timing out write nothing. The only check that runs the unstubbed accept path, so the only one that proves pi dispatches the accepted offer as a command and the filter is written (`test-extension.mjs` checks only that `expandPromptTemplates: true` reaches its stub). Spends no tokens, but needs a pty, so it is not in `npm test`. |
-| `doc-count.mjs` | Not a suite: the five suites built on `scripts/lib/harness.mjs` call it last, so the README's check count for each of them cannot silently go stale. |
+| `doc-count.mjs` | Not a suite: the six suites built on `scripts/lib/harness.mjs` call it last, so the README's check count for each of them cannot silently go stale. |
 | `try-it.sh` | Not a test: a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. It never touches `~/.pi/agent`, deletes the credential copy on any exit, and reports afterwards whether `settings.json` changed. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
 
 `npm run typecheck` (`scripts/typecheck.mjs`) runs real `tsc` on
@@ -966,7 +979,8 @@ install it outside those paths (for example under `/private/var/tmp`) and check
 
 With `--probes testing/find-probes.json` it runs one supervised probe per skill
 instead of the three built-in ones (`scripts/lib/converse.mjs`): 162
-first-person tasks that never name their skill, each with a `target` and an
+first-person tasks that never name their skill (written for 1.6.0's catalogue;
+the 14 skills new in v2.72.0 have no probe yet), each with a `target` and an
 optional `accept` list of siblings that also fit.
 
 A probe is up to `--attempts` (3) fresh conversations of up to `--responses`
@@ -1030,6 +1044,17 @@ Options for comparing configurations, as in the 2026-09-25 three-arm run
   prefix; pi's skills block comes before the working-directory line).
 - `--archive-to <dir>` copies the transcripts and a tarball of the workspaces
   out of the temporary directory at the end.
+- `--codemode <off|on|only>` (added for
+  [`testing/runs/2026-10-06-codemode-bonsai.md`](testing/runs/2026-10-06-codemode-bonsai.md))
+  writes `defaultTools: ["+codemode"]` and `codemode.mode` into the throwaway
+  agent dir's settings. `on` adds pi's codemode tool beside the others; `only`
+  makes it the only declared tool. It needs pi 0.99 or later on PATH, and each
+  line records `codemode` and `piVersion`. pi keeps the calls a script makes
+  as `nestedCalls` on the codemode result, with arguments and status but no
+  result; the harness grades each as a call of its own marked `via:
+  "codemode"`. A script's `read` of the target's SKILL.md reaches the read
+  endpoint. A script's bash cannot, since its output is not kept; the line
+  counts those as `nestedBashTarget`.
 - `--endpoint first-find` has no target: the attempt stops at the model's
   first `sci_find` call and ends as `searched`, with the query in `queries[0]`.
   It measures which query a model writes and how often it searches (with
@@ -1085,7 +1110,9 @@ errors in a row, and runs under `caffeinate`. Probes run in chunks (Core
 first, then a seeded shuffle). Each chunk runs every arm, with the order
 rotated per chunk, so a run stopped at a chunk boundary is still balanced and
 paired. `--stop-after HH:MM` starts no chunk after that time; the same `--out`
-continues on a later night.
+continues on a later night. `--arms direct,cm-on,cm-only` runs the codemode
+design: `direct` is `v17`'s flags under a name that does not date it, and
+`cm-on` and `cm-only` add `--codemode on` and `--codemode only`.
 
 `scripts/find-live-timing.mjs <out>` splits each attempt's time by the
 server. It pairs every finished request in `llama-server.log` with the pi
@@ -1107,8 +1134,11 @@ generation tok/s by prompt size per arm, without warm-ups and requests right
 after a stop. It needs the archived session files: an invocation stopped by a
 signal archives nothing, so its attempts are not timed.
 
-`scripts/find-live-arms-report.mjs <out> [--timing <jsonl>]` gives the
-pre-registered outcomes. The analysis set is the chunks in which every probe
+`scripts/find-live-arms-report.mjs <out> [--design night-arms|codemode]
+[--timing <jsonl>]` gives the pre-registered outcomes. `--design codemode`
+compares `cm-on − direct` and `cm-only − direct`, both non-inferiority at −5
+points, and adds a codemode line per arm (scripts, calls from scripts, reads
+through a script). The analysis set is the chunks in which every probe
 has a results line in every arm, less any probe with a harness error in any
 arm (an intersection of finished probes would let a part-done chunk in). Per
 arm it gives the read rate (Core and non-Core apart), how attempts ended, the
@@ -1396,6 +1426,16 @@ does, for the `/skill:` stopgap (see below).
   catalogue size, and "N skills have been run" against the unique `PASS`
   count in `testing/ledger.json`. Neither number is hardcoded; both come from
   the files the suites already trust.
+- Applies the same catalogue-size rule to the `package.json` description
+  (what npm and the pi gallery show) and to DOCUMENTATION.md
+  (`validateOtherDocCounts`). There, "N skills", "N skill directories", "all
+  N", "among N", "the real N" and "N names" with N ≥ 100 are read as today's
+  count, and "The other N have not been exercised" must equal the catalogue
+  less the ledger's PASS count. A count from an earlier release is written
+  another way ("162 at the time"). Each sync so far fixed these by hand; the
+  check makes a missed one fail. The GitHub repo's About text is outside the
+  tree and is not checked (it still said 162 after 1.8.0): update it by hand
+  when the count changes.
 - Hard-fails when a synced skill loses a third-party notice that README's
   License & Credits section names (`REQUIRED_NOTICES`).
 - Warns when `TOKENS_PER_SKILL` drifts more than 10% from what `skills/` now
@@ -1706,10 +1746,10 @@ scrubbed transcripts are in `testing/transcripts/<version>/`.
   full snapshot; `/sci` (or `pi config`) is how a user narrows it to what they
   intend to run. An enabled skill is third-party code the user is choosing to
   execute.
-- Upstream's own pytest battery passes on the byte-identical content. The
-  2,512-test figure quoted in early releases was counted at v2.62.0. Later
-  upstream releases add suites for their new skills and the figure has not
-  been re-counted, so upstream's CI badge is the current source.
+- Upstream's own pytest battery passed on the byte-identical content at
+  v2.62.0, the last time it was counted (2,512 tests). It has not been
+  re-counted since. Later upstream releases add suites for their new skills,
+  so upstream's CI badge is the current source.
 
 ## Adoption metrics
 
@@ -1738,16 +1778,15 @@ something behind them.
 
 ## Publishing checklist
 
-- [ ] `npm test` clean: validation plus the six offline suites (search,
-      extension, filter, skill-expand, frontmatter and live-lib; requires an
-      installed pi; they load the extension through pi's own jiti)
+- [ ] `npm test` clean: validation plus the seven offline suites (search,
+      extension, filter, skill-expand, frontmatter, live-lib and pi-runtime;
+      requires an installed pi; they load the extension through pi's own jiti)
 - [ ] Read `sync-upstream.sh`'s drift warning, printed when upstream `main`
       has moved past the tag (see "Sync script details"). If it has, decide
       whether to sync the tag as-is or a SHA on `main` instead
       (`bash scripts/sync-upstream.sh <40-hex-sha>`). A tag can sit behind
-      `main` for weeks without its own version bump, the warning is the only
-      thing that says so, and re-syncing a stale tag is a silent no-op while
-      real changes sit unsynced on `main`.
+      `main` for weeks without its own version bump, and the warning is the
+      only thing that says so.
 - [ ] License exceptions re-checked after any sync: `find skills -iname 'LICENSE*'` and
       `grep -h '^license:' skills/*/SKILL.md | sort -u`; record new non-MIT or
       NonCommercial skills under Provenance and in README credits
@@ -1761,10 +1800,14 @@ something behind them.
       lists skills only when a tool that can read them is enabled), so either
       reads as a false zero. Check by name presence, because the reported
       total also counts your personal skills.
-- [ ] `node scripts/test-batch.mjs --version <ver>` run, transcripts graded, and
-      `testing/ledger.json` updated with the new batch (see "Functional testing")
+- [ ] Skill batch: `node scripts/test-batch.mjs --version <ver>` run, transcripts
+      graded, and `testing/ledger.json` updated (see "Functional testing"). Not
+      required for a release that only takes a new upstream snapshot (the
+      maintainer's call since 1.8.0): the offline suites suffice, and "Run
+      record by release" says that no batch ran
 - [ ] `node scripts/test-find-live.mjs` passes on a **small** model, recorded under
-      `extensionRuns` in the ledger. This is the gate for search mode: if a weak
+      `extensionRuns` in the ledger, whenever the release changes `sci_find`, its
+      description or `aliases.ts`. This is the gate for search mode: if a weak
       model does not reach for `sci_find`, fix the tool description and
       `aliases.ts` before release
 - [ ] `extensions/package-info.ts` `PACKAGE_VERSION` bumped alongside
@@ -1775,7 +1818,8 @@ something behind them.
       prior-version config still leaves `settings.json` byte-identical
       (`npm run test:extension` asserts this; re-read the wording by hand)
 - [ ] `package.json` `version` bumped on our own line; `upstreamVersion` matches
-      the synced tag; README's `v<upstream>` mentions agree with it
+      the synced tag; README's `v<upstream>` mentions agree with it; the GitHub
+      repo's About text states the current skill count (not checked by validate)
 - [ ] git commit + push, PR merged to `main` (GitHub)
 - [ ] `npm publish` from `main` (requires npm login) → gallery auto-lists via
       `pi-package` keyword; confirm with `npm view pi-scientific-skills version`

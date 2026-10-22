@@ -299,7 +299,7 @@ const noMatchText = (query: string): string =>
 
 /**
  * The profile that `text` names, if any. This is the one test for "this text
- * is a profile id": `formatProfile` lists the profile it finds, and the search
+ * is a profile id": `runFind` lists the profile it finds, and the search
  * stage does not count such a query as a search. One shared test keeps the
  * two from drifting apart.
  */
