@@ -164,7 +164,7 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   trained to 100% on GunPoint, or a live CELLxGENE Census query. Coverage grows
   with each skill batch. The per-skill record is `testing/ledger.json`, with the
   notes in [DOCUMENTATION.md](DOCUMENTATION.md#functional-testing).
-- **`/sci` and `sci_find`, automated on every change:** 256 behavioural checks
+- **`/sci` and `sci_find`, automated on every change:** 265 behavioural checks
   against a stubbed pi (`/sci search` writes the empty search-mode filter;
   `sci_find` renders in the tools section of pi's default system prompt, built by
   pi's own builder; `/sci all` preserves hand-written `!pattern` overrides; a
@@ -174,7 +174,9 @@ Each skill directory ships `SKILL.md` (frontmatter + instructions) and, where us
   three argument forms), 193 ranking checks against the real 176 descriptions,
   7 checks that **pi itself** honours the filter through a real
   `DefaultPackageManager`, and 189 frontmatter parity checks against pi's own
-  parser (every skill plus synthetic edge cases). The first-run offer is
+  parser (every skill plus synthetic edge cases), and
+  7 real-session checks of sci_find's pi 1.0 tool fields (read-only hints,
+  codemode scripts get data, inert on pi 0.87). The first-run offer is
   driven through pi's real TUI over a pty. `npm run try` opens this package in
   a throwaway pi and never touches your own `~/.pi/agent`.
 - **A 7.2 GB local model finds skills it cannot see.** Ternary Bonsai 2 27B,

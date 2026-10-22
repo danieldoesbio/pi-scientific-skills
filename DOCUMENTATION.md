@@ -216,6 +216,7 @@ scripts/sync-upstream.sh  # re-sync skills/ from upstream
 scripts/validate.mjs    # pi-rule validation across all skills, plus extensions/ drift checks
 scripts/test-search.mjs # sci_find ranking against the real 176 descriptions
 scripts/test-extension.mjs   # command and startup behaviour against a stubbed ExtensionAPI
+scripts/test-pi-runtime.mjs # sci_find's pi 1.0 tool fields, checked in a real pi session with a scripted model
 scripts/test-filter.mjs # checks that pi itself honours the filter we write
 scripts/test-skill-expand.mjs  # checks our /skill: block is byte-identical to pi's (pi's own method is the oracle)
 scripts/test-tui-offer.py    # pi's real TUI, driven through a pty (no tokens)
@@ -345,7 +346,7 @@ search rate (11/12 in both arms).
 A three-arm run over 161 probes then measured the default change itself
 (`testing/runs/2026-09-25-night-arms.md`): the model read the target skill on
 157 with the 1.7.0 design as first built, on 116 with 1.6.0 search mode (+25.5
-points, 95% CI 18.4 to 32.9) and on 158 with all 162 skills listed. It read all
+points, 95% CI 18.4 to 32.9) and on 158 with every skill listed (162 at the time). It read all
 ten Core targets in every arm. That 1.7.0 arm is the build at commit `08aff2e`,
 which still had the old ranker, 8 hits and a `limit` argument the model could
 set; the BM25F ranker and the 3-then-5 list came later (`713d6e8`). The gain
@@ -555,6 +556,37 @@ own call). So `join(dirname(fileURLToPath(import.meta.url)), "..", "skills")` is
 correct. The result must pass a `SKILL.md` check: if the directory does not
 hold skills, the tool is not registered, so the model is never handed paths
 that do not exist.
+
+**pi 1.0 tool fields (since 0.99; inert on 0.87).** `sci_find` declares three
+fields pi added in 0.99 (pi's `docs/extensions.md`, "Tools" and "Tool
+exposure"), and the model on the direct path reads the same text as before:
+
+- `annotations`: `readOnlyHint: true`, `destructiveHint: false`,
+  `idempotentHint: true`, `openWorldHint: false`. pi does not act on them
+  itself; a permission extension that confirms calls by these hints (the
+  example in pi's docs, modelled on Codex's approvals) lets `sci_find` through
+  without asking.
+- `outputSchema` and `structuredContent`: a codemode script's
+  `tools.sci_find(...)` resolves to an object, not the text:
+  `{ kind, query, profile, skills, profiles }`, where `kind` is `search`,
+  `no-match`, `profile`, `profile-index`, `unknown-profile` or `unavailable`,
+  each skill is `{ name, description, path, dir, notInAnyProfile }`, and every
+  field is present (`null` when not given). Same ranker, same hit count (3,
+  then 5) and same order as the text; descriptions are always full, whatever
+  `PI_SCI_FIND_FORMAT` says. The schema is never sent to a provider (pi-ai
+  serialises name, description and parameters only), so it costs nothing
+  without codemode; with codemode on, pi appends one line naming the five
+  fields to the tool's description.
+- `isError` on the result: an unknown profile id, or a package whose `skills/`
+  cannot be located, is a failed call on 1.0. The text is unchanged and still
+  lists the real profiles. A query that matches nothing is not an error.
+
+All three ride on the tool definition and the result object, with no version
+check. pi 0.87 ignores them: `wrapToolDefinition` copies only the fields it
+knows, and pi-agent-core's `createToolResultMessage` builds the message from
+`content`, `details` and `usage`. `index.ts` spreads them in from one object so
+the definition still type-checks against 0.87's declarations.
+`scripts/test-pi-runtime.mjs` checks both halves in a real pi session.
 
 ### Startup messaging: the obligation, and where it is enforced
 
@@ -818,7 +850,7 @@ imports: `from "./profiles"` is correct, although raw Node ESM rejects it.
 directly), so the suites exercise the same module graph pi does. An installed
 pi is therefore a hard prerequisite for `npm test`.
 
-`npm test` runs seven things, none of which spend model tokens:
+`npm test` runs eight things, none of which spend model tokens:
 
 | Script | What it proves |
 |---|---|
@@ -829,6 +861,7 @@ pi is therefore a hard prerequisite for `npm test`.
 | `test-skill-expand.mjs` | That the `/skill:` block the input hook builds for a filtered-out skill is byte-identical to the one pi builds for a loaded skill, with `AgentSession.prototype._expandSkillCommand` as the oracle, across all 176 skills × 3 argument forms. Also that pi's `parseSkillBlock` reads it back, and that both sides agree on the miss cases. |
 | `test-frontmatter.mjs` | That `extensions/frontmatter.ts` parses all 176 SKILL.md files and 13 edge cases the way pi's own parser does. |
 | `test-live-lib.mjs` | The live harness's grading helpers, on synthetic pi sessions: the read endpoint, the skill-seeking test, the timeout gate, the context and overflow measures, and how the conversation loop ends an attempt (`reached`, `gated`, `overflow`, `searched` under `first-find`, a provider error as `no-run`). Also the llama-server log parser and its join to pi's messages (`find-live-timing.mjs`); the paired statistics and analysis set (`find-live-arms-report.mjs`); the choice-turn replay helpers and the replay's analysis set and validity rules (`find-live-replay.mjs`); the pooled analysis of two samples with its seeded cluster bootstrap (`find-live-replay-pooled.mjs`); the first-search facts of `find-ab-report.mjs`; the category and panel-report helpers of `find-panel-report.mjs`; and `find-embed-compare.mjs`'s arms, metrics and both embedding wire formats, against a local stand-in server. A wrong endpoint, gate, join, interval or analysis set still produces numbers in a live run, so they are checked here. Last, that no provider key reaches the model's side of the sandbox (`scripts/lib/key-proxy.mjs`, `scripts/lib/agent-seed.mjs`). |
+| `test-pi-runtime.mjs` | That pi **itself** honours `sci_find`'s pi 1.0 tool fields (`annotations`, `outputSchema`, `structuredContent`, `isError`) in a real `AgentSession` from the installed pi's SDK, with pi-ai's scripted faux provider as the model: no network, no key. On 0.99+ the fields arrive; on 0.87 they are ignored and the text is unchanged. |
 | `test-tui-offer.py` | The first-run offer in pi's real TUI, driven through a pty: accepting writes the empty search-mode filter; declining and timing out write nothing. The only check that runs the unstubbed accept path, so the only one that proves pi dispatches the accepted offer as a command and the filter is written (`test-extension.mjs` checks only that `expandPromptTemplates: true` reaches its stub). Spends no tokens, but needs a pty, so it is not in `npm test`. |
 | `doc-count.mjs` | Not a suite: the five suites built on `scripts/lib/harness.mjs` call it last, so the README's check count for each of them cannot silently go stale. |
 | `try-it.sh` | Not a test: a sandbox. Packs the tarball, seeds a throwaway `PI_CODING_AGENT_DIR` for one of five startup scenarios, and opens pi. It never touches `~/.pi/agent`, deletes the credential copy on any exit, and reports afterwards whether `settings.json` changed. `--check` asserts the scenario's message headlessly instead of opening the TUI. |
@@ -1607,7 +1640,7 @@ scrubbed transcripts are in `testing/transcripts/<version>/`.
   `testing/ledger.json` and a notebook in `testing/runs/`:
   `2026-09-25-night-arms.md` (Bonsai 2 27B, three arms over 161 probes: the
   target skill read on 157 with the 1.7.0 design as first built, on 116 with
-  1.6.0 search mode, on 158 with all 162 skills listed),
+  1.6.0 search mode, on 158 with every skill listed (162 at the time)),
   `2026-09-27-find-ranker.md` (offline, 321 held-out requests: BM25F top 3
   held the target 310 times, the old ranker's top 8, 283 times) and
   `2026-09-29-openrouter-ab.md` (Gemma 4 26B-A4B, old search against new
@@ -1628,6 +1661,36 @@ scrubbed transcripts are in `testing/transcripts/<version>/`.
   (ranking re-checked on the rewritten descriptions,
   `testing/runs/2026-10-05-v2.72.0-sync.md`) and `npm run typecheck`. The
   count of skills run stays at 43.
+- **1.8.1 (0):** no skill batch, and no live `sci_find` run at release.
+  Ships on top of the published 1.8.0 (npm and tag `v1.8.0`, 2026-10-14),
+  with two extension and docs changes: `sci_find`'s pi 1.0 tool fields (see "pi 1.0 tool fields"
+  under Search mode), checked in a real pi session by `test-pi-runtime.mjs`,
+  and the docs cleanup that taught `validate.mjs` to check the skill counts in
+  DOCUMENTATION.md and the `package.json` description. On the direct path the
+  model reads the same `sci_find` text as in 1.8.0, so no small-model run was
+  repeated. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and
+  `npm run typecheck`. Before this release, a codemode run on Bonsai 2 27B ran
+  on pi 1.0.0 (2026-10-08 and 2026-10-09, `b4af20f`, 161 probes, three arms;
+  plan and results in `testing/runs/2026-10-06-codemode-bonsai.md`). Read rate:
+  `direct` 156, `cm-on` 153, `cm-only` 142. `cm-on` is not shown non-inferior
+  to `direct` on the pre-registered set (-1.9 points, CI -5.9 to 1.7, margin -5)
+  and no attempt called codemode; `cm-only` is worse (-8.7 points, CI -14.2 to
+  -4.2). It adds no skill to the count of skills run.
+- The other 133 have not been exercised here; they ship as upstream ships them.
+
+### What pi does and does not enforce
+
+- `allowed-tools` in a skill's frontmatter is inert in pi: there is no
+  pre-approval gate, and no functional harm. Skills that need heavy Python
+  stacks (scanpy, rdkit, torch, …) need those installed in the user's
+  environment, as in any harness.
+- Upstream notes that review depth varies by authorship: K-Dense-authored
+  skills go through their internal review, while community-contributed skills
+  are reviewed "to the best of our ability, but with limited resources", and
+  upstream advises against enabling everything at once. This package ships the
+  full snapshot; `/sci` (or `pi config`) is how a user narrows it to what they
+  intend to run. An enabled skill is third-party code the user is choosing to
+  execute.
 - The other 133 have not been exercised here; they ship as upstream ships them.
 
 ### What pi does and does not enforce
