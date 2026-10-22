@@ -217,7 +217,7 @@ const enableSearchMode = (ctx: CommandContext): Promise<void> =>
 /**
  * Human-facing search, and the fallback for models too weak to tool-call.
  * Same ranker as `sci_find`. It passes no hit count, so it lists more hits than
- * the model is shown (see runToolSearch).
+ * the model is shown (see `runFind` in catalog.ts).
  */
 const runFind = (ctx: UiContext, query: string): void => {
   report(ctx, runToolSearch({ query }), SKILLS_DIR ? "info" : "warning");

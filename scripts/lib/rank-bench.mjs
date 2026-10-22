@@ -47,21 +47,21 @@ export const targetRanks = (set, rank) =>
 export const topShare = (ranks, k) => ranks.filter((r) => r >= 1 && r <= k).length / Math.max(1, ranks.length);
 
 /**
- * The 1.8.0 release: the last release with the older "current" ranker and its
+ * The 1.8.1 release (tag v1.8.1): the last release with the older "current" ranker and its
  * PI_SCI_FIND_RANKER switch. A new comparison against that ranker can run
  * from a checkout of it. A recorded run reproduces only from the tree it ran
  * on, which its run record names: the 2026-09-27 runs predate the v2.72.0
  * sync, whose descriptions rank differently.
  */
-export const OLD_RANKER_COMMIT = "e190c57";
+export const OLD_RANKER_COMMIT = "5e9496f";
 export const NO_OLD_RANKER =
-  `the "current" ranker was removed after 1.8.0; run this from a checkout that has it (${OLD_RANKER_COMMIT} is the last ` +
+  `the "current" ranker was removed after 1.8.1; run this from a checkout that has it (${OLD_RANKER_COMMIT} is the last ` +
   `release with it; to reproduce a recorded run, use the commit its run record names)`;
 
 /**
  * The rankers a package directory's sci_find can run, read from its
  * extensions/search.ts: both while PI_SCI_FIND_RANKER existed (1.7.0 to
- * 1.8.0), bm25f only after, "current" only before bm25f was added.
+ * 1.8.1), bm25f only after, "current" only before bm25f was added.
  */
 export function rankersInPackage(packageDir) {
   const path = join(packageDir, "extensions", "search.ts");

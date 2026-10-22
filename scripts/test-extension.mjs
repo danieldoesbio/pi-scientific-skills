@@ -224,7 +224,7 @@ console.log("\n-- sci_find structured result --");
     text
       .split("\n")
       .filter((line) => line.startsWith("## "))
-      .map((line) => line.slice(3).split(" — ")[0]);
+      .map((line) => line.slice(3).split(" (not in any profile)")[0]);
   const loadPaths = (text) => [...text.matchAll(/^Load with: read (\S+)$/gm)].map((match) => match[1]);
 
   const hit = await call({ query: "variant calling from a bam file" });
@@ -246,12 +246,17 @@ console.log("\n-- sci_find structured result --");
     JSON.stringify(found).slice(0, 300),
   );
 
-  const heldOut = (await call({ query: "usfiscaldata" })).structuredContent;
+  const heldOutHit = await call({ query: "usfiscaldata" });
+  const heldOut = heldOutHit.structuredContent;
   const fiscal = heldOut?.skills.find((skill) => skill.name === "usfiscaldata");
+  const fiscalHeading = heldOutHit.content[0].text.split("\n").find((line) => line.startsWith("## usfiscaldata"));
   check(
     "a held-out skill carries the same reason its heading gives",
-    typeof fiscal?.notInAnyProfile === "string" && fiscal.notInAnyProfile.startsWith("U.S. Treasury"),
-    JSON.stringify(fiscal),
+    typeof fiscal?.notInAnyProfile === "string" &&
+      fiscal.notInAnyProfile.startsWith("U.S. Treasury") &&
+      fiscalHeading === `## usfiscaldata (not in any profile): ${fiscal.notInAnyProfile}` &&
+      JSON.stringify(heldOut.skills.map((skill) => skill.name)) === JSON.stringify(headingNames(heldOutHit.content[0].text)),
+    JSON.stringify({ fiscal, fiscalHeading }).slice(0, 300),
   );
 
   const listed = await call({ profile: "drug-discovery" });

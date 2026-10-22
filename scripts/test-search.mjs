@@ -104,7 +104,7 @@ for (const [query, mustBeFirst] of RANKED) {
 
 note("\n-- ranker specifics --");
 {
-  // PI_SCI_FIND_RANKER=current selected the older ranker up to 1.8.0. It is
+  // PI_SCI_FIND_RANKER=current selected the older ranker up to 1.8.1. It is
   // gone; a user who still sets it must get the same results as anyone else.
   const query = "variant calling from a bam file";
   const plain = JSON.stringify(run(query).map((hit) => hit.entry.name));

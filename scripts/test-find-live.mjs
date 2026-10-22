@@ -71,7 +71,7 @@
 //                      the package default since 1.7.0. A package older than
 //                      5123f67 has no bm25f and runs current: pass current for
 //                      it, so the result lines record what ran. A package after
-//                      1.8.0 has bm25f only. The harness refuses a ranker the
+//                      1.8.1 has bm25f only. The harness refuses a ranker the
 //                      package does not have.
 //   --models-json <file>  Seed the throwaway agent dir with this models.json
 //                      instead of the real one (e.g. a provider on another

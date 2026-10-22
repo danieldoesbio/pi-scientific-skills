@@ -216,7 +216,7 @@ const heldOutReason = (name: string): string | undefined => {
   return reason ? firstSentence(reason) : undefined;
 };
 
-/** The "not in any profile: <reason>" heading suffix, or "" for a skill some profile lists. */
+/** The " (not in any profile): <reason>" heading suffix, or "" for a skill some profile lists. */
 const unassignedCaveat = (name: string): string => {
   const reason = heldOutReason(name);
   return reason ? ` (not in any profile): ${reason}` : "";

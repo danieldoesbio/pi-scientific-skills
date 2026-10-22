@@ -17,7 +17,7 @@
 //   node <out>/src/scripts/find-panel-report.mjs <panel-dir>... [-o <file>]
 //
 // Run the frozen copy: the rankers load from this script's own tree, which
-// must be 1.8.0 or earlier to have the current ranker (lib/rank-bench.mjs).
+// must be 1.8.1 or earlier to have the current ranker (lib/rank-bench.mjs).
 // Reads
 // results-<writer>-<style>.jsonl in each directory. Report on stdout (or -o).
 // Exit 0, 1 on a runtime error, 2 on bad arguments.
