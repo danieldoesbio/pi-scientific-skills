@@ -1,6 +1,6 @@
 /**
- * The `/sci profiles` picker: a fallback `select()` loop for older pi builds
- * or RPC mode, and the real focused checkbox list for everything else.
+ * The `/sci profiles` picker: a focused checkbox list, with a `select()` loop
+ * as the fallback for older pi builds and RPC mode.
  */
 
 import { describeCost, describeSearchMode, skillsForSelection } from "./catalog";
@@ -17,12 +17,13 @@ import {
 } from "./types";
 
 // ---------------------------------------------------------------------------
-// Fallback picker — repeated select(), used when ui.custom is unavailable
+// Fallback picker: repeated select(), used when ui.custom is unavailable
 // ---------------------------------------------------------------------------
 
-// No "A)"/"X)" prefixes: ctx.ui.select renders a plain SelectList driven by
-// arrows + enter (pi-tui select-list.js), with no hotkey or type-to-filter
-// binding. Numbering the rows advertised keys that do nothing.
+// No "A)"/"X)" prefixes: in pi's TUI, ctx.ui.select renders
+// ExtensionSelectorComponent, driven by arrows (or j/k) and enter, with no
+// per-row hotkey or type-to-filter binding (an RPC client draws its own list).
+// Numbered rows would advertise keys that do nothing.
 const APPLY = "Apply and reload";
 const SELECT_ALL = "Select all profiles";
 const CLEAR = "Clear selection";
@@ -31,21 +32,20 @@ const CANCEL = "Cancel";
 const toggleRows = (selected: ReadonlySet<string>): string[] =>
   TOGGLES.map((toggle) => {
     const mark = selected.has(toggle.id) ? "x" : " ";
-    return `[${mark}] ${toggle.label} — ${toggle.skills.length} skills`;
+    return `[${mark}] ${toggle.label} (${toggle.skills.length} skills)`;
   });
 
 /**
  * Apply and Cancel lead, the rare bulk actions trail.
  *
- * SelectList caps its viewport at 12 rows, and this menu has more entries than
- * that, so anything at the bottom starts below the fold. Apply is the one row
- * every session must reach. It also lands under the cursor after each toggle,
- * because select() rebuilds the list each call with selectedIndex 0 — so the
- * common "tick a profile, apply" path is two keystrokes. The list wraps, so the
- * trailing bulk actions are still one Up press from the top.
+ * Apply is the one row every session must reach. It also lands under the
+ * cursor after each toggle, because select() rebuilds the list each call with
+ * selectedIndex 0, so the common "tick a profile, apply" path is two
+ * keystrokes. pi's TUI select() list does not wrap, so the trailing bulk actions
+ * are a run of Down presses away; they are rarely needed.
  *
- * That cursor reset is why this is only the fallback now: it makes toggling two
- * adjacent profiles needlessly slow. See createProfileList.
+ * That cursor reset is why this is only the fallback: it makes toggling two
+ * adjacent profiles slow. See createProfileList.
  */
 const pickerRows = (rows: readonly string[]): string[] => [
   APPLY,
@@ -62,7 +62,7 @@ const withToggled = (selected: ReadonlySet<string>, id: string): ReadonlySet<str
 };
 
 // ---------------------------------------------------------------------------
-// Profile picker — real multiselect via ctx.ui.custom
+// Profile picker: a multiselect via ctx.ui.custom
 // ---------------------------------------------------------------------------
 
 interface PickerResult {
@@ -70,7 +70,7 @@ interface PickerResult {
   readonly selected: readonly string[];
 }
 
-/** Rows visible at once, matching the cap ui.select applies to SelectList. */
+/** Rows visible at once. This cap is our own: in pi's TUI, ui.select renders every row. */
 const PICKER_VIEWPORT = 12;
 
 const PICKER_HINT = "↑↓ move · space toggle · a all · n none · enter apply · esc cancel";
@@ -81,16 +81,17 @@ const clamp = (value: number, min: number, max: number): number =>
 /**
  * A focused checkbox list that owns its cursor.
  *
- * The select()-driven picker this replaces had to reopen the dialog on every
- * toggle, and `ui.select` builds a fresh SelectList each call with
- * selectedIndex 0 and exposes no initial-index option
- * (`ExtensionUIDialogOptions` is only `signal`/`timeout`). So the cursor
- * snapped back to the top after each tick and selecting two adjacent profiles
- * meant navigating down twice. Holding the cursor across toggles requires
- * owning the component, which is what ui.custom is for.
+ * A select()-driven picker reopens the dialog on every toggle, and in pi's TUI
+ * `ui.select` builds a fresh ExtensionSelectorComponent each call with
+ * selectedIndex 0 and no initial-index option (`ExtensionUIDialogOptions` is
+ * only `signal`/`timeout`). So the cursor snaps back to the top after each
+ * tick, and selecting two adjacent profiles means navigating down twice.
+ * Holding the cursor across toggles requires owning the component, which is
+ * what ui.custom is for. See "Why the picker is a custom component" in
+ * DOCUMENTATION.md.
  *
- * Cursor and checkbox state are mutable locals in this closure — a focused TUI
- * component is inherently stateful, and the state never escapes: `done` is
+ * Cursor and checkbox state are mutable locals in this closure. A focused TUI
+ * component is stateful by nature, and the state never escapes: `done` is
  * handed a fresh array.
  */
 const createProfileList = (
@@ -113,10 +114,10 @@ const createProfileList = (
 
     render(): string[] {
       const skills = skillsForSelection(selected);
-      const lines = [`Scientific skills — ${describeCost(skills.length)}`, ""];
+      const lines = [`Scientific skills: ${describeCost(skills.length)}`, ""];
 
-      // Keep the cursor centred where possible, exactly as SelectList does, so
-      // scrolling feels identical to every other list in pi.
+      // Keep the cursor centred where possible, as pi-tui's SelectList does,
+      // so scrolling matches pi's other lists.
       const start = clamp(
         cursor - Math.floor(PICKER_VIEWPORT / 2),
         0,
@@ -128,7 +129,7 @@ const createProfileList = (
         const toggle = TOGGLES[i];
         const mark = selected.has(toggle.id) ? "x" : " ";
         const prefix = i === cursor ? "→ " : "  ";
-        lines.push(`${prefix}[${mark}] ${toggle.label} — ${toggle.skills.length} skills`);
+        lines.push(`${prefix}[${mark}] ${toggle.label} (${toggle.skills.length} skills)`);
       }
 
       if (start > 0 || end < TOGGLES.length) {
@@ -155,8 +156,8 @@ const createProfileList = (
         done({ action: "cancel", selected: [] });
         return;
       }
-      // Plain characters reach us untouched: SelectList ignores everything but
-      // the four bindings above, so these letters collide with nothing.
+      // Plain characters reach us untouched, and pi-tui's SelectList binds only
+      // the four actions above, so these letters collide with no list binding.
       if (data === " ") {
         toggleAt(cursor);
         return;
@@ -180,18 +181,19 @@ const sameSkills = (a: readonly string[], b: readonly string[]): boolean => {
 
 /**
  * The picker seeds its checkboxes from our own config file, so a filter written
- * by hand — or a selection made before /sci existed — would render as "nothing
+ * by hand, or a selection made before /sci existed, would render as "nothing
  * selected" and be replaced on Apply without a word. Ask first.
  *
- * Override patterns are excluded from the comparison because applyPlanToEntry
- * preserves them; only plain include patterns are at risk.
+ * Override patterns are left out of the comparison because applyPlanToEntry
+ * carries them over (search mode drops them, and commitPlan names each one), so
+ * only plain include patterns could vanish silently.
  */
 const confirmReplacingUnknownFilter = async (
   ctx: UiContext,
   saved: ReadonlySet<string>,
 ): Promise<boolean> => {
   const settings = await readSettings(settingsPath());
-  if (settings.kind !== "ok") return true; // applyToSettings reports this properly
+  if (settings.kind !== "ok") return true; // applyToSettings reports this
 
   const location = findPackageEntry(settings.document.packages);
   if (!location) return true;
@@ -246,14 +248,14 @@ export const runPicker = async (ctx: CommandContext): Promise<void> => {
  *
  * Prefers the custom multiselect and falls back to the select() loop when
  * ui.custom is absent (older pi) or returns undefined (RPC mode), so the
- * command still works everywhere it used to.
+ * command also works on older pi and in RPC mode.
  */
 const choose = async (
   ctx: CommandContext,
   saved: ReadonlySet<string>,
 ): Promise<ReadonlySet<string> | undefined> => {
-  // Safe to call detached: pi binds this as an arrow property on the UI context
-  // (`interactive-mode.js:1695`), so it carries its own `this`.
+  // Safe to call detached: pi's InteractiveMode.createExtensionUIContext defines
+  // `custom` as an arrow property, so it carries its own `this`.
   const custom = ctx.ui.custom;
   if (custom) {
     const result = await custom<PickerResult>((_tui, _theme, keybindings, done) =>
@@ -275,7 +277,7 @@ const chooseViaSelect = async (
 
   for (;;) {
     const skills = skillsForSelection(selected);
-    const prompt = `Scientific skills — ${describeCost(skills.length)}`;
+    const prompt = `Scientific skills: ${describeCost(skills.length)}`;
     const rows = toggleRows(selected);
     const choice = await ctx.ui.select(prompt, pickerRows(rows));
 

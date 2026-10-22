@@ -13,10 +13,10 @@ import type { UiContext } from "./types";
 // ---------------------------------------------------------------------------
 
 /**
- * pi's own resolver: it honours $PI_CODING_AGENT_DIR (and the equivalent
- * variable in a rebranded distribution) before falling back to ~/<config>/agent.
- * Reconstructing the fallback here would point /sci at a settings.json that pi
- * is not reading.
+ * pi's own resolver (`getAgentDir`): it honours $PI_CODING_AGENT_DIR (or a
+ * rebranded distribution's equivalent) before falling back to
+ * ~/<config>/agent. Rebuilding the fallback here would point /sci at a
+ * settings.json that pi is not reading.
  */
 export const agentDir = (): string => getAgentDir();
 export const settingsPath = (): string => join(agentDir(), "settings.json");
@@ -41,9 +41,9 @@ export const sleep = (ms: number): Promise<void> =>
 // ---------------------------------------------------------------------------
 
 /**
- * ctx.ui.notify is a no-op when no UI is bound (`pi -p`, JSON and RPC-less
- * modes), which is exactly where the non-interactive subcommands are used. Every
- * user-facing string goes through here so those runs are never silent.
+ * ctx.ui.notify is a no-op when no UI is bound (`pi -p` and JSON mode), which
+ * is where the non-interactive subcommands are used. Every user-facing string
+ * goes through here so those runs are never silent.
  */
 export const report = (
   ctx: UiContext,

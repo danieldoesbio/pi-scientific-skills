@@ -214,7 +214,9 @@ fi
 # Sets ARM_ARGS to the harness flags of one arm.
 arm_args() {
   case "$1" in
-    v16) ARM_ARGS=(--package-dir "$SRC/v16" --package-label "$V16_LABEL" --prompt-skills core) ;;
+    # 1.6.0 has only the "current" ranker, and the harness refuses a ranker
+    # the package lacks, so the arm names the one it runs.
+    v16) ARM_ARGS=(--package-dir "$SRC/v16" --package-label "$V16_LABEL" --prompt-skills core --find-ranker current) ;;
     v17) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills none) ;;
     full) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills all --no-extension) ;;
     direct) ARM_ARGS=(--package-dir "$SRC/v17" --package-label "$V17_LABEL" --prompt-skills none) ;;
