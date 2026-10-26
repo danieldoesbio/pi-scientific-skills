@@ -134,6 +134,10 @@ you decline, escape, or ignore it. On an upgrade it tells you once what
 changed and leaves your selection exactly as it was — your `settings.json` is
 not touched by an upgrade you didn't ask for.
 
+### What 1.8.2 changed
+
+- The package's `license` field now reads `MIT AND CC-BY-NC-SA-4.0`, because `what-if-oracle` carries its own CC BY-NC-SA 4.0 terms. This note used to say `LICENSE.md` governs every bundled skill, which did not match that skill. No skill text, extension code, or runtime behavior changed.
+
 ### What 1.8.1 changed
 
 - On pi 1.0, `sci_find` declares itself read-only, so a permission extension that checks tool hints lets it run without asking. A codemode script gets its result as data (skill names, descriptions and SKILL.md paths), and an unknown profile is reported as a failed call. The model reads the same text as before, and on pi 0.87 nothing changes ([details](DOCUMENTATION.md#search-mode--progressive-disclosure-for-the-model-v110)).
@@ -276,7 +280,7 @@ None exist yet. **All 176 skills shipped today are upstream's.**
 - **Third-party terms carried inside skills.** Several skills document terms on the models, data or files they use, and those terms bind you, not the MIT skill text. They ship verbatim from upstream: `timesfm-forecasting` (TimesFM 3.0 weights are non-commercial and non-production; the skill defaults to the Apache-2.0 2.5 checkpoint), `molfeat` (some pretrained featurizers need an upstream noncommercial licence acknowledgement), `alphagenome` (the API is non-commercial), `latex-posters` (keep `baposter.cls`'s GPL notice when you vendor it), `pathogen-variant-surveillance` (open endpoints are not a data-use licence; keep Pathoplexus attribution and terms), `protocolsio-integration` (protocols.io content is CC BY and needs attribution), and `dhdna-profiler` (attribution to AHK Strategies; the MIT licence does not relicense the linked research or product). Read the skill before relying on its outputs commercially.
 - **Noncommercial academic distribution.** This package is maintained by a graduate student as noncommercial academic work. That says how it is made, not what you may do with it: your own use of a non-commercial model, dataset or service above still has to meet that provider's terms.
 - **Not included:** `fictiv`, which drives a commercial manufacturing site through to uncancellable paid orders. That is the only difference from upstream's `skills/`. Anthropic's `docx`, `pdf`, `pptx` and `xlsx` skills, whose licence reserves all rights and forbids redistribution, were never shipped here; upstream dropped them itself in v2.72.0, and they stay on the exclusion list as a guard. (`pptx-posters` is K-Dense's own skill and *is* included.)
-- Pi packaging, the `/sci` extension, and maintenance by **[danieldoesbio](https://github.com/danieldoesbio)** — © 2026, MIT, same terms as above. This covers `extensions/` and `scripts/` only; `LICENSE.md` is reproduced unmodified from upstream and governs the bundled skills.
+- Pi packaging, the `/sci` extension, and maintenance by **[danieldoesbio](https://github.com/danieldoesbio)** — © 2026, MIT, same terms as above. This covers `extensions/` and `scripts/` only. `LICENSE.md` is reproduced unmodified from upstream and governs the bundled skills, except `what-if-oracle`, which keeps its own CC BY-NC-SA 4.0 terms as stated above.
 
 ### How this port was made
 

@@ -42,7 +42,7 @@ as-is — no translation layer, no code conversion. The "port" consists of:
   copied. This snapshot is the `v2.72.0` tag itself (`526ebce`); upstream
   `main` was two commits past it (a docs pin and a security-scan report, neither
   touching `skills/`).
-- **License:** MIT, © 2025 K-Dense Inc. (`LICENSE.md` is the upstream text verbatim).
+- **License:** MIT, © 2025 K-Dense Inc. (`LICENSE.md` is the upstream text verbatim), except `what-if-oracle`, which is CC BY-NC-SA 4.0 (© AHK Strategies). That is why the package's `license` field reads `MIT AND CC-BY-NC-SA-4.0`.
 - **Relationship:** this repo is an independent distribution of the open-source
   skill collection. It is not affiliated with K-Dense Inc.
 - **Licensing notes on individual skills.** A skill's own `license:`
@@ -1577,6 +1577,7 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   and no attempt called codemode; `cm-only` is worse (-8.7 points, CI -14.2 to
   -4.2). It adds no skill to the count of skills run.
 - The other 133 have not been exercised here; they ship as upstream ships them.
+- **1.8.2 (0):** no skill batch, no live `sci_find` run, and no model batch at release. Housekeeping only: the `license` field, the license notes for `what-if-oracle` in the README and here, and the version bump. No skill text or extension code changed. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and `npm run typecheck`.
 
 ### What pi does and does not enforce
 
