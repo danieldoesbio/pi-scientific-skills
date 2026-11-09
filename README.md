@@ -136,7 +136,10 @@ not touched by an upgrade you didn't ask for.
 
 ### What 1.8.2 changed
 
-- The package's `license` field now reads `MIT AND CC-BY-NC-SA-4.0`, because `what-if-oracle` carries its own CC BY-NC-SA 4.0 terms. This note used to say `LICENSE.md` governs every bundled skill, which did not match that skill. No skill text, extension code, or runtime behavior changed.
+- The package's `license` field now reads `MIT AND CC-BY-NC-SA-4.0`, because `what-if-oracle` carries its own CC BY-NC-SA 4.0 terms. This note used to say `LICENSE.md` governs every bundled skill, which did not match that skill.
+- The pi peer dependency now has a floor of `>=0.87.0`, the oldest pi that CI runs. It has no ceiling, so pi versions older than 0.87.0 fall outside the declared range.
+
+No skill text or runtime behavior changed.
 
 ### What 1.8.1 changed
 

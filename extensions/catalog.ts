@@ -109,12 +109,13 @@ type Stripper = (text: string) => string;
 /**
  * pi's own frontmatter stripper, resolved lazily and optionally.
  *
- * Deliberately not a static named import. `peerDependencies` pins no floor
- * (`"*"`), so a pi build without this export is reachable, and a missing named
- * binding fails at module link and takes /sci and sci_find down with it. Lazy
- * and optional degrades to pi's existing behaviour instead of to a dead
- * extension. Exported from pi's `dist/index.js` (0.84.3: line 42). If anyone
- * converts this to a static import, `peerDependencies` needs a version floor.
+ * Deliberately not a static named import. `peerDependencies` floors pi at
+ * 0.87.0 and sets no ceiling, so a future pi build without this export is
+ * reachable, and a missing named binding fails at module link and takes /sci
+ * and sci_find down with it. Lazy and optional degrades to pi's existing
+ * behaviour instead of to a dead extension. Exported from pi's `dist/index.js`
+ * (0.84.3: line 42). Keep this lazy even with the floor; the floor alone does
+ * not protect against a later pi dropping the export.
  *
  * Not `./frontmatter`: that parser returns fields only, computes no body, and
  * its `m`-flag regex can match a mid-document `---` rule. Byte fidelity with

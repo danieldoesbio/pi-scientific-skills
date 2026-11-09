@@ -684,10 +684,10 @@ Five constraints that are not negotiable, each pinned by a test:
    arbitrary file read whose contents land in the user turn. The catalogue
    enumerates real directory entries, so there is nothing to escape.
 2. **`stripFrontmatter` is resolved lazily, not statically imported.**
-   `peerDependencies` pins no floor. On a pi build lacking the export a static
-   named import fails at module link and takes `/sci` and `sci_find` down with
-   it; a lazy import degrades to pi's existing behaviour. If anyone converts it
-   to a static import, add a version floor.
+   `peerDependencies` floors pi at 0.87.0 and sets no ceiling. On a future pi
+   build lacking the export a static named import fails at module link and
+   takes `/sci` and `sci_find` down with it; a lazy import degrades to pi's
+   existing behaviour. Keep it lazy even with the floor.
 3. **`extensions/frontmatter.ts` is not reused.** It returns fields only,
    computes no body, and its `m`-flag regex can match a mid-document `---`.
 4. **The gate is `pi.getCommands()`, not a regex over the system prompt.**
@@ -1577,7 +1577,7 @@ scrubbed transcripts are beside them in `testing/transcripts/<version>/`.
   and no attempt called codemode; `cm-only` is worse (-8.7 points, CI -14.2 to
   -4.2). It adds no skill to the count of skills run.
 - The other 133 have not been exercised here; they ship as upstream ships them.
-- **1.8.2 (0):** no skill batch, no live `sci_find` run, and no model batch at release. Housekeeping only: the `license` field, the license notes for `what-if-oracle` in the README and here, and the version bump. No skill text or extension code changed. The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and `npm run typecheck`.
+- **1.8.2 (0):** no skill batch, no live `sci_find` run, and no model batch at release. Housekeeping only: the `license` field, the license notes for `what-if-oracle` in the README and here, the pi peer floor (`>=0.87.0`, no ceiling), and the version bump. No skill text or extension behavior changed (one comment in `extensions/catalog.ts` now describes the floor). The offline gates ran on pi 0.87.0 and 1.0.0: `npm test` and `npm run typecheck`.
 
 ### What pi does and does not enforce
 
